@@ -1,0 +1,8 @@
+
+.idea
+
+*__pycache__**
+
+splice_ai_legacy
+splice_ai/outputs
+data/*
