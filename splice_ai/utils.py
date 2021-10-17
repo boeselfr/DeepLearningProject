@@ -172,12 +172,6 @@ def print_topl_statistics(y_true, y_pred):
 
     auprc = average_precision_score(y_true, y_pred)
 
-    # print ("%.4f\t\033[91m%.4f\t\033[0m%.4f\t%.4f\t\033[94m%.4f\t\033[0m"
-    #        + "%.4f\t%.4f\t%.4f\t%.4f\t%d") % (
-    #     topkl_accuracy[0], topkl_accuracy[1], topkl_accuracy[2],
-    #     topkl_accuracy[3], auprc, threshold[0], threshold[1],
-    #     threshold[2], threshold[3], len(idx_true))
-
     logging.info('Top-K Accuracy')
     logging.info('|0.5\t|1\t|2\t|4\t|')
     logging.info('|{:.4f}\t|{:.4f}\t|{:.4f}\t|{:.4f}\t|'.format(
@@ -225,8 +219,7 @@ def validate(model_m, h5f, idxs, CL, N_GPUS, BATCH_SIZE):
     Y_pred_1 = [[] for t in range(1)]
     Y_pred_2 = [[] for t in range(1)]
 
-    # for idx in idxs:
-    for idx in idxs[:5]:
+    for idx in idxs:
         X = h5f['X' + str(idx)][:]
         Y = tf.cast(h5f['Y' + str(idx)][:], tf.float32)
 
@@ -245,12 +238,12 @@ def validate(model_m, h5f, idxs, CL, N_GPUS, BATCH_SIZE):
             Y_pred_1[t].extend(Yp[t][is_expr, :, 1].flatten())
             Y_pred_2[t].extend(Yp[t][is_expr, :, 2].flatten())
 
-    print("\n\033[1mAcceptor:\033[0m")
+    print("\nAcceptor:")
     for t in range(1):
         print_topl_statistics(np.asarray(Y_true_1[t]),
                               np.asarray(Y_pred_1[t]))
 
-    print("\n\033[1mDonor:\033[0m")
+    print("\nDonor:")
     for t in range(1):
         print_topl_statistics(np.asarray(Y_true_2[t]),
                               np.asarray(Y_pred_2[t]))

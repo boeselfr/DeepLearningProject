@@ -34,8 +34,8 @@ W, AR, BATCH_SIZE = get_architecture(sys.argv[1], N_GPUS)
 CL = 2 * np.sum(AR * (W - 1))
 assert CL <= CL_max and CL == int(sys.argv[1])
 
-logging.debug(f'\033[1m Context nucleotides: {CL} \033[0m')
-logging.debug(f'\033[1m Sequence length (output): {SL} \033[0m')
+logging.debug(f' Context nucleotides: {CL} ')
+logging.debug(f' Sequence length (output): {SL} ')
 
 model = SpliceAI(L, W, AR)
 model.summary()
@@ -69,12 +69,11 @@ for epoch_num in range(EPOCH_NUM):
     Xc, Yc = clip_datapoints(X, Y, CL, N_GPUS)
     model_m.fit(Xc, Yc, batch_size=BATCH_SIZE, verbose=0)
 
-    # if (epoch_num+1) % len(idx_train) == 0:
-    if (epoch_num + 1) % 10 == 0:
+    if (epoch_num+1) % len(idx_train) == 0:
         # Printing metrics (see utils.py for details)
 
         print('--------------------------------------------------------------')
-        logging.debug('\n\033[1mValidation set metrics:\033[0m')
+        logging.debug('\nValidation set metrics:')
 
         validate(model_m, h5f, idx_valid, CL, N_GPUS, BATCH_SIZE)
         # validate(model_m, h5f, idx_train, CL, N_GPUS, BATCH_SIZE)

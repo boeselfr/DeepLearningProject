@@ -29,7 +29,7 @@ for v in range(len(version)):
 h5f = h5py.File(data_dir + 'dataset' + '_' + 'test'
                 + '_' + '0' + '.h5', 'r')
 
-num_idx = len(h5f.keys())//2
+num_idx = len(h5f.keys()) // 2
 
 ###############################################################################
 # Model testing
@@ -63,25 +63,22 @@ for output_class in [1, 2]:
                 Yp = [Yp]
 
             for t in range(1):
-                Yps[t] += Yp[t]/len(version)
+                Yps[t] += Yp[t] / len(version)
         # Ensemble averaging (mean of the ensemble predictions is used)
 
         for t in range(1):
-
-            is_expr = (Yc[t].sum(axis=(1,2)) >= 1)
+            is_expr = (Yc[t].sum(axis=(1, 2)) >= 1)
 
             Y_true[t].extend(Yc[t][is_expr, :, output_class].flatten())
             Y_pred[t].extend(Yps[t][is_expr, :, output_class].flatten())
 
-    print("\n\033[1m%s:\033[0m" % (output_class_labels[output_class]))
+    print("\n%s:" % (output_class_labels[output_class]))
 
     for t in range(1):
-
         Y_true[t] = np.asarray(Y_true[t])
         Y_pred[t] = np.asarray(Y_pred[t])
 
         print_topl_statistics(Y_true[t], Y_pred[t])
-
 
 h5f.close()
 
@@ -89,4 +86,3 @@ print("--- %s seconds ---" % (time.time() - start_time))
 print("--------------------------------------------------------------")
 
 ###############################################################################
-

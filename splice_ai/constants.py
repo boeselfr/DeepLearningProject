@@ -3,7 +3,7 @@ CL_max=80  # original 10000
 # position of interest)
 # CL_max should be an even number
 
-SL=256  # original 5000
+SL=10000  # original 5000
 # Sequence length of SpliceAIs (SL+CL will be the input length and
 # SL will be the output length)
 
