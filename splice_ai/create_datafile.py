@@ -1,9 +1,11 @@
 ###############################################################################
-'''This parser takes as input the text files gtex_dataset.txt and 
+"""
+This parser takes as input the text files gtex_dataset.txt and
 gtex_sequence.txt, and produces a .h5 file datafile_{}_{}.h5,
 which will be later processed to create dataset_{}_{}.h5. The file
 dataset_{}_{}.h5 will have datapoints of the form (X,Y), and can be
-understood by Keras models.'''
+understood by Keras models.
+"""
 ###############################################################################
 
 import numpy as np
@@ -11,7 +13,7 @@ import re
 import sys
 import time
 import h5py
-from constants import *
+from constants import CL_max, data_dir, sequence, splice_table
 
 start_time = time.time()
 
@@ -32,15 +34,15 @@ else:
 
 ###############################################################################
 
-NAME = []      # Gene symbol
-PARALOG = []   # 0 if no paralogs exist, 1 otherwise
-CHROM = []     # Chromosome number
-STRAND = []    # Strand in which the gene lies (+ or -)
+NAME = []  # Gene symbol
+PARALOG = []  # 0 if no paralogs exist, 1 otherwise
+CHROM = []  # Chromosome number
+STRAND = []  # Strand in which the gene lies (+ or -)
 TX_START = []  # Position where transcription starts
-TX_END = []    # Position where transcription ends
+TX_END = []  # Position where transcription ends
 JN_START = []  # Positions where gtex exons end
-JN_END = []    # Positions where gtex exons start
-SEQ = []       # Nucleotide sequence
+JN_END = []  # Positions where gtex exons start
+SEQ = []  # Nucleotide sequence
 
 fpr2 = open(sequence, 'r')
 
@@ -53,10 +55,10 @@ with open(splice_table, 'r') as fpr1:
         data2 = re.split('\n|\t|:|-', line2)[:-1]
 
         assert data1[2] == data2[0]
-        assert int(data1[4]) == int(data2[1])+CL_max//2+1
-        assert int(data1[5]) == int(data2[2])-CL_max//2
+        assert int(data1[4]) == int(data2[1]) + CL_max // 2 + 1
+        assert int(data1[5]) == int(data2[2]) - CL_max // 2
 
-        if (data1[2] not in CHROM_GROUP):
+        if data1[2] not in CHROM_GROUP:
             continue
 
         if (sys.argv[2] != data1[1]) and (sys.argv[2] != 'all'):
@@ -77,8 +79,8 @@ fpr2.close()
 
 ###############################################################################
 
-h5f = h5py.File(data_dir + 'datafile' 
-                + '_' + sys.argv[1] + '_' + sys.argv[2]
+h5f = h5py.File(data_dir + 'datafile_'
+                + sys.argv[1] + '_' + sys.argv[2]
                 + '.h5', 'w')
 
 h5f.create_dataset('NAME', data=np.asarray(NAME).astype('S'))
@@ -94,8 +96,6 @@ h5f.create_dataset('SEQ', data=SEQ)
 
 h5f.close()
 
-# print "--- %s seconds ---" % (time.time() - start_time)
 print("--- %s seconds ---" % (time.time() - start_time))
 
 ###############################################################################
-

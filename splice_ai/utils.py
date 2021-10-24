@@ -6,8 +6,9 @@ datafile_{}_{}.h5 and convert them into a format usable by Keras.'''
 import numpy as np
 import re
 from math import ceil
+
 from sklearn.metrics import average_precision_score
-from constants import *
+from constants import CL_max, SL
 import logging
 
 assert CL_max % 2 == 0
@@ -44,7 +45,7 @@ def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end):
     # and returns X, Y which can be used by Keras models.
 
     seq = 'N' * (CL_max // 2) + seq[CL_max // 2:-CL_max // 2] + 'N' * (
-                CL_max // 2)
+            CL_max // 2)
     # Context being provided on the RNA and not the DNA
 
     seq = seq.upper().replace('A', '1').replace('C', '2')
@@ -127,7 +128,7 @@ def reformat_data(X0, Y0):
 
 def clip_datapoints(X, Y, CL, N_GPUS):
     # This function is necessary to make sure of the following:
-    # (i) Each time model_m.fit is called, the number of datapoints is a
+    # (i) Each time model.fit is called, the number of datapoints is a
     # multiple of N_GPUS. Failure to ensure this often results in crashes.
     # (ii) If the required context length is less than CL_max, then
     # appropriate clipping is done below.
@@ -163,7 +164,7 @@ def print_topl_statistics(y_true, y_pred):
     topkl_accuracy = []
     threshold = []
 
-    for top_length in [0.5, 1, 2, 4]:
+    for top_length in [0.5, 1, 2, 2]:
         idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
 
         topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred)) \
@@ -182,11 +183,12 @@ def print_topl_statistics(y_true, y_pred):
     logging.info('|{:.4f}\t|{:.4f}\t|{:.4f}\t|{:.4f}\t|'.format(
         threshold[0], threshold[1], threshold[2], threshold[3]))
     logging.info(f'AUPRC: {auprc:.4f}')
-    logging.info(f'# True Splice Sites: {len(idx_true)}')
+    logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
+    logging.info('# Predicted Splice Sites: '
+                 f'{len(np.nonzero(y_pred > 0.5)[0])} / {len(y_pred)}')
 
 
 def get_architecture(size, N_GPUS):
-
     if int(size) == 80:
         W = np.asarray([11, 11, 11, 11])
         AR = np.asarray([1, 1, 1, 1])
@@ -209,42 +211,3 @@ def get_architecture(size, N_GPUS):
         BATCH_SIZE = 6 * N_GPUS
 
     return W, AR, BATCH_SIZE
-
-
-def validate(model_m, h5f, idxs, CL, N_GPUS, BATCH_SIZE):
-    import tensorflow as tf
-
-    Y_true_1 = [[] for t in range(1)]
-    Y_true_2 = [[] for t in range(1)]
-    Y_pred_1 = [[] for t in range(1)]
-    Y_pred_2 = [[] for t in range(1)]
-
-    for idx in idxs:
-        X = h5f['X' + str(idx)][:]
-        Y = tf.cast(h5f['Y' + str(idx)][:], tf.float32)
-
-        Xc, Yc = clip_datapoints(X, Y, CL, N_GPUS)
-        Yc = [y.numpy() for y in Yc]
-        Yp = model_m.predict(Xc, batch_size=BATCH_SIZE)
-
-        if not isinstance(Yp, list):
-            Yp = [Yp]
-
-        for t in range(1):
-            is_expr = (Yc[t].sum(axis=(1, 2)) >= 1)
-
-            Y_true_1[t].extend(Yc[t][is_expr, :, 1].flatten())
-            Y_true_2[t].extend(Yc[t][is_expr, :, 2].flatten())
-            Y_pred_1[t].extend(Yp[t][is_expr, :, 1].flatten())
-            Y_pred_2[t].extend(Yp[t][is_expr, :, 2].flatten())
-
-    print("\nAcceptor:")
-    for t in range(1):
-        print_topl_statistics(np.asarray(Y_true_1[t]),
-                              np.asarray(Y_pred_1[t]))
-
-    print("\nDonor:")
-    for t in range(1):
-        print_topl_statistics(np.asarray(Y_true_2[t]),
-                              np.asarray(Y_pred_2[t]))
-
