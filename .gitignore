@@ -7,3 +7,4 @@ splice_ai_legacy
 splice_ai/outputs
 data/*
 *Models/
+*wandb/

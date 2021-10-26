@@ -56,7 +56,7 @@ def validate(model, h5f, idxs, CL, N_GPUS, BATCH_SIZE):
                 m += len(preds)
 
                 partial_loss += categorical_crossentropy_2d(
-                    y, pred, weights=(1, 1, 1)).item()
+                    y, pred, weights=config.class_weights).item()
         total_loss += partial_loss
         total_len += len(dataloader.dataset)
 
@@ -108,16 +108,19 @@ h5f = h5py.File(data_dir + 'dataset_train_all.h5', 'r')
 
 num_idx = len(h5f.keys()) // 2
 idx_all = np.random.permutation(num_idx)
-idx_train = idx_all[:int(0.9 * num_idx)]
-idx_valid = idx_all[int(0.9 * num_idx):]
+train_ratio = 0.95
+idx_train = idx_all[:int(train_ratio * num_idx)]
+idx_valid = idx_all[int(train_ratio * num_idx):]
 
 EPOCH_NUM = 10 * len(idx_train)
 
 config = wandb.config
-config.batch_size = 16
+config.batch_size = BATCH_SIZE
 config.epochs = EPOCH_NUM
 config.CL = CL
 config.lr = 1e-3
+config.class_weights = (1, 10, 10)
+config.log_interval = 32
 
 model = SpliceAI(L, W, AR).to(device)
 summary(model, input_size=(4, CL + SL), batch_size=BATCH_SIZE)
@@ -147,13 +150,17 @@ for epoch_num in range(EPOCH_NUM):
     for batch, (X, y) in tqdm(enumerate(dataloader), total=size // BATCH_SIZE):
 
         pred = model(X)
-        loss = categorical_crossentropy_2d(y, pred, weights=(1, 1, 1))
+        loss = categorical_crossentropy_2d(
+            y, pred, weights=config.class_weights)
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item()
+
+        if batch % config.log_interval == 0:
+            pass
 
     print(f'Epoch loss: {total_loss / size:>12f}')
 
