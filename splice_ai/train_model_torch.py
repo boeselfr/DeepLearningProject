@@ -99,14 +99,15 @@ W, AR, BATCH_SIZE = get_architecture(sys.argv[1], N_GPUS)
 
 CL = 2 * np.sum(AR * (W - 1))
 assert CL <= CL_max and CL == int(sys.argv[1])
-logging.debug(f' Context nucleotides: {CL} ')
-logging.debug(f' Sequence length (output): {SL} ')
+logging.debug(f'Context nucleotides: {CL} ')
+logging.debug(f'Sequence length (output): {SL} ')
 
 h5f = h5py.File(data_dir + 'dataset_train_all.h5', 'r')
 
 num_idx = len(h5f.keys()) // 2
 idx_all = np.random.permutation(num_idx)
-train_ratio = 0.95
+
+train_ratio = 0.9
 idx_train = idx_all[:int(train_ratio * num_idx)]
 idx_valid = idx_all[int(train_ratio * num_idx):]
 
@@ -117,6 +118,7 @@ config.batch_size = BATCH_SIZE
 config.epochs = EPOCH_NUM
 config.CL = CL
 config.lr = 1e-3
+config.train_ratio = train_ratio
 config.class_weights = (1, 10, 10)
 config.log_interval = 32
 
@@ -162,14 +164,16 @@ for epoch_num in range(EPOCH_NUM):
         if batch % config.log_interval == 0:
             sums_true = y.sum(axis=(0, 2))
             sums_pred = pred.sum(axis=(0, 2))
+
+            total = sums_true.sum()
             wandb.log({
                 'loss': loss.item() / config.batch_size,
-                'true inactive': sums_true[0],
-                'true acceptors': sums_true[1],
-                'true donors': sums_true[2],
-                'predicted inactive': sums_pred[0],
-                'predicted acceptors': sums_pred[1],
-                'predicted donors': sums_pred[2],
+                'true inactive': sums_true[0] / total,
+                'true acceptors': sums_true[1] / total,
+                'true donors': sums_true[2] / total,
+                'predicted inactive': sums_pred[0] / total,
+                'predicted acceptors': sums_pred[1] / total,
+                'predicted donors': sums_pred[2] / total,
             })
 
     print(f'Epoch loss: {total_loss / size:>12f}')

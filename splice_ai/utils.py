@@ -190,14 +190,15 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type):
                  f'{no_positive_predictions} / {len(y_pred)}')
 
     wandb.log({
-        'Prediction Type': prediction_type,
-        'Test Loss': loss,
-        'AUPRC': auprc,
-        'Top-K Accuracy': topkl_accuracy,
-        'Thresholds for K': threshold,
-        '#True Splice Sites': len(idx_true),
-        '#Predicted Splice Sites': no_positive_predictions,
-        'Total Examples': len(y_true)
+        f'Prediction Type: {prediction_type}': prediction_type,
+        f'Test Loss: {prediction_type}': loss,
+        f'AUPRC: {prediction_type}': auprc,
+        f'Top-K Accuracy: {prediction_type}': topkl_accuracy,
+        f'Thresholds for K: {prediction_type}': threshold,
+        f'#True Splice Sites: {prediction_type}': len(idx_true),
+        f'#Predicted Splice Sitefs: {prediction_type}':
+            no_positive_predictions,
+        f'Total Examples: {prediction_type}': len(y_true)
     })
 
 
