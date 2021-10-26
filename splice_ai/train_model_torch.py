@@ -86,8 +86,6 @@ assert int(sys.argv[1]) in [80, 400, 2000, 10000]
 # Model
 ###############################################################################
 
-wandb.init(project='dl-project')
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 L = 32
@@ -121,6 +119,8 @@ config.CL = CL
 config.lr = 1e-3
 config.class_weights = (1, 10, 10)
 config.log_interval = 32
+
+wandb.init(project='dl-project', config=config)
 
 model = SpliceAI(L, W, AR).to(device)
 summary(model, input_size=(4, CL + SL), batch_size=BATCH_SIZE)
@@ -160,7 +160,17 @@ for epoch_num in range(EPOCH_NUM):
         total_loss += loss.item()
 
         if batch % config.log_interval == 0:
-            pass
+            sums_true = y.sum(axis=(0, 2))
+            sums_pred = pred.sum(axis=(0, 2))
+            wandb.log({
+                'loss': loss.item() / config.batch_size,
+                'true inactive': sums_true[0],
+                'true acceptors': sums_true[1],
+                'true donors': sums_true[2],
+                'predicted inactive': sums_pred[0],
+                'predicted acceptors': sums_pred[1],
+                'predicted donors': sums_pred[2],
+            })
 
     print(f'Epoch loss: {total_loss / size:>12f}')
 
