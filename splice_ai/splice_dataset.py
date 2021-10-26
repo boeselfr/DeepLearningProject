@@ -23,7 +23,8 @@ class SpliceDataset(Dataset):
         self.device = device
 
     def get_true(self, index, expr):
-        return self.Y[expr, :, index].flatten()
+        # return self.Y[expr, :, index].flatten()
+        return self.Y[expr, index, :].flatten()
 
     def get_expr(self):
         return self.Y.sum(axis=(1, 2)) >= 1

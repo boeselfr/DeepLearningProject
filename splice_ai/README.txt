@@ -20,3 +20,13 @@ qsub script_train.sh 10000 5
 qsub script_test.sh 10000
 
 # The code was tested using keras==2.0.5 and tensorflow==1.4.1
+
+
+bsub -R "rusage[mem=16000]" ./grab_sequence.sh
+bsub -R "rusage[mem=16000]" python create_datafile.py train all
+bsub -R "rusage[mem=16000]" python create_datafile.py test 0
+bsub -R "rusage[mem=16000]" python create_dataset.py train all
+bsub -R "rusage[mem=16000]" python create_dataset.py test 0
+
+bsub -R "rusage[mem=36000,ngpus_excl_p=1]" python -u train_model_torch.py 400 1
+

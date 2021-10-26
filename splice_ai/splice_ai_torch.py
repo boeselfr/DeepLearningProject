@@ -118,8 +118,8 @@ class SpliceAI(nn.Module):
         return out
 
 
-def categorical_crossentropy_2d(y_true, y_pred):
+def categorical_crossentropy_2d(y_true, y_pred, weights=(1, 1, 1)):
     return -torch.mean(
-        y_true[:, :, 0] * torch.log(y_pred[:, :, 0] + 1e-10)
-        + y_true[:, :, 1] * torch.log(y_pred[:, :, 1] + 1e-10)
-        + y_true[:, :, 2] * torch.log(y_pred[:, :, 2] + 1e-10))
+        weights[0] * y_true[:, :, 0] * torch.log(y_pred[:, :, 0] + 1e-10)
+        + weights[1] * y_true[:, :, 1] * torch.log(y_pred[:, :, 1] + 1e-10)
+        + weights[2] * y_true[:, :, 2] * torch.log(y_pred[:, :, 2] + 1e-10))

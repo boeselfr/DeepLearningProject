@@ -10,6 +10,7 @@ from math import ceil
 from sklearn.metrics import average_precision_score
 from constants import CL_max, SL
 import logging
+import wandb
 
 assert CL_max % 2 == 0
 
@@ -153,7 +154,7 @@ def one_hot_encode(Xd, Yd):
            [OUT_MAP[Yd[t].astype('int8')] for t in range(1)]
 
 
-def print_topl_statistics(y_true, y_pred):
+def print_topl_statistics(y_true, y_pred, loss, prediction_type):
     # Prints the following information: top-kL statistics for k=0.5,1,2,4,
     # auprc, thresholds for k=0.5,1,2,4, number of true splice sites.
 
@@ -164,7 +165,7 @@ def print_topl_statistics(y_true, y_pred):
     topkl_accuracy = []
     threshold = []
 
-    for top_length in [0.5, 1, 2, 2]:
+    for top_length in [0.5, 1, 2, 4]:
         idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
 
         topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred)) \
@@ -173,6 +174,7 @@ def print_topl_statistics(y_true, y_pred):
 
     auprc = average_precision_score(y_true, y_pred)
 
+    no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
     logging.info('Top-K Accuracy')
     logging.info('|0.5\t|1\t|2\t|4\t|')
     logging.info('|{:.4f}\t|{:.4f}\t|{:.4f}\t|{:.4f}\t|'.format(
@@ -185,7 +187,18 @@ def print_topl_statistics(y_true, y_pred):
     logging.info(f'AUPRC: {auprc:.4f}')
     logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
     logging.info('# Predicted Splice Sites: '
-                 f'{len(np.nonzero(y_pred > 0.5)[0])} / {len(y_pred)}')
+                 f'{no_positive_predictions} / {len(y_pred)}')
+
+    wandb.log({
+        'Prediction Type': prediction_type,
+        'Test Loss': loss,
+        'AUPRC': auprc,
+        'Top-K Accuracy': topkl_accuracy,
+        'Thresholds for K': threshold,
+        '#True Splice Sites': len(idx_true),
+        '#Predicted Splice Sites': no_positive_predictions,
+        'Total Examples': len(y_true)
+    })
 
 
 def get_architecture(size, N_GPUS):
