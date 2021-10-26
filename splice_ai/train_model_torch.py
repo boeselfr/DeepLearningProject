@@ -119,7 +119,7 @@ config.epochs = EPOCH_NUM
 config.CL = CL
 config.lr = 1e-3
 config.train_ratio = train_ratio
-config.class_weights = (1, 10, 10)
+config.class_weights = (1, 1, 1)
 config.log_interval = 32
 
 wandb.init(project='dl-project', config=config)
@@ -171,12 +171,13 @@ for epoch_num in range(EPOCH_NUM):
                 'true inactive': sums_true[0] / total,
                 'true acceptors': sums_true[1] / total,
                 'true donors': sums_true[2] / total,
-                'predicted inactive': sums_pred[0] / total,
-                'predicted acceptors': sums_pred[1] / total,
-                'predicted donors': sums_pred[2] / total,
+                'predicted inactive': sums_pred[0] / sums_true[0],
+                'predicted acceptors': sums_pred[1] / sums_true[1],
+                'predicted donors': sums_pred[2] / sums_true[2],
+                'proportion of epoch done': batch / (size // BATCH_SIZE),
             })
 
-    print(f'Epoch loss: {total_loss / size:>12f}')
+    logging.debug(f'Epoch loss: {total_loss / size:>12f}')
 
     if (epoch_num + 1) % len(idx_train) == 0:
         # Printing metrics (see utils.py for details)
@@ -194,9 +195,9 @@ for epoch_num in range(EPOCH_NUM):
 
         print('--------------------------------------------------------------')
 
-        torch.save(
-            model.state_dict(),
-            './Models/SpliceAI' + sys.argv[1] + '_g' + sys.argv[2] + '.h5')
+        # torch.save(
+        #     model.state_dict(),
+        #     './Models/SpliceAI' + sys.argv[1] + '_g' + sys.argv[2] + '.h5')
 
         if (epoch_num + 1) >= 6 * len(idx_train):
             for g in optimizer.param_groups:
