@@ -176,15 +176,15 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type):
 
     no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
     logging.info('Top-K Accuracy')
-    logging.info('|0.5\t|1\t|2\t|4\t|')
-    logging.info('|{:.4f}\t|{:.4f}\t|{:.4f}\t|{:.4f}\t|'.format(
+    logging.info('|0.5\t\t|1\t\t|2\t\t|4\t\t|')
+    logging.info('|{:.6f}\t|{:.6f}\t|{:.6f}\t|{:.6f}\t|'.format(
         topkl_accuracy[0], topkl_accuracy[1],
         topkl_accuracy[2], topkl_accuracy[3]))
     logging.info('Thresholds for K')
-    logging.info('|0.5\t|1\t|2\t|4\t|')
-    logging.info('|{:.4f}\t|{:.4f}\t|{:.4f}\t|{:.4f}\t|'.format(
+    logging.info('|0.5\t\t|1\t\t|2\t\t|4\t\t|')
+    logging.info('|{:.6f}\t|{:.6f}\t|{:.6f}\t|{:.6f}\t|'.format(
         threshold[0], threshold[1], threshold[2], threshold[3]))
-    logging.info(f'AUPRC: {auprc:.4f}')
+    logging.info(f'AUPRC: {auprc:.6f}')
     logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
     logging.info('# Predicted Splice Sites: '
                  f'{no_positive_predictions} / {len(y_pred)}')

@@ -5,9 +5,14 @@
 import sys
 import time
 import h5py
-from keras.models import load_model
-from src.splicing.utils.utils import *
-from src.splicing.utils.constants import *
+import numpy as np
+
+import torch
+from torch.utils.data import DataLoader
+
+from src.splicing.utils.utils import print_topl_statistics
+from src.splicing.utils.constants import data_dir
+from src.splicing.data_models.splice_dataset import SpliceDataset
 
 # TODO
 
@@ -24,8 +29,8 @@ version = [1, 2, 3, 4, 5]
 model = [[] for v in range(len(version))]
 
 for v in range(len(version)):
-    model[v] = load_model('Models/SpliceAI' + str(CL)
-                          + '_g' + str(version[v]) + '.h5')
+    model[v] = torch.load(
+        'Models/SpliceAI' + str(CL) + '_g' + str(version[v]) + '.h5')
 
 h5f = h5py.File(data_dir + 'dataset' + '_' + 'test'
                 + '_' + '0' + '.h5', 'r')
@@ -52,7 +57,8 @@ for output_class in [1, 2]:
         X = h5f['X' + str(idx)][:]
         Y = h5f['Y' + str(idx)][:]
 
-        Xc, Yc = clip_datapoints(X, Y, CL, 1)
+        splice_dataset = SpliceDataset(X, Y, CL, N_GPUS=1)
+        dataloader = DataLoader(splice_dataset, batch_size=BATCH_SIZE)
 
         Yps = [np.zeros(Yc[0].shape) for t in range(1)]
 
@@ -60,26 +66,20 @@ for output_class in [1, 2]:
 
             Yp = model[v].predict(Xc, batch_size=BATCH_SIZE)
 
-            if not isinstance(Yp, list):
-                Yp = [Yp]
-
-            for t in range(1):
-                Yps[t] += Yp[t] / len(version)
+            Yps += Yp / len(version)
         # Ensemble averaging (mean of the ensemble predictions is used)
 
-        for t in range(1):
-            is_expr = (Yc[t].sum(axis=(1, 2)) >= 1)
+        is_expr = (Yc.sum(axis=(1, 2)) >= 1)
 
-            Y_true[t].extend(Yc[t][is_expr, output_class, :].flatten())
-            Y_pred[t].extend(Yps[t][is_expr, output_class, :].flatten())
+        Y_true.extend(Yc[is_expr, output_class, :].flatten())
+        Y_pred.extend(Yps[is_expr, output_class, :].flatten())
 
     print("\n%s:" % (output_class_labels[output_class]))
 
-    for t in range(1):
-        Y_true[t] = np.asarray(Y_true[t])
-        Y_pred[t] = np.asarray(Y_pred[t])
+    Y_true = np.asarray(Y_true)
+    Y_pred = np.asarray(Y_pred)
 
-        print_topl_statistics(Y_true[t], Y_pred[t])
+    print_topl_statistics(Y_true, Y_pred)
 
 h5f.close()
 

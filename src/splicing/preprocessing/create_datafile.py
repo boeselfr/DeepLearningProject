@@ -13,7 +13,8 @@ import re
 import sys
 import time
 import h5py
-from constants import CL_max, data_dir, sequence, splice_table
+from src.splicing.utils.constants import CL_max, data_dir, \
+    sequence, splice_table
 
 start_time = time.time()
 

@@ -10,8 +10,8 @@ import h5py
 import numpy as np
 import sys
 import time
-from utils import create_datapoints
-from constants import data_dir
+from src.splicing.utils.utils import create_datapoints
+from src.splicing.utils.constants import data_dir
 
 start_time = time.time()
 

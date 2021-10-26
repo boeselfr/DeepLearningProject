@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source constants.py
+source ../utils/constants.py
 
 CLr=$((CL_max/2))
 CLl=$(($CLr+1))

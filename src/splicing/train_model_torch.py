@@ -18,10 +18,11 @@ from torch.utils.data import DataLoader
 from torch import optim
 from torchsummary import summary
 
-from src.splicing.models.splice_ai_torch import SpliceAI, categorical_crossentropy_2d
-from src.splicing.utils.utils import get_architecture, CL_max, SL, print_topl_statistics
+from src.splicing.models.splice_ai import SpliceAI, categorical_crossentropy_2d
+from src.splicing.utils.utils import get_architecture, CL_max, SL, \
+    print_topl_statistics
 from src.splicing.utils.constants import data_dir
-from splice_dataset import SpliceDataset
+from src.splicing.data_models.splice_dataset import SpliceDataset
 
 coloredlogs.install(level=logging.INFO)
 
