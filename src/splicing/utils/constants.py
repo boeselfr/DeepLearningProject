@@ -8,7 +8,7 @@ SL=5000  # original 5000
 # SL will be the output length)
 
 # Input details
-data_dir='/home/anej/repos/studies/deep-learning-project/data/'
+data_dir= '/data/'
 
 splice_table='/home/anej/repos/studies/deep-learning-project/data/gtex_dataset.txt'
 ref_genome='/home/anej/repos/studies/deep-learning-project/data/genome.fa'

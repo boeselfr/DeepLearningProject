@@ -4,8 +4,7 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
 
 
-from utils import clip_datapoints
-from itertools import product
+from src.splicing.utils.utils import clip_datapoints
 
 
 class SpliceDataset(Dataset):
