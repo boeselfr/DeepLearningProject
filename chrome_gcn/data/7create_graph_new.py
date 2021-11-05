@@ -147,6 +147,7 @@ def create_graph(args):
 	train_dict = os.path.join(output_root,'hic/train_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
 	valid_dict = os.path.join(output_root,'hic/valid_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
 	test_dict = os.path.join(output_root,'hic/test_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
+	bin_dict_file = os.path.join(output_root,'hic/test_vail_train_bin_dict'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
 
 	print('\nInputs')
 	print('| '+all_peaks_file_name)
@@ -168,6 +169,7 @@ def create_graph(args):
 	total_edges = int(args.hic_edges/2.)
 	for chrom in args.chroms:
 		print(chrom)
+		print(f'len of bin dict: {len(bin_dict[chrom])}')
 		
 		# print('--------Part1-----------')
 		if args.norm != '':
@@ -200,6 +202,9 @@ def create_graph(args):
 		pickle.dump(valid_idx_dict, fp)
 	with open(test_dict, "wb") as fp: 
 		pickle.dump(test_idx_dict, fp)
+	with open(bin_dict_file, "wb") as fp:
+		pickle.dump(bin_dict, fp)
+
 
 
 
