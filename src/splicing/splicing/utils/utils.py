@@ -158,7 +158,7 @@ def one_hot_encode(Xd, Yd):
 
 
 def validate(model, h5f, idxs, context_length, batch_size,
-             class_weights=(1, 1, 1), n_gpus=1):
+             class_weights=(1, 1, 1), n_gpus=1, test=False):
 
     from splicing.models.splice_ai import categorical_crossentropy_2d
     from splicing.data_models.splice_dataset import SpliceDataset
@@ -200,15 +200,15 @@ def validate(model, h5f, idxs, context_length, batch_size,
     logging.info("\nAcceptor:")
     print_topl_statistics(
         np.asarray(y_true_1), np.asarray(y_pred_1), loss=total_loss,
-        prediction_type='Acceptor')
+        prediction_type='Acceptor', test=test)
 
     logging.info("\nDonor:")
     print_topl_statistics(
         np.asarray(y_true_2), np.asarray(y_pred_2), loss=total_loss,
-        prediction_type='Donor')
+        prediction_type='Donor', test=test)
 
 
-def print_topl_statistics(y_true, y_pred, loss, prediction_type):
+def print_topl_statistics(y_true, y_pred, loss, prediction_type, test=False):
     # Prints the following information: top-kL statistics for k=0.5,1,2,4,
     # auprc, thresholds for k=0.5,1,2,4, number of true splice sites.
 
@@ -243,14 +243,15 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type):
     logging.info('# Predicted Splice Sites: '
                  f'{no_positive_predictions} / {len(y_pred)}')
 
-    wandb.log({
-        f'Test Loss: {prediction_type}': loss,
-        f'AUPRC: {prediction_type}': auprc,
-        f'Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
-        f'Thresholds for K: {prediction_type}': threshold[1],
-        f'Proportion of True Splice Sites Predicted: {prediction_type}':
-            no_positive_predictions / len(idx_true),
-    })
+    if not test:
+        wandb.log({
+            f'Test Loss: {prediction_type}': loss,
+            f'AUPRC: {prediction_type}': auprc,
+            f'Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
+            f'Thresholds for K: {prediction_type}': threshold[1],
+            f'Proportion of True Splice Sites Predicted: {prediction_type}':
+                no_positive_predictions / len(idx_true),
+        })
 
 
 def get_architecture(size, N_GPUS=1):

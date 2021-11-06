@@ -8,11 +8,14 @@ import argparse
 import numpy as np
 import h5py
 import torch
+import logging
+import coloredlogs
 
 from splicing.utils.utils import validate
 from splicing.utils.constants import data_dir
 from splicing.models.splice_ai import SpliceAI
 
+coloredlogs.install(level=logging.INFO)
 
 # ----------------------------------------------------------------
 # Command Line arguments
@@ -40,6 +43,8 @@ def test_model(context_length, model_fname):
     #     32,
     #     np.asarray([11, 11, 11, 11, 11, 11, 11, 11]),
     #     np.asarray([1, 1, 1, 1, 4, 4, 4, 4]))
+    #
+    # model.load_state_dict(torch.load(f'Models/{model_fname}'))
 
     model = torch.load(f'Models/{model_fname}')
 
@@ -49,7 +54,8 @@ def test_model(context_length, model_fname):
 
     start_time = time.time()
 
-    validate(model, h5f, list(range(num_idx)), context_length, batch_size=32)
+    validate(model, h5f, list(range(num_idx)), context_length, batch_size=64,
+             test=True)
 
     h5f.close()
 
