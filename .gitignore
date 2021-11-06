@@ -8,3 +8,5 @@ splice_ai/outputs
 data/*
 *Models/
 *wandb/
+
+src/splicing/splicing.egg-info
