@@ -10,7 +10,7 @@ SL=5000  # original 5000
 # SL will be the output length)
 
 # Input details
-data_dir=os.path.join(os.environ['SOURCE'], "dl_data/spliceai")
+data_dir=os.path.join(os.environ['SCRATCH'], "dl_data/spliceai")
 
 splice_table=os.path.join(data_dir, 'gtex_dataset.txt')
 ref_genome=os.path.join(data_dir, 'genome.fa')
