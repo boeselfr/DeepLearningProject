@@ -10,6 +10,6 @@ SPLICEAI:
   cl_max: 80
   sl: 5000
 
-CHROMEGCN:
+CHROME_GCN:
   data_dir: chrome_gcn
   chrom_sizes: orig_data/genome/hg19/hg19.chrom_sizes
