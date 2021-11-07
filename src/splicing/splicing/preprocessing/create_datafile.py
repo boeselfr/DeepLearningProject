@@ -44,6 +44,12 @@ splice_table = os.path.join(
 
 CL_max = config['SPLICEAI']['cl_max']
 
+CHROM_SIZE_FILE = os.path.join(
+    config['DATA_DIRECTORY'], 
+    config['CHROME_GCN']['data_dir'],
+    config['CHROME_GCN']['chrom_sizes']
+)
+
 ###
 
 start_time = time.time()
@@ -80,9 +86,7 @@ else:
 
 INTERVAL = 1000
 
-CHROM_SIZE_FILE = os.path.join(
-    os.environ['SCRATCH'], 'dl_data/chrome_gcn/orig_data/genome/hg19/hg19.chrom_sizes'
-)
+
 
 ###############################################################################
 
@@ -139,9 +143,9 @@ with open(splice_table, 'r') as fpr1:
         CHROM.append(data1[2])
         STRAND.append(data1[3])
         TX_START.append(data1[4])
-        TX_START_ADJ.append(new_start)
+        TX_START_ADJ.append(str(new_start))
         TX_END.append(data1[5])
-        TX_END_ADJ.append(new_end)
+        TX_END_ADJ.append(str(new_end))
         JN_START.append(data1[6::2])
         JN_END.append(data1[7::2])
         SEQ.append(data2[3])
@@ -150,7 +154,7 @@ fpr1.close()
 fpr2.close()
 
 ###############################################################################
-output_filepath = data_dir + '/datafile_' + group + '_' + paralog + '.h5'
+output_filepath = os.path.join(data_dir, '/datafile_' + group + '_' + paralog + '.h5')
 print(f"Exporting datafile to: {output_filepath}")
 
 h5f = h5py.File(output_filepath, 'w')

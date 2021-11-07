@@ -10,12 +10,29 @@ import h5py
 import torch
 import logging
 import coloredlogs
+import os
+import yaml
 
 from splicing.utils.utils import validate
-from splicing.utils.constants import data_dir
+#from splicing.utils.constants import data_dir
 from splicing.models.splice_ai import SpliceAI
 
 coloredlogs.install(level=logging.INFO)
+
+
+# ----------------------------------------------------------------
+# Loading Config
+# ---------------------------------------------------------------- 
+with open("config.yaml", "r") as stream:
+    try:
+        config = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+
+data_dir = os.path.join(
+    config['DATA_DIRECTORY'], 
+    config['SPLICEAI']['data']
+)
 
 # ----------------------------------------------------------------
 # Command Line arguments

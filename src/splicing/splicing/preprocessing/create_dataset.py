@@ -11,10 +11,25 @@ import argparse
 import h5py
 import numpy as np
 import time
+import os
+import yaml
 
 from splicing.utils.utils import create_datapoints
-from splicing.utils.constants import data_dir
+#from splicing.utils.constants import data_dir
 
+### LOADING CONFIG 
+with open("config.yaml", "r") as stream:
+    try:
+        config = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+
+data_dir = os.path.join(
+    config['DATA_DIRECTORY'], 
+    config['SPLICEAI']['data']
+)
+
+############
 
 start_time = time.time()
 
@@ -26,16 +41,20 @@ parser.add_argument(
 parser.add_argument(
     '-p', '--paralog', dest='paralog', type=str,
     help='Whether to include the genes with paralogs or not.')
+parser.add_argument(
+    '-a', '--aligned', dest='aligned', type=bool,
+    help='Whether to use graph-aligned genes or normal.')
 
 args = parser.parse_args()
 
 group = args.group
 paralog = args.paralog
+aligned = args.aligned
 
 assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
 
-h5f = h5py.File(data_dir + 'datafile_' + group + '_' + paralog + '.h5', 'r')
+h5f = h5py.File(os.path.join(data_dir, 'datafile_' + group + '_' + paralog + '.h5', 'r'))
 
 SEQ = h5f['SEQ'].asstr()[:]
 STRAND = h5f['STRAND'].asstr()[:]
@@ -45,7 +64,7 @@ JN_START = h5f['JN_START'].asstr()[:]
 JN_END = h5f['JN_END'].asstr()[:]
 h5f.close()
 
-h5f2 = h5py.File(data_dir + 'dataset_' + group + '_' + paralog + '.h5', 'w')
+h5f2 = h5py.File(os.path.join(data_dir, 'dataset_' + group + '_' + paralog + '.h5', 'w'))
 
 CHUNK_SIZE = 100
 
