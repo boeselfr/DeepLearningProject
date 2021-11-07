@@ -53,15 +53,22 @@ aligned = args.aligned
 
 assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
+assert aligned in [True, False]
 
 h5f = h5py.File(os.path.join(data_dir, 'datafile_' + group + '_' + paralog + '.h5', 'r'))
 
 SEQ = h5f['SEQ'].asstr()[:]
 STRAND = h5f['STRAND'].asstr()[:]
-TX_START = h5f['TX_START'].asstr()[:]
-TX_END = h5f['TX_END'].asstr()[:]
 JN_START = h5f['JN_START'].asstr()[:]
 JN_END = h5f['JN_END'].asstr()[:]
+
+if aligned:
+    TX_START = h5f['TX_START_ADJ'].asstr()[:]
+    TX_END = h5f['TX_END_ADJ'].asstr()[:]
+else:
+    TX_END = h5f['TX_END'].asstr()[:]
+    TX_START = h5f['TX_START'].asstr()[:]
+
 h5f.close()
 
 h5f2 = h5py.File(os.path.join(data_dir, 'dataset_' + group + '_' + paralog + '.h5', 'w'))
