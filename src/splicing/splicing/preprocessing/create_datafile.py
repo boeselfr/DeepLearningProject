@@ -16,9 +16,35 @@ import time
 import h5py
 import csv 
 import os
+import yaml
 
-from splicing.utils.constants import CL_max, data_dir, sequence, splice_table
+#from splicing.utils.constants import CL_max, data_dir, sequence, splice_table
 
+### LOADING CONFIG 
+with open("config.yaml", "r") as stream:
+    try:
+        config = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+
+data_dir = os.path.join(
+    config['DATA_DIRECTORY'], 
+    config['SPLICEAI']['data_dir']
+)
+
+sequence = os.path.join(
+    data_dir,
+    config['SPLICEAI']['sequence']
+)
+
+splice_table = os.path.join(
+    data_dir,
+    config['SPLICEAI']['splice_table']
+)
+
+CL_max = config['SPLICEAI']['cl_max']
+
+###
 
 start_time = time.time()
 

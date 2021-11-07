@@ -68,7 +68,8 @@ for i in range(SEQ.shape[0] // CHUNK_SIZE):
         X, Y, locations = create_datapoints(
             SEQ[idx], STRAND[idx],
             TX_START[idx], TX_END[idx],
-            JN_START[idx], JN_END[idx])
+            JN_START[idx], JN_END[idx]
+        )
 
         X_batch.extend(X)
         locations_batch.extend(locations)

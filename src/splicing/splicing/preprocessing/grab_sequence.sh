@@ -3,7 +3,7 @@
 #!/bin/sh
 
 # include parse_yaml function
-. parse_yaml.sh
+. preprocessing/parse_yaml.sh
 
 # read yaml file
 eval $(parse_yaml config.yaml "config_")
@@ -23,7 +23,7 @@ SL=$config_SPLICEAI_sl
 # SL will be the output length)
 
 # Input details
-data_dir=$SCRATCH/$config_SPLICEAI_data
+data_dir=$config_DATA_DIRECTORY/$config_SPLICEAI_data
 
 splice_table=$data_dir/$config_SPLICEAI_splice_table
 
