@@ -54,7 +54,9 @@ else:
 
 INTERVAL = 1000
 
-CHROM_SIZE_FILE = os.path.join(os.environ['SCRATCH'], '/dl_data/chrome_gcn/orig_data/genome/hg19/hg19.chrom_sizes')
+CHROM_SIZE_FILE = os.path.join(
+    os.environ['SCRATCH'], 'dl_data/chrome_gcn/orig_data/genome/hg19/hg19.chrom_sizes'
+)
 
 ###############################################################################
 
