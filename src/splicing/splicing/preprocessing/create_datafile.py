@@ -14,6 +14,7 @@ import numpy as np
 import re
 import time
 import h5py
+import csv 
 
 from splicing.utils.constants import CL_max, data_dir, sequence, splice_table
 
@@ -50,6 +51,10 @@ else:
                    'chr2', 'chr4', 'chr6', 'chr8', 'chr10', 'chr12',
                    'chr14', 'chr16', 'chr18', 'chr20', 'chr22', 'chrX', 'chrY']
 
+INTERVAL = 1000
+
+CHROM_SIZE_FILE = '/Users/cguerner/data/dl_data/chrome_gcn/orig_data/genome/hg19/hg19.chrom_sizes'
+
 ###############################################################################
 
 NAME = []  # Gene symbol
@@ -57,10 +62,18 @@ PARALOG = []  # 0 if no paralogs exist, 1 otherwise
 CHROM = []  # Chromosome number
 STRAND = []  # Strand in which the gene lies (+ or -)
 TX_START = []  # Position where transcription starts
+TX_START_ADJ = [] # adjusted start position, rounding down by interval
 TX_END = []  # Position where transcription ends
+TX_END_ADJ = [] # adjusted end position, rounding up by interval
 JN_START = []  # Positions where gtex exons end
 JN_END = []  # Positions where gtex exons start
 SEQ = []  # Nucleotide sequence
+
+lengths = {}
+with open(CHROM_SIZE_FILE) as csvfile:
+    csv_reader = csv.DictReader(csvfile,delimiter='\t',fieldnames=['chrom_name','length'])
+    for csv_row in csv_reader:
+        lengths[csv_row['chrom_name']] = int(csv_row['length'])-INTERVAL
 
 fpr2 = open(sequence, 'r')
 
@@ -82,12 +95,24 @@ with open(splice_table, 'r') as fpr1:
         if (paralog != data1[1]) and (paralog != 'all'):
             continue
 
+        startint = int(data1[4])
+        endint = int(data1[5])
+    
+        new_start = (startint//INTERVAL)*INTERVAL
+        new_end = ((endint//INTERVAL)+1)*INTERVAL
+
+        if new_end >= lengths[data1[2]]:
+            print("OVER THE MAX")
+            break
+
         NAME.append(data1[0])
         PARALOG.append(int(data1[1]))
         CHROM.append(data1[2])
         STRAND.append(data1[3])
         TX_START.append(data1[4])
+        TX_START_ADJ.append(new_start)
         TX_END.append(data1[5])
+        TX_END_ADJ.append(new_end)
         JN_START.append(data1[6::2])
         JN_END.append(data1[7::2])
         SEQ.append(data2[3])
@@ -104,7 +129,9 @@ h5f.create_dataset('PARALOG', data=PARALOG)
 h5f.create_dataset('CHROM', data=CHROM)
 h5f.create_dataset('STRAND', data=STRAND)
 h5f.create_dataset('TX_START', data=TX_START)
+h5f.create_dataset('TX_START_ADJ', data=TX_START_ADJ)
 h5f.create_dataset('TX_END', data=TX_END)
+h5f.create_dataset('TX_END_ADJ', data=TX_END_ADJ)
 h5f.create_dataset('JN_START', data=JN_START)
 h5f.create_dataset('JN_END', data=JN_END)
 h5f.create_dataset('SEQ', data=SEQ)
