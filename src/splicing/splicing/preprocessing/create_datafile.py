@@ -15,6 +15,7 @@ import re
 import time
 import h5py
 import csv 
+import os
 
 from splicing.utils.constants import CL_max, data_dir, sequence, splice_table
 
@@ -53,7 +54,7 @@ else:
 
 INTERVAL = 1000
 
-CHROM_SIZE_FILE = '/Users/cguerner/data/dl_data/chrome_gcn/orig_data/genome/hg19/hg19.chrom_sizes'
+CHROM_SIZE_FILE = os.path.join(os.environ['SCRATCH'], '/dl_data/chrome_gcn/orig_data/genome/hg19/hg19.chrom_sizes')
 
 ###############################################################################
 
