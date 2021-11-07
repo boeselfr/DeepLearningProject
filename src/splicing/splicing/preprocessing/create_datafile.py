@@ -150,7 +150,7 @@ fpr1.close()
 fpr2.close()
 
 ###############################################################################
-output_filepath = data_dir + 'datafile_' + group + '_' + paralog + '.h5'
+output_filepath = data_dir + '/datafile_' + group + '_' + paralog + '.h5'
 print(f"Exporting datafile to: {output_filepath}")
 
 h5f = h5py.File(output_filepath, 'w')
