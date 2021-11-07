@@ -1,4 +1,6 @@
-DATA_DIRECTORY: "/cluster/scratch/cguerner" #"${SCRATCH}" "/Users/cguerner/data/dl_data"
+
+DATA_DIRECTORY: "/cluster/scratch/cguerner" 
+#"${SCRATCH}" "/Users/cguerner/data/dl_data"
 
 SPLICEAI:
   data: spliceai
@@ -8,6 +10,6 @@ SPLICEAI:
   cl_max: 80
   sl: 5000
 
-CHROMEGCN:
+  CHROMEGCN:
   data: chrome_gcn
   chrom_sizes: orig_data/genome/hg19/hg19.chrom_sizes

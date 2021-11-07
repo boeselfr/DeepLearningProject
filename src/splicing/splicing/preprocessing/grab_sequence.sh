@@ -25,11 +25,11 @@ SL=$config_SPLICEAI_sl
 # Input details
 data_dir=$config_DATA_DIRECTORY/$config_SPLICEAI_data
 
-echo data_dir
+echo $data_dir
 
 splice_table=$data_dir/$config_SPLICEAI_splice_table
 
-echo splice_table
+echo $splice_table
 
 ref_genome=$data_dir/$config_SPLICEAI_genome
 
