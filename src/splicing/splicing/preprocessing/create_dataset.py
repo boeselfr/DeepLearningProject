@@ -55,7 +55,9 @@ assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
 assert aligned in [True, False]
 
-h5f = h5py.File(os.path.join(data_dir, 'datafile_' + group + '_' + paralog + '.h5', 'r'))
+datafile_path = os.path.join(data_dir, 'datafile_' + group + '_' + paralog + '.h5')
+print(f"Reading from datafile {datafile_path}")
+h5f = h5py.File(datafile_path, 'r')
 
 SEQ = h5f['SEQ'].asstr()[:]
 STRAND = h5f['STRAND'].asstr()[:]
@@ -71,7 +73,9 @@ else:
 
 h5f.close()
 
-h5f2 = h5py.File(os.path.join(data_dir, 'dataset_' + group + '_' + paralog + '.h5', 'w'))
+dataset_path = os.path.join(data_dir, 'dataset_' + group + '_' + paralog + '.h5')
+print(f"Outputting to dataset {dataset_path}")
+h5f2 = h5py.File(dataset_path, 'w')
 
 CHUNK_SIZE = 100
 
