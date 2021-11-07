@@ -32,18 +32,18 @@ coloredlogs.install(level=logging.INFO)
 # ---------------------------------------------------------------- 
 with open("config.yaml", "r") as stream:
     try:
-        config = yaml.safe_load(stream)
+        repo_config = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
         print(exc)
 
 data_dir = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['SPLICEAI']['data']
+    repo_config['DATA_DIRECTORY'], 
+    repo_config['SPLICEAI']['data']
 )
 
-CL_max = config['SPLICEAI']['cl_max']
+CL_max = repo_config['SPLICEAI']['cl_max']
 
-SL = config['SPLICEAI']['sl']
+SL = repo_config['SPLICEAI']['sl']
 
 # ----------------------------------------------------------------
 # Command Line arguments
@@ -101,7 +101,7 @@ def train_model(model_index, cl):
     logging.debug(f'Context nucleotides: {context_length} ')
     logging.debug(f'Sequence length (output): {SL} ')
 
-    h5f = h5py.File(data_dir + 'dataset_train_all.h5', 'r')
+    h5f = h5py.File(os.path.join(data_dir, 'dataset_train_all.h5'), 'r')
 
     num_idx = len(h5f.keys()) // 2
     idx_all = np.random.permutation(num_idx)

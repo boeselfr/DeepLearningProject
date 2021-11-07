@@ -65,7 +65,7 @@ def test_model(context_length, model_fname):
 
     model = torch.load(f'Models/{model_fname}')
 
-    h5f = h5py.File(data_dir + 'dataset_test_0.h5', 'r')
+    h5f = h5py.File(os.path.join(data_dir, 'dataset_test_0.h5'), 'r')
 
     num_idx = len(h5f.keys()) // 2
 
