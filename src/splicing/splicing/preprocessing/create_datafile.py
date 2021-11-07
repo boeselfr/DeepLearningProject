@@ -29,7 +29,7 @@ with open("config.yaml", "r") as stream:
 
 data_dir = os.path.join(
     config['DATA_DIRECTORY'], 
-    config['SPLICEAI']['data_dir']
+    config['SPLICEAI']['data']
 )
 
 sequence = os.path.join(
