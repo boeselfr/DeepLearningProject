@@ -1,6 +1,6 @@
 
-DATA_DIRECTORY: "/cluster/scratch/cguerner" 
-#"${SCRATCH}" "/Users/cguerner/data/dl_data"
+DATA_DIRECTORY: "/cluster/scratch/cguerner/dl_data" 
+#"${SCRATCH}/dl_data" "/Users/cguerner/data/dl_data"
 
 SPLICEAI:
   data: spliceai
