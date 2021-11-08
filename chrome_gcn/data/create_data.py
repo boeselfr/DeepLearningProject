@@ -21,7 +21,7 @@ parser.add_argument('--genome_root', type=str, default=f'{data_dir}/data/genome/
 parser.add_argument('--input_root', type=str,  default=f'{data_dir}/data/encode/')
 parser.add_argument('--hic_root', type=str,    default=f'{data_dir}/data/hic/')
 parser.add_argument('--expr_root', type=str,   default=f'{data_dir}/data/roadmap_expression/')
-parser.add_argument('--output_root', type=str, default=f'{data_dir}/processed_data/')
+parser.add_argument('--output_root', type=str, default=f'{data_dir}/processed_data_allw/')
 parser.add_argument('--use_all_windows', action='store_true',help='use all windows, otherwise use only the windows containint a peak')
 parser.add_argument('--norm', type=str, choices=['','KR','VC','SQRTVC'], default='SQRTVC')
 parser.add_argument('--resolution', type=str, default='1')
