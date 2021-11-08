@@ -6,6 +6,7 @@ datafile_{}_{}.h5 and convert them into a format usable by Keras.'''
 import re
 from math import ceil
 import logging
+from collections import Counter
 
 import numpy as np
 import wandb
@@ -180,7 +181,7 @@ def validate(model, h5f, idxs, context_length, batch_size,
         partial_loss = 0
         with torch.no_grad():
             for batch, (X, y) in tqdm(enumerate(dataloader), leave=False):
-                pred = model(X)
+                pred, _, _ = model(X)
                 yp[m: m + len(X)] = pred.cpu().numpy()
                 m += len(X)
 
@@ -222,7 +223,7 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type, test=False):
     for top_length in [0.5, 1, 2, 4]:
         idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
 
-        topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred)) \
+        topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred))
                            / float(min(len(idx_pred), len(idx_true)))]
         threshold += [sorted_y_pred[-int(top_length * len(idx_true))]]
 
@@ -230,13 +231,13 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type, test=False):
 
     no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
     logging.info('Top-K Accuracy')
-    logging.info('|0.5\t\t|1\t\t|2\t\t|4\t\t|')
-    logging.info('|{:.6f}\t|{:.6f}\t|{:.6f}\t|{:.6f}\t|'.format(
+    logging.info('|0.5\t|1\t|2\t|4\t|')
+    logging.info('|{:.3f}\t|{:.3f}\t|{:.3f}\t|{:.3f}\t|'.format(
         topkl_accuracy[0], topkl_accuracy[1],
         topkl_accuracy[2], topkl_accuracy[3]))
     logging.info('Thresholds for K')
-    logging.info('|0.5\t\t|1\t\t|2\t\t|4\t\t|')
-    logging.info('|{:.6f}\t|{:.6f}\t|{:.6f}\t|{:.6f}\t|'.format(
+    logging.info('|0.5\t|1\t|2\t|4\t|')
+    logging.info('|{:.3f}\t|{:.3f}\t|{:.3f}\t|{:.3f}\t|'.format(
         threshold[0], threshold[1], threshold[2], threshold[3]))
     logging.info(f'AUPRC: {auprc:.6f}')
     logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
@@ -277,3 +278,22 @@ def get_architecture(size, N_GPUS=1):
         BATCH_SIZE = 6 * N_GPUS
 
     return W, AR, BATCH_SIZE
+
+
+def get_data(h5f, ixs, context_length, batch_size, full=False):
+    from splicing.data_models.splice_dataset import SpliceDataset
+    from torch.utils.data import DataLoader, ConcatDataset
+
+    def get_dataset(ix):
+
+        X = h5f['X' + str(ix)][:]
+        y = np.asarray(h5f['Y' + str(ix)][:], dtype=np.float32)
+        locs = np.asarray(h5f['Locations' + str(ix)][:], dtype=np.float32)
+
+        return SpliceDataset(X, y, locs, context_length)
+
+    if not full:
+        return DataLoader(
+            get_dataset(np.random.choice(ixs)), batch_size=batch_size)
+    else:  # test/valid
+        return DataLoader(ConcatDataset([get_dataset(idx) for idx in ixs]))

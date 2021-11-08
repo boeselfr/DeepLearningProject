@@ -16,6 +16,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch import optim
 from torchsummary import summary
+import torch.nn.functional as F
 
 from splicing.models.splice_ai import SpliceAI, categorical_crossentropy_2d
 from splicing.utils.utils import get_architecture, CL_max, SL, validate
@@ -23,6 +24,7 @@ from splicing.utils.constants import data_dir
 from splicing.data_models.splice_dataset import SpliceDataset
 
 coloredlogs.install(level=logging.INFO)
+
 
 # ----------------------------------------------------------------
 # Command Line arguments
@@ -40,6 +42,12 @@ def parse_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     parser.add_argument(
         '-i', '--model_index', default=0, type=int, dest='model_index',
         help='The index of the model if training an ensemble.')
+    parser.add_argument(
+        '-nc', '--n_channels', type=int, default=32, dest='n_channels',
+        help='Number of convolution channels to use.')
+    parser.add_argument(
+        '-w', '--class_weights', type=int, nargs=3, default=(1, 1, 1),
+        dest='class_weights', help='Class weights to use.')
 
     return parser.parse_args()
 
@@ -59,7 +67,8 @@ def epoch_end(model, h5f, idxs, context_length, batch_size, class_weights,
     print('----------------------------------------------------------')
 
     torch.save(
-        model, f'Models/SpliceAI{context_length}_e{epoch_n}_g{model_index}.h5')
+        model.state_dict(),
+        f'Models/SpliceAI{context_length}_e{epoch_n}_g{model_index}.h5')
 
 
 def architecture_setup(cl):
@@ -73,7 +82,7 @@ def architecture_setup(cl):
     return device, kernel_size, dilation_rate, batch_size, context_length
 
 
-def train_model(model_index, cl):
+def train_model(model_index, cl, n_channels, class_weights):
     device, kernel_size, dilation_rate, batch_size, context_length = \
         architecture_setup(cl)
 
@@ -90,7 +99,7 @@ def train_model(model_index, cl):
     idx_valid = idx_all[int(train_ratio * num_idx):]
 
     config = wandb.config
-    config.n_channels = 32
+    config.n_channels = n_channels
     config.context_length = context_length
     config.kernel_size = kernel_size
     config.dilation_rate = dilation_rate
@@ -99,7 +108,7 @@ def train_model(model_index, cl):
     config.context_length = context_length
     config.lr = 1e-3
     config.train_ratio = train_ratio
-    config.class_weights = (1, 1, 1)
+    config.class_weights = class_weights
     config.log_interval = 32
 
     wandb.init(project='dl-project', config=config)
@@ -115,23 +124,25 @@ def train_model(model_index, cl):
 
         X = h5f['X' + str(idx)][:]
         y = np.asarray(h5f['Y' + str(idx)][:], dtype=np.float32)
+        locs = np.asarray(h5f['Locations' + str(idx)][:], dtype=np.float32)
 
         tqdm.write(
             f'On epoch number {epoch_num} / {config.epochs} '
             f'(size = {X.shape[0]}).')
 
-        splice_dataset = SpliceDataset(X, y, config.context_length)
+        splice_dataset = SpliceDataset(X, y, locs, config.context_length)
         dataloader = DataLoader(splice_dataset, batch_size=config.batch_size)
 
         total_loss = 0
         size = len(dataloader.dataset)
-        for batch, (X, y) in tqdm(
-                enumerate(dataloader), total=size // config.batch_size,
-                leave=False):
+        for batch, (X, y) in tqdm(enumerate(dataloader),
+                                  total=size // config.batch_size,
+                                  leave=False):
 
-            pred = model(X)
+            y_hat, _, _ = model(X)
+            predictions = F.softmax(y_hat, dim=1).detach().cpu().numpy()
             loss = categorical_crossentropy_2d(
-                y, pred, weights=config.class_weights)
+                y, predictions, weights=config.class_weights)
 
             optimizer.zero_grad()
             loss.backward()
@@ -141,7 +152,7 @@ def train_model(model_index, cl):
 
             if batch % config.log_interval == 0:
                 sums_true = y.sum(axis=(0, 2))
-                sums_pred = pred.sum(axis=(0, 2))
+                sums_pred = predictions.sum(axis=(0, 2))
 
                 total = sums_true.sum()
                 wandb.log({
@@ -179,5 +190,6 @@ if __name__ == '__main__':
 
     assert args.context_length in [80, 400, 2000, 10000]
 
-    train_model(args.model_index, args.context_length)
+    train_model(args.model_index, args.context_length,
+                args.n_channels, args.class_weights)
 

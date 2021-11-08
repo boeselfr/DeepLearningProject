@@ -77,12 +77,10 @@ class SpliceAI(nn.Module):
                 dense = self.skip_connections[i // 4](conv)
                 skip = torch.add(skip, dense)
 
-        skip = skip[:, :, self.context_length // 2: -self.context_length // 2]
+        x = skip[:, :, self.context_length // 2: -self.context_length // 2]
 
-        conv = self.out(skip)
-        # out = self.out_act(conv)
-        out = conv
-        return out
+        pred = self.out(x)
+        return pred, x, None
 
 
 def categorical_crossentropy_2d(y_true, y_pred, weights=(1, 1, 1)):

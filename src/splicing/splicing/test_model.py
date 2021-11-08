@@ -5,17 +5,17 @@
 import time
 import argparse
 
-import numpy as np
 import h5py
 import torch
 import logging
 import coloredlogs
 
-from splicing.utils.utils import validate
+from splicing.utils.utils import validate, get_architecture
 from splicing.utils.constants import data_dir
 from splicing.models.splice_ai import SpliceAI
 
 coloredlogs.install(level=logging.INFO)
+
 
 # ----------------------------------------------------------------
 # Command Line arguments
@@ -33,20 +33,18 @@ def parse_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     parser.add_argument(
         '-m', '--model_fname', type=str, dest='model_fname',
         help='The filename of the saved model.')
+    parser.add_argument(
+        '-nc', '--n_channels', type=int, default=32, dest='n_channels',
+        help='Number of convolution channels that the model uses.')
 
     return parser.parse_args()
 
 
-def test_model(context_length, model_fname):
+def test_model(context_length, model_fname, n_channels):
 
-    # model = SpliceAI(
-    #     32,
-    #     np.asarray([11, 11, 11, 11, 11, 11, 11, 11]),
-    #     np.asarray([1, 1, 1, 1, 4, 4, 4, 4]))
-    #
-    # model.load_state_dict(torch.load(f'Models/{model_fname}'))
-
-    model = torch.load(f'Models/{model_fname}')
+    kernel_size, dilation_rate, _ = get_architecture(context_length)
+    model = SpliceAI(n_channels, kernel_size, dilation_rate)
+    model.load_state_dict(torch.load(f'Models/{model_fname}'))
 
     h5f = h5py.File(data_dir + 'dataset_test_0.h5', 'r')
 

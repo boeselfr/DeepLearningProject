@@ -83,6 +83,8 @@ for i in range(SEQ.shape[0] // CHUNK_SIZE):
     h5f2.create_dataset('Y' + str(i), data=Y_batch)
     h5f2.create_dataset('Locations' + str(i), data=locations_batch)
 
+h5f2.attrs['n_datasets'] = SEQ.shape[0] // CHUNK_SIZE
+
 h5f2.close()
 
 print("--- %s seconds ---" % (time.time() - start_time))
