@@ -8,24 +8,41 @@ understood by Keras models.
 """
 ###############################################################################
 
+import argparse
+
 import numpy as np
 import re
-import sys
 import time
 import h5py
-from src.splicing.utils.constants import CL_max, data_dir, \
-    sequence, splice_table
+
+from splicing.utils.constants import CL_max, data_dir, sequence, splice_table
+
 
 start_time = time.time()
 
-assert sys.argv[1] in ['train', 'test', 'all']
-assert sys.argv[2] in ['0', '1', 'all']
+parser = argparse.ArgumentParser(
+    description='Create the data files from the gtex dataset '
+                'and the DNA sequence.')
+parser.add_argument(
+    '-g', '--group', dest='group', type=str,
+    help='The chromosome group to process. One of ["train", "test", "all"].')
+parser.add_argument(
+    '-p', '--paralog', dest='paralog', type=str,
+    help='Whether to include the genes with paralogs or not.')
 
-if sys.argv[1] == 'train':
+args = parser.parse_args()
+
+group = args.group
+paralog = args.paralog
+
+assert group in ['train', 'test', 'all']
+assert paralog in ['0', '1', 'all']
+
+if group == 'train':
     CHROM_GROUP = ['chr11', 'chr13', 'chr15', 'chr17', 'chr19', 'chr21',
                    'chr2', 'chr4', 'chr6', 'chr8', 'chr10', 'chr12',
                    'chr14', 'chr16', 'chr18', 'chr20', 'chr22', 'chrX', 'chrY']
-elif sys.argv[1] == 'test':
+elif group == 'test':
     CHROM_GROUP = ['chr1', 'chr3', 'chr5', 'chr7', 'chr9']
 else:
     CHROM_GROUP = ['chr1', 'chr3', 'chr5', 'chr7', 'chr9',
@@ -62,7 +79,7 @@ with open(splice_table, 'r') as fpr1:
         if data1[2] not in CHROM_GROUP:
             continue
 
-        if (sys.argv[2] != data1[1]) and (sys.argv[2] != 'all'):
+        if (paralog != data1[1]) and (paralog != 'all'):
             continue
 
         NAME.append(data1[0])
@@ -80,19 +97,16 @@ fpr2.close()
 
 ###############################################################################
 
-h5f = h5py.File(data_dir + 'datafile_'
-                + sys.argv[1] + '_' + sys.argv[2]
-                + '.h5', 'w')
+h5f = h5py.File(data_dir + 'datafile_' + group + '_' + paralog + '.h5', 'w')
 
-h5f.create_dataset('NAME', data=np.asarray(NAME).astype('S'))
-h5f.create_dataset('PARALOG', data=np.asarray(PARALOG).astype('S'))
-h5f.create_dataset('CHROM', data=np.asarray(CHROM).astype('S'))
-h5f.create_dataset('STRAND', data=np.asarray(STRAND).astype('S'))
-h5f.create_dataset('TX_START', data=np.asarray(TX_START).astype('S'))
-h5f.create_dataset('TX_END', data=np.asarray(TX_END).astype('S'))
-h5f.create_dataset('JN_START', data=np.asarray(JN_START).astype('S'))
-h5f.create_dataset('JN_END', data=np.asarray(JN_END).astype('S'))
-# h5f.create_dataset('SEQ', data=np.asarray(SEQ).astype('S'))
+h5f.create_dataset('NAME', data=NAME)
+h5f.create_dataset('PARALOG', data=PARALOG)
+h5f.create_dataset('CHROM', data=CHROM)
+h5f.create_dataset('STRAND', data=STRAND)
+h5f.create_dataset('TX_START', data=TX_START)
+h5f.create_dataset('TX_END', data=TX_END)
+h5f.create_dataset('JN_START', data=JN_START)
+h5f.create_dataset('JN_END', data=JN_END)
 h5f.create_dataset('SEQ', data=SEQ)
 
 h5f.close()

@@ -5,60 +5,65 @@ from torch import nn
 
 
 class SpliceAI(nn.Module):
-    def __init__(self, L, W, AR, device='cuda'):
+    def __init__(self, n_channels, kernel_size, dilation_rate, device='cuda'):
         super(SpliceAI, self).__init__()
-        self.L, self.W, self.AR = L, W, AR
-        assert len(self.W) == len(self.AR)
 
-        self.CL = 2 * np.sum(self.AR * (self.W - 1))
+        self.n_channels = n_channels
+        self.kernel_size = kernel_size
+        self.dilation_rate = dilation_rate
+
+        assert len(self.kernel_size) == len(self.dilation_rate)
+
+        self.context_length = 2 * np.sum(
+            self.dilation_rate * (self.kernel_size - 1))
 
         self.conv = nn.Conv1d(
             in_channels=4,
-            out_channels=L,
+            out_channels=self.n_channels,
             kernel_size=1).to(device)
         self.skip = nn.Conv1d(
-            in_channels=L,
-            out_channels=L,
+            in_channels=self.n_channels,
+            out_channels=self.n_channels,
             kernel_size=1).to(device)
 
         self.residual_blocks = nn.ModuleList()
         self.skip_connections = nn.ModuleList()
 
-        self.n_blocks = len(W)
+        self.n_blocks = len(self.kernel_size)
         for i in range(self.n_blocks):
             self.residual_blocks.append(
                 nn.Sequential(
-                    nn.BatchNorm1d(L),
+                    nn.BatchNorm1d(self.n_channels),
                     nn.ReLU(),
                     nn.Conv1d(
-                        in_channels=L,
-                        out_channels=L,
-                        kernel_size=W[i],
-                        dilation=AR[i],
+                        in_channels=self.n_channels,
+                        out_channels=self.n_channels,
+                        kernel_size=self.kernel_size[i],
+                        dilation=self.dilation_rate[i],
                         padding='same'),
-                    nn.BatchNorm1d(L),
+                    nn.BatchNorm1d(self.n_channels),
                     nn.ReLU(),
                     nn.Conv1d(
-                        in_channels=L,
-                        out_channels=L,
-                        kernel_size=W[i],
-                        dilation=AR[i],
+                        in_channels=self.n_channels,
+                        out_channels=self.n_channels,
+                        kernel_size=self.kernel_size[i],
+                        dilation=self.dilation_rate[i],
                         padding='same')).to(device)
             )
 
-            if ((i + 1) % 4 == 0) or ((i + 1) == len(W)):
+            if ((i + 1) % 4 == 0) or ((i + 1) == len(kernel_size)):
                 self.skip_connections.append(
                     nn.Conv1d(
-                        in_channels=L,
-                        out_channels=L,
+                        in_channels=self.n_channels,
+                        out_channels=self.n_channels,
                         kernel_size=1).to(device)
                 )
 
         self.out = nn.Conv1d(
-            in_channels=L,
+            in_channels=self.n_channels,
             out_channels=3,
             kernel_size=1).to(device)
-        self.out_act = nn.Softmax(dim=1)
+        # self.out_act = nn.Softmax(dim=1)
 
     def forward(self, input):
 
@@ -72,10 +77,11 @@ class SpliceAI(nn.Module):
                 dense = self.skip_connections[i // 4](conv)
                 skip = torch.add(skip, dense)
 
-        skip = skip[:, :, self.CL // 2: -self.CL // 2]
+        skip = skip[:, :, self.context_length // 2: -self.context_length // 2]
 
         conv = self.out(skip)
-        out = self.out_act(conv)
+        # out = self.out_act(conv)
+        out = conv
         return out
 
 
