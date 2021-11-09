@@ -11,6 +11,8 @@ import numpy as np
 import h5py
 from tqdm.auto import tqdm, trange
 import wandb
+import os
+import yaml
 
 import torch
 from torch.utils.data import DataLoader
@@ -18,11 +20,30 @@ from torch import optim
 from torchsummary import summary
 
 from splicing.models.splice_ai import SpliceAI, categorical_crossentropy_2d
-from splicing.utils.utils import get_architecture, CL_max, SL, validate
-from splicing.utils.constants import data_dir
+from splicing.utils.utils import get_architecture, validate #CL_max, SL, 
+#from splicing.utils.constants import data_dir
 from splicing.data_models.splice_dataset import SpliceDataset
 
 coloredlogs.install(level=logging.INFO)
+
+
+# ----------------------------------------------------------------
+# Loading Config
+# ---------------------------------------------------------------- 
+with open("config.yaml", "r") as stream:
+    try:
+        repo_config = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+
+data_dir = os.path.join(
+    repo_config['DATA_DIRECTORY'], 
+    repo_config['SPLICEAI']['data']
+)
+
+CL_max = repo_config['SPLICEAI']['cl_max']
+
+SL = repo_config['SPLICEAI']['sl']
 
 # ----------------------------------------------------------------
 # Command Line arguments
@@ -80,7 +101,7 @@ def train_model(model_index, cl):
     logging.debug(f'Context nucleotides: {context_length} ')
     logging.debug(f'Sequence length (output): {SL} ')
 
-    h5f = h5py.File(data_dir + 'dataset_train_all.h5', 'r')
+    h5f = h5py.File(os.path.join(data_dir, 'dataset_train_all.h5'), 'r')
 
     num_idx = len(h5f.keys()) // 2
     idx_all = np.random.permutation(num_idx)
