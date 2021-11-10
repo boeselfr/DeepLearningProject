@@ -18,39 +18,7 @@ import csv
 import os
 import yaml
 
-#from splicing.utils.constants import CL_max, data_dir, sequence, splice_table
-
-### LOADING CONFIG 
-with open("config.yaml", "r") as stream:
-    try:
-        config = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
-
-data_dir = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['SPLICEAI']['data']
-)
-
-sequence = os.path.join(
-    data_dir,
-    config['SPLICEAI']['sequence']
-)
-
-splice_table = os.path.join(
-    data_dir,
-    config['SPLICEAI']['splice_table']
-)
-
-CL_max = config['SPLICEAI']['cl_max']
-
-CHROM_SIZE_FILE = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['CHROME_GCN']['data_dir'],
-    config['CHROME_GCN']['chrom_sizes']
-)
-
-###
+### PARSING ARGS
 
 start_time = time.time()
 
@@ -63,30 +31,164 @@ parser.add_argument(
 parser.add_argument(
     '-p', '--paralog', dest='paralog', type=str,
     help='Whether to include the genes with paralogs or not.')
+#parser.add_argument(
+#    '-a', '--aligned', dest='aligned', type=bool,
+#    help='Whether to use graph-aligned genes or normal.')
 
 args = parser.parse_args()
 
 group = args.group
 paralog = args.paralog
+#aligned = args.aligned
 
 assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
+#assert aligned in [True, False]
+
+### LOADING CONFIG 
+with open("config.yaml", "r") as stream:
+    try:
+        config = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+
+DATA_DIR = os.path.join(
+    config['DATA_DIRECTORY'], 
+    config['SPLICEAI']['data']
+)
+
+# input
+SPLICE_TABLE_PATH = os.path.join(
+    DATA_DIR,
+    config['SPLICEAI']['splice_table']
+)
+
+REF_GENOME_PATH = os.path.join(
+    DATA_DIR,
+    config['SPLICEAI']['genome']
+)
+
+CHROM_SIZE_FILE = os.path.join(
+    config['DATA_DIRECTORY'], 
+    config['CHROME_GCN']['data_dir'],
+    config['CHROME_GCN']['chrom_sizes']
+)
+
+# data pipeline config
+CL_MAX = config['DATA_PIPELINE']['context_length']
+
+TRAIN_CHROMS = config['DATA_PIPELINE']['train_chroms']
+TEST_CHROMS = config['DATA_PIPELINE']['test_chroms']
+ALL_CHROMS = TRAIN_CHROMS + TEST_CHROMS
+
+INTERVAL = config['DATA_PIPELINE']['window_size']
 
 if group == 'train':
-    CHROM_GROUP = ['chr11', 'chr13', 'chr15', 'chr17', 'chr19', 'chr21',
-                   'chr2', 'chr4', 'chr6', 'chr8', 'chr10', 'chr12',
-                   'chr14', 'chr16', 'chr18', 'chr20', 'chr22', 'chrX', 'chrY']
+    CHROM_GROUP = TRAIN_CHROMS
 elif group == 'test':
-    CHROM_GROUP = ['chr1', 'chr3', 'chr5', 'chr7', 'chr9']
+    CHROM_GROUP = TEST_CHROMS
 else:
-    CHROM_GROUP = ['chr1', 'chr3', 'chr5', 'chr7', 'chr9',
-                   'chr11', 'chr13', 'chr15', 'chr17', 'chr19', 'chr21',
-                   'chr2', 'chr4', 'chr6', 'chr8', 'chr10', 'chr12',
-                   'chr14', 'chr16', 'chr18', 'chr20', 'chr22', 'chrX', 'chrY']
+    CHROM_GROUP = ALL_CHROMS
 
-INTERVAL = 1000
+#output
+GENE_WINDOWS_PATH = os.path.join(
+    DATA_DIR,
+    f'gene_windows_{INTERVAL}.bed'
+)
+
+GRAPH_WINDOWS_PATH = os.path.join(
+    DATA_DIR,
+    f'graph_windows_{INTERVAL}.bed'
+    )
+
+SEQUENCE_FILE_PATH = os.path.join(
+    DATA_DIR,
+    f'gtex_sequence_{INTERVAL}.txt'
+)
+
+DATAFILE_PATH = os.path.join(
+    DATA_DIR, 
+    f'datafile_{group}_{paralog}_{INTERVAL}.h5'
+)
+
+###############################################################################
+# Utils
+###############################################################################
+
+# apply CL length adjustment after alignment modification
+CL_R = int(CL_MAX / 2)
+CL_L = int(CL_R + 1)
+
+def apply_adjustment(start, end):
+    # round gene start/end down/up adjusting to graph
+    adj_start = (start//INTERVAL)*INTERVAL
+    adj_end = ((end//INTERVAL)+1)*INTERVAL
+
+    assert (adj_end - adj_start)%INTERVAL == 0, "gene window index adjustment error"
+
+    # add in extra context window for edge nucleotides
+    cl_start = adj_start - CL_L
+    cl_end = adj_end + CL_R
+    return adj_start, adj_end, cl_start, cl_end
 
 
+###############################################################################
+# Gene window adjustment
+###############################################################################
+
+# Collecting chromosome length
+lengths = {}
+with open(CHROM_SIZE_FILE) as csvfile:
+    csv_reader = csv.DictReader(csvfile,delimiter='\t',fieldnames=['chrom_name','length'])
+    for csv_row in csv_reader:
+        lengths[csv_row['chrom_name']] = int(csv_row['length'])-INTERVAL
+
+gene_windows_file_w = open(GENE_WINDOWS_PATH, 'w')
+
+chrom_bin_dict = {}
+with open(SPLICE_TABLE_PATH, 'r') as fpr1:
+    for line1 in fpr1:
+        data1 = re.split('\n|\t', line1)[:-1]
+
+        #TODO: decide if we want to limit this by CHROM_GROUP
+        chrom = data1[2]
+        startint = int(data1[4])
+        endint = int(data1[5])
+    
+        adj_start, adj_end, cl_start, cl_end = apply_adjustment(
+            startint, endint
+        )
+
+        if cl_end >= lengths[chrom]:
+            print("CHROMOSOME INDEX OVER THE MAX")
+            break
+
+        gene_windows_file_w.write(chrom+'\t'+str(cl_start)+'\t'+str(cl_end)+'\n')
+
+        chrom_bins = chrom_bin_dict.get(chrom, [])
+        for i in range(int((adj_end - adj_start)/INTERVAL)):
+            chrom_bins.append((adj_start + i * INTERVAL, adj_start + (i+1) * INTERVAL))
+        chrom_bin_dict[chrom] = chrom_bins
+        
+gene_windows_file_w.close()
+
+# Export bed file with unique list of graph windows for each chromosome
+graph_windows_file_w = open(GRAPH_WINDOWS_PATH, 'w')
+
+for chrom, windows in chrom_bin_dict.items(): 
+    unique_windows = sorted(list(set(windows)))
+    for start, end in unique_windows:
+        graph_windows_file_w.write(chrom+'\t'+str(start)+'\t'+str(end)+'\n')
+
+graph_windows_file_w.close()
+
+###############################################################################
+# Create sequences from bed file
+###############################################################################
+
+sys_command = f'bedtools getfasta -bed {GENE_WINDOWS_PATH} -fi {REF_GENOME_PATH} -fo {SEQUENCE_FILE_PATH} -tab'
+print(f"Executing syscommand {sys_command}")
+os.system(sys_command)
 
 ###############################################################################
 
@@ -102,15 +204,9 @@ JN_START = []  # Positions where gtex exons end
 JN_END = []  # Positions where gtex exons start
 SEQ = []  # Nucleotide sequence
 
-lengths = {}
-with open(CHROM_SIZE_FILE) as csvfile:
-    csv_reader = csv.DictReader(csvfile,delimiter='\t',fieldnames=['chrom_name','length'])
-    for csv_row in csv_reader:
-        lengths[csv_row['chrom_name']] = int(csv_row['length'])-INTERVAL
+fpr2 = open(SEQUENCE_FILE_PATH, 'r')
 
-fpr2 = open(sequence, 'r')
-
-with open(splice_table, 'r') as fpr1:
+with open(SPLICE_TABLE_PATH, 'r') as fpr1:
     for line1 in fpr1:
 
         line2 = fpr2.readline()
@@ -118,9 +214,19 @@ with open(splice_table, 'r') as fpr1:
         data1 = re.split('\n|\t', line1)[:-1]
         data2 = re.split('\n|\t|:|-', line2)[:-1]
 
+        # recomputing adjusted indices for genes from splicing data
+        startint = int(data1[4])
+        endint = int(data1[5])
+    
+        adj_start, adj_end, cl_start, cl_end = apply_adjustment(
+            startint, endint
+        )
+
         assert data1[2] == data2[0]
-        assert int(data1[4]) == int(data2[1]) + CL_max // 2 + 1
-        assert int(data1[5]) == int(data2[2]) - CL_max // 2
+        assert cl_start == int(data2[1])
+        assert cl_end == int(data2[2])
+        assert adj_start == int(data2[1]) + CL_MAX // 2 + 1
+        assert adj_end == int(data2[2]) - CL_MAX // 2
 
         if data1[2] not in CHROM_GROUP:
             continue
@@ -128,24 +234,14 @@ with open(splice_table, 'r') as fpr1:
         if (paralog != data1[1]) and (paralog != 'all'):
             continue
 
-        startint = int(data1[4])
-        endint = int(data1[5])
-    
-        new_start = (startint//INTERVAL)*INTERVAL
-        new_end = ((endint//INTERVAL)+1)*INTERVAL
-
-        if new_end >= lengths[data1[2]]:
-            print("OVER THE MAX")
-            break
-
         NAME.append(data1[0])
         PARALOG.append(int(data1[1]))
         CHROM.append(data1[2])
         STRAND.append(data1[3])
-        TX_START.append(data1[4])
-        TX_START_ADJ.append(str(new_start))
-        TX_END.append(data1[5])
-        TX_END_ADJ.append(str(new_end))
+        #TX_START.append(data1[4])
+        TX_START.append(str(adj_start))
+        #TX_END.append(data1[5])
+        TX_END.append(str(adj_end))
         JN_START.append(data1[6::2])
         JN_END.append(data1[7::2])
         SEQ.append(data2[3])
@@ -154,19 +250,19 @@ fpr1.close()
 fpr2.close()
 
 ###############################################################################
-output_filepath = os.path.join(data_dir, 'datafile_' + group + '_' + paralog + '.h5')
-print(f"Exporting datafile to: {output_filepath}")
 
-h5f = h5py.File(output_filepath, 'w')
+print(f"Exporting datafile to: {DATAFILE_PATH}")
+
+h5f = h5py.File(DATAFILE_PATH, 'w')
 
 h5f.create_dataset('NAME', data=NAME)
 h5f.create_dataset('PARALOG', data=PARALOG)
 h5f.create_dataset('CHROM', data=CHROM)
 h5f.create_dataset('STRAND', data=STRAND)
 h5f.create_dataset('TX_START', data=TX_START)
-h5f.create_dataset('TX_START_ADJ', data=TX_START_ADJ)
+#h5f.create_dataset('TX_START_ADJ', data=TX_START_ADJ)
 h5f.create_dataset('TX_END', data=TX_END)
-h5f.create_dataset('TX_END_ADJ', data=TX_END_ADJ)
+#h5f.create_dataset('TX_END_ADJ', data=TX_END_ADJ)
 h5f.create_dataset('JN_START', data=JN_START)
 h5f.create_dataset('JN_END', data=JN_END)
 h5f.create_dataset('SEQ', data=SEQ)
