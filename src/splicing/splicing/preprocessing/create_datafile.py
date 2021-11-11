@@ -56,26 +56,22 @@ with open("config.yaml", "r") as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
-DATA_DIR = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['SPLICEAI']['data']
-)
+DATA_DIR = config['DATA_DIRECTORY']
 
 # input
 SPLICE_TABLE_PATH = os.path.join(
     DATA_DIR,
-    config['SPLICEAI']['splice_table']
+    config['RAW_DATA']['splice_table']
 )
 
 REF_GENOME_PATH = os.path.join(
     DATA_DIR,
-    config['SPLICEAI']['genome']
+    config['RAW_DATA']['genome']
 )
 
 CHROM_SIZE_FILE = os.path.join(
     config['DATA_DIRECTORY'], 
-    config['CHROME_GCN']['data_dir'],
-    config['CHROME_GCN']['chrom_sizes']
+    config['RAW_DATA']['chrom_sizes']
 )
 
 # data pipeline config
@@ -97,21 +93,25 @@ else:
 #output paths
 GENE_WINDOWS_PATH = os.path.join(
     DATA_DIR,
+    config['DATA_PIPELINE']['output_dir'],
     f'gene_windows_{INTERVAL}.bed'
 )
 
 GRAPH_WINDOWS_PATH = os.path.join(
     DATA_DIR,
+    config['DATA_PIPELINE']['output_dir'],
     f'graph_windows_{INTERVAL}.bed'
     )
 
 SEQUENCE_FILE_PATH = os.path.join(
     DATA_DIR,
+    config['DATA_PIPELINE']['output_dir'],
     f'gtex_sequence_{INTERVAL}.txt'
 )
 
 DATAFILE_PATH = os.path.join(
     DATA_DIR, 
+    config['DATA_PIPELINE']['output_dir'],
     f'datafile_{group}_{paralog}_{INTERVAL}.h5'
 )
 

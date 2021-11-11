@@ -20,8 +20,7 @@ from torch import optim
 from torchsummary import summary
 
 from splicing.models.splice_ai import SpliceAI, categorical_crossentropy_2d
-from splicing.utils.utils import get_architecture, validate #CL_max, SL, 
-#from splicing.utils.constants import data_dir
+from splicing.utils.utils import get_architecture, validate
 from splicing.data_models.splice_dataset import SpliceDataset
 
 coloredlogs.install(level=logging.INFO)
@@ -38,12 +37,12 @@ with open("config.yaml", "r") as stream:
 
 data_dir = os.path.join(
     repo_config['DATA_DIRECTORY'], 
-    repo_config['SPLICEAI']['data']
+    repo_config['DATA_PIPELINE']['output_dir']
 )
 
-CL_max = repo_config['SPLICEAI']['cl_max']
+CL_max = repo_config['DATA_PIPELINE']['context_length']
 
-SL = repo_config['SPLICEAI']['sl']
+SL = repo_config['DATA_PIPELINE']['window_size']
 
 # ----------------------------------------------------------------
 # Command Line arguments

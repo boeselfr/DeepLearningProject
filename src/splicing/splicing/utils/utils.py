@@ -137,6 +137,7 @@ def reformat_data(X0, Y0, tx_start):
     Xd = np.zeros((num_points, SL + CL_max))
     Yd = [-np.ones((num_points, SL)) for t in range(1)]
 
+    # TODO: INVESTIGATE WHY ADDING ONE LAST WINDOW OF PADDING
     # add padding of size SL (e.g. 5000) to the end of the Xs and Ys
     X0 = np.pad(X0, [0, SL], 'constant', constant_values=0)
     Y0 = [np.pad(Y0[t], [0, SL], 'constant', constant_values=-1)
