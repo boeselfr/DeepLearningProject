@@ -1,8 +1,7 @@
 ###############################################################################
 """
 This parser takes as input the .h5 file produced by create_datafile.py and
-outputs a .h5 file with datapoints of the form (X, Y), which can be understood
-by Keras models.
+outputs a .h5 file with datapoints of the form (X, Y).
 """
 ###############################################################################
 
@@ -15,12 +14,12 @@ import os
 import yaml
 
 from splicing.utils.utils import create_datapoints
-#from splicing.utils.constants import data_dir
-
-
-### Parsing Args
 
 start_time = time.time()
+
+###############################################################################
+# Parsing Args
+###############################################################################
 
 parser = argparse.ArgumentParser(
     description='Create the model-compatible datasets.')
@@ -39,7 +38,10 @@ paralog = args.paralog
 assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
 
-### LOADING CONFIG 
+###############################################################################
+# Loading Config
+###############################################################################
+
 with open("config.yaml", "r") as stream:
     try:
         config = yaml.safe_load(stream)
@@ -65,7 +67,9 @@ DATASET_PATH = os.path.join(
     f'dataset_{group}_{paralog}_{INTERVAL}.h5'
 )
 
-###############
+###############################################################################
+# Creating Dataset
+###############################################################################
 print(f"Reading from datafile {DATAFILE_PATH}")
 h5f = h5py.File(DATAFILE_PATH, 'r')
 
@@ -74,11 +78,6 @@ STRAND = h5f['STRAND'].asstr()[:]
 JN_START = h5f['JN_START'].asstr()[:]
 JN_END = h5f['JN_END'].asstr()[:]
 
-#TODO: DELETE
-#if aligned:
-#    TX_START = h5f['TX_START_ADJ'].asstr()[:]
-#    TX_END = h5f['TX_END_ADJ'].asstr()[:]
-#else:
 TX_START = h5f['TX_START'].asstr()[:]
 TX_END = h5f['TX_END'].asstr()[:]
 

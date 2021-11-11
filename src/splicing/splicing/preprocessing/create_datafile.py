@@ -3,8 +3,7 @@
 This parser takes as input the text files gtex_dataset.txt and
 gtex_sequence.txt, and produces a .h5 file datafile_{}_{}.h5,
 which will be later processed to create dataset_{}_{}.h5. The file
-dataset_{}_{}.h5 will have datapoints of the form (X,Y), and can be
-understood by Keras models.
+dataset_{}_{}.h5 will have datapoints of the form (X,Y).
 """
 ###############################################################################
 
@@ -18,9 +17,11 @@ import csv
 import os
 import yaml
 
-### PARSING ARGS
-
 start_time = time.time()
+
+###############################################################################
+# Parsing Args
+###############################################################################
 
 parser = argparse.ArgumentParser(
     description='Create the data files from the gtex dataset '
@@ -45,7 +46,10 @@ assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
 #assert aligned in [True, False]
 
-### LOADING CONFIG 
+###############################################################################
+# Loading Config
+###############################################################################
+
 with open("config.yaml", "r") as stream:
     try:
         config = yaml.safe_load(stream)
@@ -90,7 +94,7 @@ elif group == 'test':
 else:
     CHROM_GROUP = ALL_CHROMS
 
-#output
+#output paths
 GENE_WINDOWS_PATH = os.path.join(
     DATA_DIR,
     f'gene_windows_{INTERVAL}.bed'
@@ -115,7 +119,7 @@ DATAFILE_PATH = os.path.join(
 # Utils
 ###############################################################################
 
-# apply CL length adjustment after alignment modification
+# CL length adjustment after alignment modification
 CL_R = int(CL_MAX / 2)
 CL_L = int(CL_R + 1)
 
@@ -145,6 +149,7 @@ with open(CHROM_SIZE_FILE) as csvfile:
 
 gene_windows_file_w = open(GENE_WINDOWS_PATH, 'w')
 
+# produce sequences for each gene and export to sequences bed file
 chrom_bin_dict = {}
 with open(SPLICE_TABLE_PATH, 'r') as fpr1:
     for line1 in fpr1:
@@ -183,13 +188,15 @@ for chrom, windows in chrom_bin_dict.items():
 graph_windows_file_w.close()
 
 ###############################################################################
-# Create sequences from bed file
+# Create sequences from gene index bed file
 ###############################################################################
 
 sys_command = f'bedtools getfasta -bed {GENE_WINDOWS_PATH} -fi {REF_GENOME_PATH} -fo {SEQUENCE_FILE_PATH} -tab'
 print(f"Executing syscommand {sys_command}")
 os.system(sys_command)
 
+###############################################################################
+# Create datafile from splice table and sequences
 ###############################################################################
 
 NAME = []  # Gene symbol
@@ -238,9 +245,7 @@ with open(SPLICE_TABLE_PATH, 'r') as fpr1:
         PARALOG.append(int(data1[1]))
         CHROM.append(data1[2])
         STRAND.append(data1[3])
-        #TX_START.append(data1[4])
         TX_START.append(str(adj_start))
-        #TX_END.append(data1[5])
         TX_END.append(str(adj_end))
         JN_START.append(data1[6::2])
         JN_END.append(data1[7::2])
@@ -260,9 +265,7 @@ h5f.create_dataset('PARALOG', data=PARALOG)
 h5f.create_dataset('CHROM', data=CHROM)
 h5f.create_dataset('STRAND', data=STRAND)
 h5f.create_dataset('TX_START', data=TX_START)
-#h5f.create_dataset('TX_START_ADJ', data=TX_START_ADJ)
 h5f.create_dataset('TX_END', data=TX_END)
-#h5f.create_dataset('TX_END_ADJ', data=TX_END_ADJ)
 h5f.create_dataset('JN_START', data=JN_START)
 h5f.create_dataset('JN_END', data=JN_END)
 h5f.create_dataset('SEQ', data=SEQ)

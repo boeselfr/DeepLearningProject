@@ -145,6 +145,10 @@ def reformat_data(X0, Y0, tx_start):
     # populate rows with incremented sequence values
     for i in range(num_points):
         Xd[i] = X0[SL * i:CL_max + SL * (i + 1)]
+        # for debugging purposes
+        #x_start = (tx_start - CL_max // 2) + SL * i
+        #x_end = (tx_start - CL_max // 2) + CL_max + SL * (i + 1)
+
 
     # populate labels for all nucleotides in each incremental sequence
     # and store the locations
