@@ -1,8 +1,7 @@
 ###############################################################################
 """
 This parser takes as input the .h5 file produced by create_datafile.py and
-outputs a .h5 file with datapoints of the form (X, Y), which can be understood
-by Keras models.
+outputs a .h5 file with datapoints of the form (X, Y).
 """
 ###############################################################################
 
@@ -15,23 +14,12 @@ import os
 import yaml
 
 from splicing.utils.utils import create_datapoints
-#from splicing.utils.constants import data_dir
-
-### LOADING CONFIG 
-with open("config.yaml", "r") as stream:
-    try:
-        config = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
-
-data_dir = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['SPLICEAI']['data']
-)
-
-############
 
 start_time = time.time()
+
+###############################################################################
+# Parsing Args
+###############################################################################
 
 parser = argparse.ArgumentParser(
     description='Create the model-compatible datasets.')
@@ -41,42 +29,65 @@ parser.add_argument(
 parser.add_argument(
     '-p', '--paralog', dest='paralog', type=str,
     help='Whether to include the genes with paralogs or not.')
-parser.add_argument(
-    '-a', '--aligned', dest='aligned', type=bool,
-    help='Whether to use graph-aligned genes or normal.')
 
 args = parser.parse_args()
 
 group = args.group
 paralog = args.paralog
-aligned = args.aligned
 
 assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
-assert aligned in [True, False]
 
-datafile_path = os.path.join(data_dir, 'datafile_' + group + '_' + paralog + '.h5')
-print(f"Reading from datafile {datafile_path}")
-h5f = h5py.File(datafile_path, 'r')
+###############################################################################
+# Loading Config
+###############################################################################
+
+with open("config.yaml", "r") as stream:
+    try:
+        config = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+
+DATA_DIR = os.path.join(
+    config['DATA_DIRECTORY'], 
+    config['SPLICEAI']['data']
+)
+
+INTERVAL = config['DATA_PIPELINE']['window_size']
+
+# inputs
+DATAFILE_PATH = os.path.join(
+    DATA_DIR, 
+    f'datafile_{group}_{paralog}_{INTERVAL}.h5'
+)
+
+# outputs
+DATASET_PATH = os.path.join(
+    DATA_DIR, 
+    f'dataset_{group}_{paralog}_{INTERVAL}.h5'
+)
+
+###############################################################################
+# Creating Dataset
+###############################################################################
+print(f"Reading from datafile {DATAFILE_PATH}")
+h5f = h5py.File(DATAFILE_PATH, 'r')
 
 SEQ = h5f['SEQ'].asstr()[:]
 STRAND = h5f['STRAND'].asstr()[:]
 JN_START = h5f['JN_START'].asstr()[:]
 JN_END = h5f['JN_END'].asstr()[:]
 
-if aligned:
-    TX_START = h5f['TX_START_ADJ'].asstr()[:]
-    TX_END = h5f['TX_END_ADJ'].asstr()[:]
-else:
-    TX_END = h5f['TX_END'].asstr()[:]
-    TX_START = h5f['TX_START'].asstr()[:]
+TX_START = h5f['TX_START'].asstr()[:]
+TX_END = h5f['TX_END'].asstr()[:]
 
 h5f.close()
 
-dataset_path = os.path.join(data_dir, 'dataset_' + group + '_' + paralog + '.h5')
-print(f"Outputting to dataset {dataset_path}")
-h5f2 = h5py.File(dataset_path, 'w')
 
+print(f"Outputting to dataset {DATASET_PATH}")
+h5f2 = h5py.File(DATASET_PATH, 'w')
+
+# CHUNK_SIZE: max number of genes to be stored in a single h5 dataset.
 CHUNK_SIZE = 100
 
 for i in range(SEQ.shape[0] // CHUNK_SIZE):
@@ -91,9 +102,9 @@ for i in range(SEQ.shape[0] // CHUNK_SIZE):
     Y_batch = [[] for t in range(1)]
     locations_batch = []
 
-    for j in range(NEW_CHUNK_SIZE):
+    for j in range(NEW_CHUNK_SIZE): #for each gene
 
-        idx = i * CHUNK_SIZE + j
+        idx = i * CHUNK_SIZE + j #idx of the gene data in datafile
 
         X, Y, locations = create_datapoints(
             SEQ[idx], STRAND[idx],

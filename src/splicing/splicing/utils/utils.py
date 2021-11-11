@@ -11,8 +11,20 @@ import numpy as np
 import wandb
 from sklearn.metrics import average_precision_score
 from tqdm.auto import tqdm
+import os
+import yaml
 
-from splicing.utils.constants import CL_max, SL
+
+### LOADING CONFIG 
+with open("config.yaml", "r") as stream:
+    try:
+        config = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+
+CL_max = config['DATA_PIPELINE']['context_length']
+SL = config['DATA_PIPELINE']['window_size']
+
 assert CL_max % 2 == 0
 
 IN_MAP = np.asarray([[0, 0, 0, 0],
@@ -46,6 +58,8 @@ def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end):
     # respectively. It then calls reformat_data and one_hot_encode
     # and returns X, Y which can be used by Keras models.
 
+    # replace the context window base pairs outside of the main sequence
+    # with Ns
     seq = 'N' * (CL_max // 2) + seq[CL_max // 2:-CL_max // 2] + 'N' * (
             CL_max // 2)
     # Context being provided on the RNA and not the DNA
@@ -94,7 +108,14 @@ def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end):
                     if tx_start <= c <= tx_end:
                         Y0[t][tx_end - c] = 1
 
+    # take the big sequence of X's and labels for the gene, 
+    # and split it into a dataset, breaking the big sequence
+    # into chunks of length SL (plus context length for X's)
+    # and storing each such chunk in separate row.
+    # start location of each row stored in locs
     Xd, Yd, locs = reformat_data(X0, Y0, tx_start)
+
+
     X, Y = one_hot_encode(Xd, Yd)
 
     return X, Y, locs
@@ -112,16 +133,25 @@ def reformat_data(X0, Y0, tx_start):
     num_points = ceil_div(len(Y0[0]), SL)
     locs = np.zeros(num_points)
 
+    # create matrix of shape [# of sequences of length SL, SL + context window]
     Xd = np.zeros((num_points, SL + CL_max))
     Yd = [-np.ones((num_points, SL)) for t in range(1)]
 
+    # add padding of size SL (e.g. 5000) to the end of the Xs and Ys
     X0 = np.pad(X0, [0, SL], 'constant', constant_values=0)
     Y0 = [np.pad(Y0[t], [0, SL], 'constant', constant_values=-1)
           for t in range(1)]
 
+    # populate rows with incremented sequence values
     for i in range(num_points):
         Xd[i] = X0[SL * i:CL_max + SL * (i + 1)]
+        # for debugging purposes
+        #x_start = (tx_start - CL_max // 2) + SL * i
+        #x_end = (tx_start - CL_max // 2) + CL_max + SL * (i + 1)
 
+
+    # populate labels for all nucleotides in each incremental sequence
+    # and store the locations
     for t in range(1):
         for i in range(num_points):
             Yd[t][i] = Y0[t][SL * i:SL * (i + 1)]
