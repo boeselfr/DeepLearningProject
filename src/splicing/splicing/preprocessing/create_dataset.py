@@ -63,7 +63,7 @@ DATAFILE_PATH = os.path.join(
 DATASET_PATH = os.path.join(
     DATA_DIR, 
     config['DATA_PIPELINE']['output_dir'],
-    f'datafset_{group}_{paralog}_{INTERVAL}.h5'
+    f'dataset_{group}_{paralog}_{INTERVAL}.h5'
 )
 
 ###############################################################################
