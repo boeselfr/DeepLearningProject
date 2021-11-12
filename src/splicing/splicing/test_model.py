@@ -14,7 +14,6 @@ import os
 import yaml
 
 from splicing.utils.utils import validate
-#from splicing.utils.constants import data_dir
 from splicing.models.splice_ai import SpliceAI
 
 coloredlogs.install(level=logging.INFO)
@@ -29,9 +28,15 @@ with open("config.yaml", "r") as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
-data_dir = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['SPLICEAI']['data']
+DATA_DIR = os.path.join(
+    config['DATA_DIRECTORY'],
+    config['DATA_PIPELINE']['output_dir']
+)
+
+#TODO: either integrate this into config or make it an arg
+TEST_DATASET_PATH = os.path.join(
+    DATA_DIR,
+    'dataset_test_0_5000.h5'
 )
 
 # ----------------------------------------------------------------
@@ -65,7 +70,7 @@ def test_model(context_length, model_fname):
 
     model = torch.load(f'Models/{model_fname}')
 
-    h5f = h5py.File(os.path.join(data_dir, 'dataset_test_0.h5'), 'r')
+    h5f = h5py.File(TEST_DATASET_PATH, 'r')
 
     num_idx = len(h5f.keys()) // 2
 

@@ -1,5 +1,5 @@
 
-DATA_DIRECTORY: /Users/cguerner/data/dl_data
+DATA_DIRECTORY: /Users/cguerner/data/dl_data/splicing
 #/cluster/scratch/cguerner/dl_data
 #"${SCRATCH}/dl_data" 
 
@@ -12,7 +12,17 @@ CHROME_GCN:
   data_dir: chrome_gcn
   chrom_sizes: orig_data/genome/hg19/hg19.chrom_sizes
 
+RAW_DATA:  
+  splice_table: raw_data/gtex_dataset.txt
+  genome: raw_data/genome.fa
+  chrom_sizes: raw_data/genome/hg19/hg19.chrom_sizes
+  genome_root: raw_data/genome
+  input_root: raw_data/encode
+  hic_root: raw_data/hic
+  expr_root: raw_data/roadmap_expression
+
 DATA_PIPELINE:
+  output_dir: processed_data
   context_length: 80
   window_size: 5000 # need to integrate
   train_chroms: 

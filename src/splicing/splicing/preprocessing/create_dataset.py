@@ -48,22 +48,21 @@ with open("config.yaml", "r") as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
-DATA_DIR = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['SPLICEAI']['data']
-)
+DATA_DIR = config['DATA_DIRECTORY']
 
 INTERVAL = config['DATA_PIPELINE']['window_size']
 
 # inputs
 DATAFILE_PATH = os.path.join(
     DATA_DIR, 
+    config['DATA_PIPELINE']['output_dir'],
     f'datafile_{group}_{paralog}_{INTERVAL}.h5'
 )
 
 # outputs
 DATASET_PATH = os.path.join(
     DATA_DIR, 
+    config['DATA_PIPELINE']['output_dir'],
     f'dataset_{group}_{paralog}_{INTERVAL}.h5'
 )
 
