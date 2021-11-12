@@ -36,12 +36,12 @@ def pass_end(elapsed, predictions, targets, loss):
     print('----------------------------------------------------------')
 
 
-def run_epoch(base_model, chrome_model, dataloader, criterion, optimizer,
+def run_epoch(base_model, graph_model, dataloader, criterion, optimizer,
               epoch, opt, split):
     start = time.time()
     if opt.pretrain or opt.save_feats:
 
-        logging.info('Pretraining the base model.')
+        # logging.info('Pretraining the base model.')
 
         predictions, targets, loss = pretrain(
             base_model, dataloader, criterion, optimizer, epoch, opt, split)
@@ -49,17 +49,17 @@ def run_epoch(base_model, chrome_model, dataloader, criterion, optimizer,
     elif not opt.save_feats:
         logging.info('Fine-tuning the graph-based model')
         predictions, targets, loss = finetune(
-            chrome_model, dataloader, criterion, optimizer, epoch, opt, split)
+            graph_model, dataloader, criterion, optimizer, epoch, opt, split)
 
     elapsed = (time.time() - start) / 60
-    logging.info('\n({split}) elapse: {elapse:3.3f} min'.format(
-        split=split, elapse=elapsed))
-    logging.info('Total epoch loss: {loss:3.3f}'.format(loss=loss))
+    # logging.info('\n({split}) elapse: {elapse:3.3f} min'.format(
+    #     split=split, elapse=elapsed))
+    # logging.info('Total epoch loss: {loss:3.3f}'.format(loss=loss))
 
     return predictions, targets, loss, elapsed
 
 
-def run_model(base_model, chrome_model, data_file,
+def run_model(base_model, graph_model, data_file,
               criterion, optimizer, scheduler, opt, logger):
 
     # if not opt.save_feats:
@@ -76,7 +76,7 @@ def run_model(base_model, chrome_model, data_file,
             train_data = get_data(
                 data_file, opt.idx_train, opt.context_length, opt.batch_size)
             train_predictions, train_targets, train_loss, elapsed = run_epoch(
-                base_model, chrome_model, train_data,
+                base_model, graph_model, train_data,
                 criterion, optimizer, epoch, opt, 'train')
 
             if epoch % opt.validation_interval == 0:
@@ -86,7 +86,7 @@ def run_model(base_model, chrome_model, data_file,
                     data_file, opt.idx_valid, opt.context_length,
                     opt.batch_size)
                 valid_predictions, valid_targets, valid_loss, elapsed = \
-                    run_epoch(base_model, chrome_model, valid_data,
+                    run_epoch(base_model, graph_model, valid_data,
                               criterion, optimizer, epoch, opt, 'valid')
 
             if epoch % len(opt.idx_train) == 0:
@@ -95,7 +95,7 @@ def run_model(base_model, chrome_model, data_file,
                     data_file, opt.idx_valid, opt.context_length,
                     opt.batch_size, full=True)
                 valid_predictions, valid_targets, valid_loss, elapsed = \
-                    run_epoch(base_model, chrome_model, valid_data,
+                    run_epoch(base_model, graph_model, valid_data,
                               criterion, optimizer, epoch, opt, 'valid')
                 pass_end(
                     elapsed, valid_predictions.numpy(), valid_targets.numpy(),
@@ -124,11 +124,9 @@ def run_model(base_model, chrome_model, data_file,
         data_file, list(range(data_file.attrs['n_datasets'])),
         opt.context_length, opt.batch_size)
     test_predictions, test_targets, test_loss, elapsed = run_epoch(
-        base_model, chrome_model, test_data,
+        base_model, graph_model, test_data,
         criterion, optimizer, opt.epochs, opt, 'test')
     pass_end(
-        base_model, elapsed, test_predictions.numpy(),
-        test_targets.numpy(), test_loss,
-        opt, opt.epochs // len(opt.idx_train), 'test')
+        elapsed, test_predictions.numpy(), test_targets.numpy(), test_loss)
     # if not opt.save_feats:
     #     save_logger.log('test.log', opt.epochs, test_loss, test_metrics)

@@ -92,6 +92,8 @@ def get_args(parser):
         '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
         help='The dimensionality of the hidden layer in the graph network.')
 
+    parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
+
     opt = parser.parse_args()
     return opt
 

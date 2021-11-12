@@ -140,9 +140,8 @@ def train_model(model_index, cl, n_channels, class_weights):
                                   leave=False):
 
             y_hat, _, _ = model(X)
-            predictions = F.softmax(y_hat, dim=1).detach().cpu().numpy()
             loss = categorical_crossentropy_2d(
-                y, predictions, weights=config.class_weights)
+                y, y_hat, weights=config.class_weights)
 
             optimizer.zero_grad()
             loss.backward()
@@ -151,8 +150,9 @@ def train_model(model_index, cl, n_channels, class_weights):
             total_loss += loss.item()
 
             if batch % config.log_interval == 0:
+                y_hat = y_hat.detach().cpu().numpy()
                 sums_true = y.sum(axis=(0, 2))
-                sums_pred = predictions.sum(axis=(0, 2))
+                sums_pred = y_hat.sum(axis=(0, 2))
 
                 total = sums_true.sum()
                 wandb.log({

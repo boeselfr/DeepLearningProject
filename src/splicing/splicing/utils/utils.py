@@ -247,8 +247,8 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type, test=False):
     logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
     logging.info('# Predicted Splice Sites: '
                  f'{no_positive_predictions} / {len(y_pred)}')
-
-    if not test:
+    log_wandb = not test
+    if log_wandb:
         wandb.log({
             f'Test Loss: {prediction_type}': loss,
             f'AUPRC: {prediction_type}': auprc,

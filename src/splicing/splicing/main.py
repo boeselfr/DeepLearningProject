@@ -69,7 +69,8 @@ def main(opt):
     base_model = SpliceAI(
         config.n_channels, config.kernel_size, config.dilation_rate)
 
-    wandb.init(project='dl-project', config=config)
+    if opt.wandb:
+        wandb.init(project='dl-project', config=config)
 
     # TODO: I think using non-strand specific is not necessary
     opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
@@ -82,21 +83,21 @@ def main(opt):
 
     optimizer = graph_utils.get_optimizer(base_model, opt)
 
-    chrome_model = None
+    graph_model = None
     if not opt.pretrain:
         # Creating GNNModel
 
         if not opt.save_feats:
-            chrome_model = ChromeGCN(
+            graph_model = ChromeGCN(
                 32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
 
-            logging.info(chrome_model)
+            logging.info(graph_model)
 
         if opt.load_gcn:
             logging.info('Loading Saved GCN')
             checkpoint = torch.load(
                 opt.model_name.replace('.load_gcn', '') + '/model.chkpt')
-            chrome_model.load_state_dict(checkpoint['model'])
+            graph_model.load_state_dict(checkpoint['model'])
         else:
             # Initialize GCN output layer with window_model output layer
             logging.info('Loading Saved base_model')
@@ -109,16 +110,16 @@ def main(opt):
             base_model = base_model.cuda()
             base_model.load_state_dict(checkpoint['model'])
 
-            # chrome_model.out.weight.data = \
+            # graph_model.out.weight.data = \
             #     base_model.module.model.classifier.weight.data
-            # chrome_model.out.bias.data = \
+            # graph_model.out.bias.data = \
             #     base_model.module.model.classifier.bias.data
-            # chrome_model.batch_norm.weight.data = \
+            # graph_model.batch_norm.weight.data = \
             #     base_model.module.model.batch_norm.weight.data
-            # chrome_model.batch_norm.bias.data = \
+            # graph_model.batch_norm.bias.data = \
             #     base_model.module.model.batch_norm.bias.data
 
-        # optimizer = graph_utils.get_optimizer(chrome_model, opt)
+        # optimizer = graph_utils.get_optimizer(graph_model, opt)
 
     scheduler = torch.torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=config.epochs, gamma=0.5)
@@ -134,16 +135,16 @@ def main(opt):
         criterion = criterion.cuda()
         if opt.pretrain:
             base_model = base_model.cuda()
-        if chrome_model is not None:
-            chrome_model = chrome_model.cuda()
+        if graph_model is not None:
+            graph_model = graph_model.cuda()
         if opt.gpu_id != -1:
             torch.cuda.set_device(opt.gpu_id)
 
-    print(opt.model_name)
+    logging.info(f'Model name: {opt.model_name}')
     # logger = Logger(opt)
 
     try:
-        run_model(base_model, chrome_model, data_file, criterion,
+        run_model(base_model, graph_model, data_file, criterion,
                   optimizer, scheduler, opt, logger=None)
     except KeyboardInterrupt:
         logging.info('-' * 89 + '\nManual Exit')

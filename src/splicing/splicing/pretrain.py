@@ -1,11 +1,11 @@
 import torch
-import torch.nn.functional as F
 from tqdm import tqdm
 import wandb
 
 from splicing.utils import graph_utils
 from splicing.utils.graph_utils import split2desc
 from splicing.utils.constants import SL
+from splicing.models.splice_ai import categorical_crossentropy_2d
 
 
 def report_wandb_train(predictions, y, loss, opt):
@@ -32,55 +32,49 @@ def pretrain(base_model, dataloader, criterion, optimizer, epoch, opt, split):
     else:
         base_model.eval()
 
-    with torch.no_grad():
+    total_loss = 0
 
-        total_loss = 0
+    n_instances = len(dataloader.dataset)
+    all_predictions = torch.zeros(n_instances, 3, SL).cpu()
+    all_targets = torch.zeros(n_instances, 3, SL).cpu()
+    all_x_f = torch.Tensor().cpu()
+    all_locs = []
 
-        n_instances = len(dataloader.dataset)
-        all_predictions = torch.zeros(n_instances, 3, SL).cpu()
-        all_targets = torch.zeros(n_instances, 3, SL).cpu()
-        all_x_f = torch.Tensor().cpu()
-        all_locs = []
+    batch_size = opt.batch_size
+    n_batches = n_instances // batch_size
 
-        batch_size = opt.batch_size
-        n_batches = n_instances // batch_size
+    pbar = tqdm(total=n_batches, mininterval=0.5,
+                desc=split2desc[split], leave=False)
 
-        pbar = tqdm(total=n_batches, mininterval=0.5,
-                    desc=split2desc[split], leave=False)
+    for batch, (X, y, loc, chr) in enumerate(dataloader):
+        pbar.update()
 
-        for batch, (X, y, loc, chr) in enumerate(dataloader):
-            pbar.update()
+        if opt.pretrain and split == 'train':
+            optimizer.zero_grad()
 
-            if opt.pretrain and split == 'train':
-                optimizer.zero_grad()
+        y_hat, x, _ = base_model(X)
 
-            y_hat, x, _ = base_model(X)
-            # predictions = torch.softmax(y_hat, dim=1)
+        loss = criterion(y_hat, y)
 
-            # print(X.shape)
-            # print(x.shape)
-            # print(y_hat.shape)
+        if opt.pretrain and split == 'train':
+            loss.backward()
+            optimizer.step()
 
-            loss = criterion(y_hat, y)
-            print(loss)
-            if opt.pretrain and split == 'train':
-                loss.backward()
-                optimizer.step()
+        # Updates
+        total_loss += loss.item()
+        start_idx, end_idx = batch * batch_size, (batch + 1) * batch_size
+        all_predictions[start_idx: end_idx, :] = y_hat.cpu().data
+        all_targets[start_idx: end_idx, :] = y.cpu().data
 
-            # Updates
-            total_loss += loss.item()
-            start_idx, end_idx = batch * batch_size, (batch + 1) * batch_size
-            all_predictions[start_idx: end_idx, :] = y_hat.cpu().data
-            all_targets[start_idx: end_idx, :] = y.cpu().data
+        if opt.save_feats:
+            all_x_f = torch.cat((all_x_f, x.detach().cpu()), 0)
+            chr = list(chr.detach().cpu().numpy().astype(int))
+            loc = list(loc.detach().cpu().numpy().astype(int))
+            all_locs.extend(list(zip(chr, loc)))
 
-            if opt.save_feats:
-                all_x_f = torch.cat((all_x_f, x.detach().cpu()), 0)
-                chr = list(chr.detach().cpu().numpy().astype(int))
-                loc = list(loc.detach().cpu().numpy().astype(int))
-                all_locs.extend(list(zip(chr, loc)))
-
-            if split == 'train' and batch % opt.log_interval == 0:
-                report_wandb_train(y_hat, y, loss, opt)
+        if split == 'train' and batch % opt.log_interval == 0 \
+                and opt.wandb:
+            report_wandb_train(y_hat, y, loss, opt)
 
         if opt.save_feats:
             graph_utils.save_feats(
