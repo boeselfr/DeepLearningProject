@@ -5,7 +5,7 @@ import wandb
 from splicing.utils import graph_utils
 from splicing.utils.graph_utils import split2desc
 from splicing.utils.constants import SL
-from splicing.models.splice_ai import categorical_crossentropy_2d
+from splicing.utils.utils import get_data
 
 
 def report_wandb_train(predictions, y, loss, opt):
@@ -26,13 +26,14 @@ def report_wandb_train(predictions, y, loss, opt):
     })
 
 
-def pretrain(base_model, dataloader, criterion, optimizer, epoch, opt, split):
+def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
     if split == 'train':
         base_model.train()
     else:
         base_model.eval()
 
-    total_loss = 0
+    dataloader = get_data(
+        data_file, opt.idxs[split], opt.context_length, opt.batch_size)
 
     n_instances = len(dataloader.dataset)
     all_predictions = torch.zeros(n_instances, 3, SL).cpu()
@@ -40,6 +41,7 @@ def pretrain(base_model, dataloader, criterion, optimizer, epoch, opt, split):
     all_x_f = torch.Tensor().cpu()
     all_locs = []
 
+    total_loss = 0
     batch_size = opt.batch_size
     n_batches = n_instances // batch_size
 
@@ -76,10 +78,10 @@ def pretrain(base_model, dataloader, criterion, optimizer, epoch, opt, split):
                 and opt.wandb:
             report_wandb_train(y_hat, y, loss, opt)
 
-        if opt.save_feats:
-            graph_utils.save_feats(
-                opt.model_name, split, all_targets, all_locs, all_x_f)
+    if opt.save_feats:
+        graph_utils.save_feats(
+            opt.model_name, split, all_targets, all_locs, all_x_f)
 
-        pbar.close()
+    pbar.close()
 
-        return all_predictions, all_targets, total_loss
+    return all_predictions, all_targets, total_loss

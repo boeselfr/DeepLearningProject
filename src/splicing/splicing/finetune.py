@@ -9,7 +9,7 @@ from splicing.utils.graph_utils import process_graph, split2desc
 
 
 # TODO
-def finetune(chrome_model, dataloader, criterion, optimizer,
+def finetune(chrome_model, dataset, criterion, optimizer,
              epoch, opt, split):
     if split == 'train':
         chrome_model.train()

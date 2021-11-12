@@ -19,7 +19,8 @@ from torchsummary import summary
 import torch.nn.functional as F
 
 from splicing.models.splice_ai import SpliceAI, categorical_crossentropy_2d
-from splicing.utils.utils import get_architecture, CL_max, SL, validate
+from splicing.utils.utils import get_architecture, CL_max, SL, validate, \
+    get_data
 from splicing.utils.constants import data_dir
 from splicing.data_models.splice_dataset import SpliceDataset
 
@@ -91,7 +92,7 @@ def train_model(model_index, cl, n_channels, class_weights):
 
     h5f = h5py.File(data_dir + 'dataset_train_all.h5', 'r')
 
-    num_idx = len(h5f.keys()) // 2
+    num_idx = h5f.attrs['n_datasets']
     idx_all = np.random.permutation(num_idx)
 
     train_ratio = 0.9
@@ -120,24 +121,14 @@ def train_model(model_index, cl, n_channels, class_weights):
 
     start_time = time.time()
     for epoch_num in trange(config.epochs):
-        idx = np.random.choice(idx_train)
-
-        X = h5f['X' + str(idx)][:]
-        y = np.asarray(h5f['Y' + str(idx)][:], dtype=np.float32)
-        locs = np.asarray(h5f['Locations' + str(idx)][:], dtype=np.float32)
-
-        tqdm.write(
-            f'On epoch number {epoch_num} / {config.epochs} '
-            f'(size = {X.shape[0]}).')
-
-        splice_dataset = SpliceDataset(X, y, locs, config.context_length)
-        dataloader = DataLoader(splice_dataset, batch_size=config.batch_size)
+        dataloader = get_data(
+            h5f, idx_train, config.context_length, config.batch_size)
 
         total_loss = 0
         size = len(dataloader.dataset)
-        for batch, (X, y) in tqdm(enumerate(dataloader),
-                                  total=size // config.batch_size,
-                                  leave=False):
+        for batch, (X, y, loc, chr) in tqdm(
+                enumerate(dataloader), total=size // config.batch_size,
+                leave=False):
 
             y_hat, _, _ = model(X)
             loss = categorical_crossentropy_2d(

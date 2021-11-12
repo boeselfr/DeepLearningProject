@@ -37,30 +37,41 @@ def main(opt):
 
     logging.info('==> Processing Data')
     if not opt.pretrain and not opt.save_feats:
-        train_data = torch.load(
-            opt.model_name.split('.finetune')[0]
-            + '/chrom_feature_dict_train.pt')
-        valid_data = torch.load(
-            opt.model_name.split('.finetune')[0]
-            + '/chrom_feature_dict_valid.pt')
-        test_data = torch.load(
-            opt.model_name.split('.finetune')[0]
-            + '/chrom_feature_dict_test.pt')
+        features_dir = opt.model_name.split('.finetune')[0]
 
-        data_file = None
+        datasets = {
+            'train': torch.load(
+                path.join(features_dir, 'chrom_feature_dict_train.pt')),
+            'valid': torch.load(
+                path.join(features_dir, 'chrom_feature_dict_valid.pt')),
+            'test': torch.load(
+                path.join(features_dir, 'chrom_feature_dict_test.pt'))
+        }
     else:
 
-        data_file = h5py.File(path.join(
+        train_data_file = h5py.File(path.join(
             opt.splice_data_root, 'dataset_train_all.h5'), 'r')
 
-        num_idx = data_file.attrs['n_datasets']
+        test_data_file = h5py.File(path.join(
+            opt.splice_data_root, 'dataset_test_0.h5'), 'r')
+
+        num_idx = train_data_file.attrs['n_datasets']
         idx_all = np.random.permutation(num_idx)
 
-        opt.idx_train = idx_all[:int(opt.train_ratio * num_idx)]
-        opt.idx_valid = idx_all[int(opt.train_ratio * num_idx):]
+        opt.idxs = {
+            'train': idx_all[:int(opt.train_ratio * num_idx)],
+            'valid': idx_all[int(opt.train_ratio * num_idx):],
+            'test': list(range(test_data_file.attrs['n_datasets']))
+        }
 
         if not opt.save_feats:
-            opt.epochs = len(opt.idx_train) * opt.passes
+            opt.epochs = len(opt.idxs['train']) * opt.passes
+
+        datasets = {
+            'train': train_data_file,
+            'valid': train_data_file,
+            'test': test_data_file
+        }
 
     logging.info('==> Creating window_model')
 
@@ -144,7 +155,7 @@ def main(opt):
     # logger = Logger(opt)
 
     try:
-        run_model(base_model, graph_model, data_file, criterion,
+        run_model(base_model, graph_model, datasets, criterion,
                   optimizer, scheduler, opt, logger=None)
     except KeyboardInterrupt:
         logging.info('-' * 89 + '\nManual Exit')

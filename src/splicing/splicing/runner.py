@@ -36,7 +36,7 @@ def pass_end(elapsed, predictions, targets, loss):
     print('----------------------------------------------------------')
 
 
-def run_epoch(base_model, graph_model, dataloader, criterion, optimizer,
+def run_epoch(base_model, graph_model, datasets, criterion, optimizer,
               epoch, opt, split):
     start = time.time()
     if opt.pretrain or opt.save_feats:
@@ -44,12 +44,14 @@ def run_epoch(base_model, graph_model, dataloader, criterion, optimizer,
         # logging.info('Pretraining the base model.')
 
         predictions, targets, loss = pretrain(
-            base_model, dataloader, criterion, optimizer, epoch, opt, split)
+            base_model, datasets[split], criterion, optimizer,
+            epoch, opt, split)
 
     elif not opt.save_feats:
         logging.info('Fine-tuning the graph-based model')
         predictions, targets, loss = finetune(
-            graph_model, dataloader, criterion, optimizer, epoch, opt, split)
+            graph_model, datasets[split], criterion, optimizer,
+            epoch, opt, split)
 
     elapsed = (time.time() - start) / 60
     # logging.info('\n({split}) elapse: {elapse:3.3f} min'.format(
@@ -59,7 +61,7 @@ def run_epoch(base_model, graph_model, dataloader, criterion, optimizer,
     return predictions, targets, loss, elapsed
 
 
-def run_model(base_model, graph_model, data_file,
+def run_model(base_model, graph_model, datasets,
               criterion, optimizer, scheduler, opt, logger):
 
     # if not opt.save_feats:
@@ -73,29 +75,21 @@ def run_model(base_model, graph_model, data_file,
         train_loss, valid_loss = 0, 0
         if not opt.load_gcn and not opt.test_only:
             # TRAIN
-            train_data = get_data(
-                data_file, opt.idx_train, opt.context_length, opt.batch_size)
             train_predictions, train_targets, train_loss, elapsed = run_epoch(
-                base_model, graph_model, train_data,
+                base_model, graph_model, datasets,
                 criterion, optimizer, epoch, opt, 'train')
 
             if epoch % opt.validation_interval == 0:
 
                 # VALIDATE
-                valid_data = get_data(
-                    data_file, opt.idx_valid, opt.context_length,
-                    opt.batch_size)
                 valid_predictions, valid_targets, valid_loss, elapsed = \
-                    run_epoch(base_model, graph_model, valid_data,
+                    run_epoch(base_model, graph_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
-            if epoch % len(opt.idx_train) == 0:
+            if epoch % len(opt.idxs['train']) == 0:
                 # FULL VALIDATION
-                valid_data = get_data(
-                    data_file, opt.idx_valid, opt.context_length,
-                    opt.batch_size, full=True)
                 valid_predictions, valid_targets, valid_loss, elapsed = \
-                    run_epoch(base_model, graph_model, valid_data,
+                    run_epoch(base_model, graph_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
                 pass_end(
                     elapsed, valid_predictions.numpy(), valid_targets.numpy(),
@@ -118,13 +112,8 @@ def run_model(base_model, graph_model, data_file,
         # print(opt.model_name)
 
     # TEST
-    data_file = h5py.File(
-        path.join(opt.splice_data_root, 'dataset_test_0.h5'), 'r')
-    test_data = get_data(
-        data_file, list(range(data_file.attrs['n_datasets'])),
-        opt.context_length, opt.batch_size)
     test_predictions, test_targets, test_loss, elapsed = run_epoch(
-        base_model, graph_model, test_data,
+        base_model, graph_model, datasets,
         criterion, optimizer, opt.epochs, opt, 'test')
     pass_end(
         elapsed, test_predictions.numpy(), test_targets.numpy(), test_loss)
