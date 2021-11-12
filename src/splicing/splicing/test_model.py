@@ -48,7 +48,7 @@ def test_model(context_length, model_fname, n_channels):
 
     h5f = h5py.File(data_dir + 'dataset_test_0.h5', 'r')
 
-    num_idx = len(h5f.keys()) // 2
+    num_idx = len(h5f.keys()) // 2  # TODO
 
     start_time = time.time()
 

@@ -5,11 +5,11 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from utils import util_methods
+from splicing.utils.graph_utils import process_graph, split2desc
 
 
 # TODO
-def finetune(chrome_model, dataloaders, criterion, optimizer,
+def finetune(chrome_model, dataloader, criterion, optimizer,
              epoch, opt, split):
     if split == 'train':
         chrome_model.train()
@@ -30,23 +30,20 @@ def finetune(chrome_model, dataloaders, criterion, optimizer,
     else:
         split_adj_dict = None
 
-    chrom_count = len(dataloaders)
+    for (x, y, loc, chr) in tqdm(dataloader, mininterval=0.5, leave=False,
+                                 desc='(' + split2desc[split] + ')'):
+        x = x[0]
+        x.requires_grad = True
 
-    for dataloader in tqdm(dataloaders, mininterval=0.5,
-                      desc='(' + split + ')', leave=False):
-        x_f = dataloader['forward'].cuda()
-        targets = dataloader['target'].cuda()
-        x_f.requires_grad = True
-
-        split_adj = util_methods.process_graph(
-            opt.adj_type, split_adj_dict, x_f.size(0), chrom).cuda()
+        split_adj = process_graph(
+            opt.adj_type, split_adj_dict, x.size(0), chr).cuda()
 
         if split == 'train':
             optimizer.zero_grad()
 
-        _, pred, _, z = chrome_model(x_f, split_adj, None)
+        _, pred, _, z = chrome_model(x, split_adj, None)
 
-        loss = criterion(pred, targets)
+        loss = criterion(pred, y)
 
         if split == 'train':
             loss.backward()
@@ -54,7 +51,7 @@ def finetune(chrome_model, dataloaders, criterion, optimizer,
 
         total_loss += loss.sum().item()
         all_preds = torch.cat((all_preds, F.sigmoid(pred).cpu().data), 0)
-        all_targets = torch.cat((all_targets, targets.cpu().data), 0)
+        all_targets = torch.cat((all_targets, y.cpu().data), 0)
 
         # A Saliency or TF-TF Relationships
         # Compare to CNN Preds

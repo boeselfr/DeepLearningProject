@@ -30,6 +30,9 @@ OUT_MAP = np.asarray([[1, 0, 0],
                       [0, 0, 0]])
 
 
+CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
+
+
 # One-hot encoding of the outputs: 0 is for no splice, 1 is for acceptor,
 # 2 is for donor and -1 is for padding.
 
@@ -38,7 +41,7 @@ def ceil_div(x, y):
     return int(ceil(float(x) / y))
 
 
-def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end):
+def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end, chrom):
     # This function first converts the sequence into an integer array, where
     # A, C, G, T, N are mapped to 1, 2, 3, 4, 0 respectively. If the strand is
     # negative, then reverse complementing is done. The splice junctions 
@@ -98,7 +101,8 @@ def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end):
     Xd, Yd, locs = reformat_data(X0, Y0, tx_start)
     X, Y = one_hot_encode(Xd, Yd)
 
-    return X, Y, locs
+    chroms = [CHR2IX(chrom[3:])] * len(locs)
+    return X, Y, locs, chroms
 
 
 def reformat_data(X0, Y0, tx_start):
@@ -289,8 +293,9 @@ def get_data(h5f, ixs, context_length, batch_size, full=False):
         X = h5f['X' + str(ix)][:]
         y = np.asarray(h5f['Y' + str(ix)][:], dtype=np.float32)
         locs = np.asarray(h5f['Locations' + str(ix)][:], dtype=np.float32)
+        chroms = np.asarray(h5f['Chromosomes' + str(ix)][:], dtype=np.float32)
 
-        return SpliceDataset(X, y, locs, context_length)
+        return SpliceDataset(X, y, locs, chroms, context_length)
 
     if not full:
         return DataLoader(

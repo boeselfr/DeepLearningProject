@@ -1,8 +1,56 @@
-import torch, torch.nn as nn, torch.nn.functional as F
-# import torch.nn.init as init
-from pdb import set_trace as stop
+import math
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-import numpy as np
+
+"""
+Full Chromosome  Models
+
+ChromeGCN
+
+Input: DNA window features across an entire chromosome
+Output: Epigenomic state prediction for all windows
+
+"""
+
+
+class ChromeGCN(nn.Module):
+    def __init__(self, input_size, hidden_size, dropout, gate, layers):
+        super(ChromeGCN, self).__init__()
+        self.GC1 = GraphConvolution(
+            input_size, hidden_size, bias=True, init='xavier')
+        self.W1 = nn.Linear(input_size, 1)
+        if layers == 2:
+            self.GC2 = GraphConvolution(
+                hidden_size, input_size, bias=True, init='xavier')
+            self.W2 = nn.Linear(input_size, 1)
+        self.dropout = dropout
+        self.batch_norm = nn.BatchNorm1d(input_size)
+        self.out = nn.Linear(input_size, 3)
+
+    def forward(self, x_in, adj, deg, src_dict=None, return_gate=False):
+        g2 = None
+        x = x_in
+        x = x.mean(axis=1)
+        z = self.GC1(x, adj, deg)
+        z = F.tanh(z)
+        g = F.sigmoid(self.W1(z))
+        x = (1 - g) * x + g * z
+        if hasattr(self, 'GC2'):
+            x = F.dropout(x, self.dropout, training=self.training)
+            z2 = self.GC2(x, adj, deg)
+            z2 = F.tanh(z2)
+            g2 = F.sigmoid(self.W2(z2))
+            x = (1 - g2) * x + (g2) * z2
+
+        x = F.relu(x)
+        x = self.batch_norm(x)
+        x = F.dropout(x, self.dropout, training=self.training)
+        out = self.out(x)
+        return x_in, out, (g, g2), None
+
 
 class GraphConvolution(nn.Module):
     def __init__(self, in_features, out_features, bias=True, init='xavier'):
@@ -30,7 +78,8 @@ class GraphConvolution(nn.Module):
             self.bias.data.uniform_(-stdv, stdv)
 
     def reset_parameters_xavier(self):
-        nn.init.xavier_normal_(self.weight.data, gain=0.02) # Implement Xavier Uniform
+        nn.init.xavier_normal_(self.weight.data,
+                               gain=0.02)  # Implement Xavier Uniform
         if self.bias is not None:
             nn.init.constant_(self.bias.data, 0.0)
 
@@ -39,9 +88,8 @@ class GraphConvolution(nn.Module):
         if self.bias is not None:
             nn.init.constant_(self.bias.data, 0.0)
 
-    def forward(self, input, adj,deg):
+    def forward(self, input, adj, deg):
         support = torch.mm(input, self.weight)
-        # stop()
         if adj is not None:
             output = torch.spmm(adj, support)
         else:
@@ -55,8 +103,3 @@ class GraphConvolution(nn.Module):
         return self.__class__.__name__ + ' (' \
                + str(self.in_features) + ' -> ' \
                + str(self.out_features) + ')'
-
-
-
-
-

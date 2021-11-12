@@ -63,7 +63,7 @@ class SpliceAI(nn.Module):
             in_channels=self.n_channels,
             out_channels=3,
             kernel_size=1).to(device)
-        # self.out_act = nn.Softmax(dim=1)
+        self.out_act = nn.Softmax(dim=1)
 
     def forward(self, input):
 
@@ -80,6 +80,7 @@ class SpliceAI(nn.Module):
         x = skip[:, :, self.context_length // 2: -self.context_length // 2]
 
         pred = self.out(x)
+        pred = self.out_act(pred)
         return pred, x, None
 
 

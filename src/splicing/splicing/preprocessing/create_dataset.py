@@ -39,6 +39,7 @@ h5f = h5py.File(data_dir + 'datafile_' + group + '_' + paralog + '.h5', 'r')
 
 SEQ = h5f['SEQ'].asstr()[:]
 STRAND = h5f['STRAND'].asstr()[:]
+CHROM = h5f['CHROM'].asstr()[:]
 TX_START = h5f['TX_START'].asstr()[:]
 TX_END = h5f['TX_END'].asstr()[:]
 JN_START = h5f['JN_START'].asstr()[:]
@@ -58,20 +59,22 @@ for i in range(SEQ.shape[0] // CHUNK_SIZE):
         NEW_CHUNK_SIZE = CHUNK_SIZE
 
     X_batch = []
-    Y_batch = [[] for t in range(1)]
+    Y_batch = [[] for t in range(1)]  # TODO: remove this [[]] ...
     locations_batch = []
+    chromosomes_batch = []
 
     for j in range(NEW_CHUNK_SIZE):
 
         idx = i * CHUNK_SIZE + j
 
-        X, Y, locations = create_datapoints(
+        X, Y, locations, chromosome = create_datapoints(
             SEQ[idx], STRAND[idx],
             TX_START[idx], TX_END[idx],
-            JN_START[idx], JN_END[idx])
+            JN_START[idx], JN_END[idx], CHROM[idx])
 
         X_batch.extend(X)
         locations_batch.extend(locations)
+        chromosomes_batch.extend(chromosome)
         for t in range(1):
             Y_batch[t].extend(Y[t])
 
@@ -79,9 +82,13 @@ for i in range(SEQ.shape[0] // CHUNK_SIZE):
     for t in range(1):
         Y_batch[t] = np.asarray(Y_batch[t]).astype('int8')
 
+    # print(chromosomes_batch)
+
     h5f2.create_dataset('X' + str(i), data=X_batch)
     h5f2.create_dataset('Y' + str(i), data=Y_batch)
     h5f2.create_dataset('Locations' + str(i), data=locations_batch)
+    h5f2.create_dataset('Chromosomes' + str(i), data=chromosomes_batch,
+                        dtype=int)
 
 h5f2.attrs['n_datasets'] = SEQ.shape[0] // CHUNK_SIZE
 

@@ -2,23 +2,17 @@
 from os import path
 import time
 import logging
-from collections import Counter
 
-import numpy as np
 import h5py
 from tqdm.auto import trange
-import torch
 
 from finetune import finetune
 from pretrain import pretrain
-from utils.evals import compute_metrics, SaveLogger
-from utils.util_methods import directory_setup
 
 from splicing.utils.utils import get_data, print_topl_statistics
 
 
-def pass_end(model, elapsed, predictions, targets, loss,
-             opt, pass_n, split):
+def pass_end(elapsed, predictions, targets, loss):
 
     print('----------------------------------------------------------')
     logging.info('\nValidation set metrics:')
@@ -35,21 +29,11 @@ def pass_end(model, elapsed, predictions, targets, loss,
         logging.info("\nAcceptor:")
         print_topl_statistics(
             targets_ix, predictions_ix, loss=loss,
-            prediction_type=prediction_type, test=split != 'train')
+            prediction_type=prediction_type, test=True)
 
-    logging.info(
-        '--- %s seconds ---' % elapsed)
+    logging.info('--- %s seconds ---' % elapsed)
 
     print('----------------------------------------------------------')
-
-    model_dir = path.join(opt.results_dir, 'Models')
-    directory_setup(model_dir)
-    torch.save(
-        model.state_dict(),
-        path.join(
-            model_dir,
-            f'SpliceAI{opt.context_length}_e{pass_n}_g{opt.model_index}.h5')
-    )
 
 
 def run_epoch(base_model, chrome_model, dataloader, criterion, optimizer,
@@ -67,7 +51,7 @@ def run_epoch(base_model, chrome_model, dataloader, criterion, optimizer,
         predictions, targets, loss = finetune(
             chrome_model, dataloader, criterion, optimizer, epoch, opt, split)
 
-    elapsed = ((time.time() - start) / 60)
+    elapsed = (time.time() - start) / 60
     logging.info('\n({split}) elapse: {elapse:3.3f} min'.format(
         split=split, elapse=elapsed))
     logging.info('Total epoch loss: {loss:3.3f}'.format(loss=loss))
@@ -114,9 +98,8 @@ def run_model(base_model, chrome_model, data_file,
                     run_epoch(base_model, chrome_model, valid_data,
                               criterion, optimizer, epoch, opt, 'valid')
                 pass_end(
-                    base_model, elapsed, valid_predictions.numpy(),
-                    valid_targets.numpy(), valid_loss,
-                    opt, epoch // len(opt.idx_train), 'valid')
+                    elapsed, valid_predictions.numpy(), valid_targets.numpy(),
+                    valid_loss)
 
         # LOGGING
         # best_valid, best_test = logger.evaluate(
@@ -135,13 +118,17 @@ def run_model(base_model, chrome_model, data_file,
         # print(opt.model_name)
 
     # TEST
-    h5f = h5py.File(path.join(
-        opt.splice_data_dir, 'dataset_test_0.h5'), 'r')
+    data_file = h5py.File(
+        path.join(opt.splice_data_root, 'dataset_test_0.h5'), 'r')
     test_data = get_data(
-        h5f, list(range(len(h5f.keys()) // 2)),
+        data_file, list(range(data_file.attrs['n_datasets'])),
         opt.context_length, opt.batch_size)
-    test_preds, test_targs, test_loss, elapsed = run_epoch(
+    test_predictions, test_targets, test_loss, elapsed = run_epoch(
         base_model, chrome_model, test_data,
         criterion, optimizer, opt.epochs, opt, 'test')
+    pass_end(
+        base_model, elapsed, test_predictions.numpy(),
+        test_targets.numpy(), test_loss,
+        opt, opt.epochs // len(opt.idx_train), 'test')
     # if not opt.save_feats:
     #     save_logger.log('test.log', opt.epochs, test_loss, test_metrics)

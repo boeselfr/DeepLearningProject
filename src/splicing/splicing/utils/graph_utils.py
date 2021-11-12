@@ -1,4 +1,6 @@
 import os
+from os import path
+import logging
 
 import numpy as np
 import torch
@@ -8,7 +10,7 @@ import wandb
 from splicing.models.losses import CategoricalCrossEntropy2d
 
 
-split2description = {
+split2desc = {
     'train': 'Train',
     'valid': 'Validation',
     'test': 'Test',
@@ -250,20 +252,22 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size, chrom):
     return split_adj
 
 
-def save_feats(model_name, split, all_targs, all_locs, all_x_f):
+def save_feats(model_name, split, Y, locations, X):
+    logging.info(f'Saving features for model {model_name}.')
     chrom_feature_dict = {}
     chrom_index_dict = {}
-    for idx, sample in enumerate(all_locs):
-        chrom = sample[0]
-        if not chrom in chrom_index_dict:
-            chrom_index_dict[chrom] = []
-        chrom_index_dict[chrom].append(idx)
+    for idx, location in enumerate(locations):
+        if location not in chrom_index_dict:
+            chrom_index_dict[location] = []
+        chrom_index_dict[location].append(idx)
 
-    for chrom in chrom_index_dict:
-        chrom_indices = torch.Tensor(chrom_index_dict[chrom]).long()
-        forward = torch.index_select(all_x_f, 0, chrom_indices)
-        target = torch.index_select(all_targs, 0, chrom_indices)
-        chrom_feature_dict[chrom] = {'forward': forward, 'target': target}
+    for location in chrom_index_dict:
+        chrom_indices = torch.Tensor(chrom_index_dict[location]).long()
+        x = torch.index_select(X, 0, chrom_indices)
+        y = torch.index_select(Y, 0, chrom_indices)
+        chrom_feature_dict[location] = {'x': x, 'y': y}
 
-    torch.save(chrom_feature_dict, model_name.split(
-        '.finetune')[0] + '/chrom_feature_dict_' + split + '.pt')
+    features_dir = model_name.split('.finetune')[0]
+    directory_setup(features_dir)
+    torch.save(chrom_feature_dict, path.join(
+        features_dir, f'chrom_feature_dict_{split}.pt'))
