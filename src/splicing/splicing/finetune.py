@@ -22,7 +22,7 @@ def finetune(graph_model, dataset, criterion, optimizer, epoch, opt, split):
 
     if opt.adj_type in ['hic', 'both']:
         graph_file = path.join(
-            opt.graph_root,
+            opt.graph_data_root,
             split + '_graphs_' + opt.hicsize + '_' + opt.hicnorm + 'norm.pkl')
         print(graph_file)
         split_adj_dict = pickle.load(open(graph_file, "rb"))

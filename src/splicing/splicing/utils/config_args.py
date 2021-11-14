@@ -4,12 +4,12 @@ from splicing.utils.utils import get_architecture
 
 
 def get_args(parser):
-    parser.add_argument('-spl_dr', '--splice_data_root',
-                        dest='splice_data_root', type=str)
-    parser.add_argument('-gph_dr', '--graph_data_root',
-                        dest='graph_data_root', type=str)
-    parser.add_argument('-res_d', '--results_dir',
-                        dest='results_dir', type=str)
+    # parser.add_argument('-spl_dr', '--splice_data_root',
+    #                     dest='splice_data_root', type=str)
+    # parser.add_argument('-gph_dr', '--graph_data_root',
+    #                     dest='graph_data_root', type=str)
+    # parser.add_argument('-res_d', '--results_dir',
+    #                     dest='results_dir', type=str)
 
     parser.add_argument('-cell_type', type=str, default='GM12878')
     parser.add_argument('-batch_size', type=int, default=64)
@@ -55,7 +55,6 @@ def get_args(parser):
                         default='1000000')
     parser.add_argument('-gate', action='store_true')
     parser.add_argument('-load_gcn', action='store_true')
-    parser.add_argument('-noeye', action='store_true')
 
     parser.add_argument(
         '-cl', '--context_length', dest='context_length',
@@ -96,17 +95,17 @@ def get_args(parser):
     return opt
 
 
-def config_args(opt):
+def config_args(opt, config):
     if opt.test_batch_size <= 0:
         opt.test_batch_size = opt.batch_size
 
-    opt.graph_root = ''  # TODO
+    # OUR DATA DIRECTORIES
+    opt.splice_data_root = path.join(
+        config['DATA_DIRECTORY'], config['DATA_PIPELINE']['output_dir'])
+    opt.results_dir = path.join(
+        config['DATA_DIRECTORY'], config['TRAINING']['results_dir'])
 
     opt.dec_dropout = opt.dropout
-
-    opt.drop_last = True
-    if opt.test_only:
-        opt.drop_last = False
 
     opt.model_name = 'graph.splice_ai'
     opt.model_name += '.' + str(opt.optim)
@@ -139,21 +138,17 @@ def config_args(opt):
         opt.model_name += '.adj_' + opt.adj_type
         if opt.adj_type == 'hic' or opt.adj_type == 'both':
             opt.model_name += '.norm_' + opt.hicnorm
-        if opt.noeye:
-            opt.model_name += '.noeye'
         if opt.lr_decay2 > 0:
             opt.model_name += '.decay_' + str(opt.lr_decay2).replace(
                 '.', '') + '_' + str(opt.lr_step_size2)
 
     opt.model_name = path.join(opt.results_dir, opt.cell_type, opt.model_name)
 
+    # TODO
+    opt.graph_data_root = path.join(
+        config['DATA_DIRECTORY'], config['DATA_PIPELINE']['output_dir'])
     opt.dataset = path.join(opt.graph_data_root, opt.cell_type)
     opt.cuda = not opt.no_cuda
-
-    if opt.small:
-        opt.data = path.join(opt.dataset, 'train_valid_test_small.pt')
-    else:
-        opt.data = path.join(opt.dataset, 'train_valid_test.pt')
 
     if opt.load_gcn:
         opt.model_name += '.load_gcn'
@@ -177,6 +172,8 @@ def config_args(opt):
     opt.kernel_size = kernel_size
     opt.dilation_rate = dilation_rate
     opt.batch_size = batch_size
+
+    opt.window_size = config['DATA_PIPELINE']['window_size']
 
     if not opt.pretrain:
         opt.batch_size = 512

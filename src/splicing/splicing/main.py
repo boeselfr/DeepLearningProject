@@ -1,7 +1,9 @@
+import os
 from os import path
 import argparse
 import warnings
 import logging
+import yaml
 
 import numpy as np
 import h5py
@@ -18,14 +20,23 @@ from runner import run_model
 from splicing.utils import graph_utils
 
 from splicing.models.splice_ai import SpliceAI
-from splicing.utils.constants import SL
 
 coloredlogs.install(level=logging.INFO)
-
 warnings.filterwarnings("ignore")
+
+
+# ----------------------------------------------------------------
+# Loading Config
+# ----------------------------------------------------------------
+with open("config.yaml", "r") as stream:
+    try:
+        project_config = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+
 parser = argparse.ArgumentParser()
 args = get_args(parser)
-opt = config_args(args)
+opt = config_args(args, project_config)
 
 
 def main(opt):
@@ -34,9 +45,6 @@ def main(opt):
     logging.info(opt.model_name)
 
     logging.info('==> Loading Data')
-    logging.info(opt.data)
-
-    logging.info('==> Processing Data')
     if not opt.pretrain and not opt.save_feats:
         features_dir = opt.model_name.split('.finetune')[0]
 
@@ -51,10 +59,11 @@ def main(opt):
     else:
 
         train_data_file = h5py.File(path.join(
-            opt.splice_data_root, 'dataset_train_all.h5'), 'r')
+            opt.splice_data_root,
+            f'dataset_train_all_{opt.window_size}.h5'), 'r')
 
         test_data_file = h5py.File(path.join(
-            opt.splice_data_root, 'dataset_test_0.h5'), 'r')
+            opt.splice_data_root, f'dataset_test_0_{opt.window_size}.h5'), 'r')
 
         num_idx = train_data_file.attrs['n_datasets']
         idx_all = np.random.permutation(num_idx)
@@ -90,7 +99,7 @@ def main(opt):
     logging.info('Total number of parameters in the base model: '
                  f'{opt.total_num_parameters}.')
     summary(base_model,
-            input_size=(4, opt.context_length + SL),
+            input_size=(4, opt.context_length + opt.window_size),
             device='cuda')
 
     optimizer = graph_utils.get_optimizer(base_model, opt)

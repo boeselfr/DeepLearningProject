@@ -4,7 +4,6 @@ import wandb
 
 from splicing.utils import graph_utils
 from splicing.utils.graph_utils import split2desc
-from splicing.utils.constants import SL
 from splicing.utils.utils import get_data
 
 
@@ -39,8 +38,8 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         full=load_full)
 
     n_instances = len(dataloader.dataset)
-    all_predictions = torch.zeros(n_instances, 3, SL).cpu()
-    all_targets = torch.zeros(n_instances, 3, SL).cpu()
+    all_predictions = torch.zeros(n_instances, 3, opt.window_size).cpu()
+    all_targets = torch.zeros(n_instances, 3, opt.window_size).cpu()
     all_x_f = torch.Tensor().cpu()
     all_locs = []
 

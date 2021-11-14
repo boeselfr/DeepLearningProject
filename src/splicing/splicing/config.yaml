@@ -1,7 +1,5 @@
 
-DATA_DIRECTORY: /Users/cguerner/data/dl_data/splicing
-#/cluster/scratch/cguerner/dl_data
-#"${SCRATCH}/dl_data" 
+DATA_DIRECTORY: /home/anej/repos/studies/deep-learning-project/data
 
 SPLICEAI:
   data: spliceai
@@ -23,7 +21,7 @@ RAW_DATA:
 
 DATA_PIPELINE:
   output_dir: processed_data
-  context_length: 80
+  context_length: 400
   window_size: 5000 # need to integrate
   train_chroms: 
     - chr11
@@ -51,3 +49,6 @@ DATA_PIPELINE:
     - chr5
     - chr7
     - chr9
+
+TRAINING:
+  results_dir: results
