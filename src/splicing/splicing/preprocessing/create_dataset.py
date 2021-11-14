@@ -54,14 +54,14 @@ INTERVAL = config['DATA_PIPELINE']['window_size']
 
 # inputs
 DATAFILE_PATH = os.path.join(
-    DATA_DIR, 
+    DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
     f'datafile_{group}_{paralog}_{INTERVAL}.h5'
 )
 
 # outputs
 DATASET_PATH = os.path.join(
-    DATA_DIR, 
+    DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
     f'dataset_{group}_{paralog}_{INTERVAL}.h5'
 )
@@ -74,14 +74,13 @@ h5f = h5py.File(DATAFILE_PATH, 'r')
 
 SEQ = h5f['SEQ'].asstr()[:]
 STRAND = h5f['STRAND'].asstr()[:]
+CHROM = h5f['CHROM'].asstr()[:]
+TX_START = h5f['TX_START'].asstr()[:]
+TX_END = h5f['TX_END'].asstr()[:]
 JN_START = h5f['JN_START'].asstr()[:]
 JN_END = h5f['JN_END'].asstr()[:]
 
-TX_START = h5f['TX_START'].asstr()[:]
-TX_END = h5f['TX_END'].asstr()[:]
-
 h5f.close()
-
 
 print(f"Outputting to dataset {DATASET_PATH}")
 h5f2 = h5py.File(DATASET_PATH, 'w')
@@ -98,21 +97,22 @@ for i in range(SEQ.shape[0] // CHUNK_SIZE):
         NEW_CHUNK_SIZE = CHUNK_SIZE
 
     X_batch = []
-    Y_batch = [[] for t in range(1)]
+    Y_batch = [[] for t in range(1)]  # TODO: remove this [[]] ...
     locations_batch = []
+    chromosomes_batch = []
 
-    for j in range(NEW_CHUNK_SIZE): #for each gene
+    for j in range(NEW_CHUNK_SIZE):  # for each gene
 
-        idx = i * CHUNK_SIZE + j #idx of the gene data in datafile
+        idx = i * CHUNK_SIZE + j  # idx of the gene data in datafile
 
-        X, Y, locations = create_datapoints(
+        X, Y, locations, chromosome = create_datapoints(
             SEQ[idx], STRAND[idx],
             TX_START[idx], TX_END[idx],
-            JN_START[idx], JN_END[idx]
-        )
+            JN_START[idx], JN_END[idx], CHROM[idx])
 
         X_batch.extend(X)
         locations_batch.extend(locations)
+        chromosomes_batch.extend(chromosome)
         for t in range(1):
             Y_batch[t].extend(Y[t])
 
@@ -123,6 +123,10 @@ for i in range(SEQ.shape[0] // CHUNK_SIZE):
     h5f2.create_dataset('X' + str(i), data=X_batch)
     h5f2.create_dataset('Y' + str(i), data=Y_batch)
     h5f2.create_dataset('Locations' + str(i), data=locations_batch)
+    h5f2.create_dataset('Chromosomes' + str(i), data=chromosomes_batch,
+                        dtype=int)
+
+h5f2.attrs['n_datasets'] = SEQ.shape[0] // CHUNK_SIZE
 
 h5f2.close()
 
