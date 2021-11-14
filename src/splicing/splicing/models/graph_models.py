@@ -16,9 +16,9 @@ Output: Epigenomic state prediction for all windows
 """
 
 
-class ChromeGCN(nn.Module):
+class SpliceGraph(nn.Module):
     def __init__(self, input_size, hidden_size, dropout, gate, layers):
-        super(ChromeGCN, self).__init__()
+        super(SpliceGraph, self).__init__()
         self.GC1 = GraphConvolution(
             input_size, hidden_size, bias=True, init='xavier')
         self.W1 = nn.Linear(input_size, 1)
@@ -33,7 +33,6 @@ class ChromeGCN(nn.Module):
     def forward(self, x_in, adj, deg, src_dict=None, return_gate=False):
         g2 = None
         x = x_in
-        x = x.mean(axis=1)
         z = self.GC1(x, adj, deg)
         z = F.tanh(z)
         g = F.sigmoid(self.W1(z))

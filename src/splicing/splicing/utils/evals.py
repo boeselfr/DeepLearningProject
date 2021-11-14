@@ -1,8 +1,11 @@
 import logging
-import torch
 import os
 from os import path
+
+import torch
+
 from splicing.utils import metrics
+from splicing.utils.graph_utils import directory_setup
 
 FORMAT = '[%(asctime)s] %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=FORMAT)
@@ -235,23 +238,15 @@ class Logger:
         return self.best_valid,self.best_test
 
 
-def save_model(opt, epoch_i, model, valid_accu, valid_accus):
-    model_state_dict = model.state_dict()
-    checkpoint = {'model': model_state_dict, 'settings': opt, 'epoch': epoch_i}
-    if opt.save_mode == 'all':
-        model_name = opt.model_name + '/accu_{accu:3.3f}.chkpt'.format(
-            accu=100 * valid_accu)
-        torch.save(checkpoint, model_name)
-    elif opt.save_mode == 'best':
-        model_name = path.join(
-            opt.model_name,
-            f'SpliceAI{opt.context_length}_g{opt.model_index}.h5')
-        try:
-            if valid_accu >= max(valid_accus):
-                torch.save(checkpoint, model_name)
-                print('[Info] The checkpoint file has been updated.')
-        except:
-            pass
+def save_model(opt, epoch, model):
+
+    model_suffix = f'SpliceAI' \
+                   f'_e{epoch}' \
+                   f'_cl{opt.context_length}' \
+                   f'_g{opt.model_index}.h5'
+
+    checkpoint = {'model': model.state_dict(), 'settings': opt, 'epoch': epoch}
+    torch.save(checkpoint, path.join(opt.model_name, model_suffix))
 
 
 class SaveLogger:
@@ -260,45 +255,46 @@ class SaveLogger:
         self.best_valid_metric = 0
         self.best_loss_epoch = 0
         self.model_name = model_name
-        open(path.join(model_name, '/train.log'), 'w').close()
-        open(path.join(model_name, '/valid.log'), 'w').close()
-        open(path.join(model_name, '/test.log'), 'w').close()
+        self.logs_dir = path.join(model_name, 'logs')
+        self.epochs_dir = path.join(self.model_name, 'epochs')
+        directory_setup(self.logs_dir)
+        directory_setup(self.epochs_dir)
+        open(path.join(self.logs_dir, 'train.log'), 'w').close()
+        open(path.join(self.logs_dir, 'valid.log'), 'w').close()
+        open(path.join(self.logs_dir, 'test.log'), 'w').close()
 
-    def save(self, epoch, opt, base_model, chrome_model, valid_loss,
-             valid_metrics_sum, valid_metrics_sums, valid_preds, valid_targs,
-             test_preds=None, test_targs=None):
+    def save(self, epoch, opt, base_model, graph_model, valid_loss,
+             valid_preds, valid_targs, test_preds=None, test_targs=None):
         if valid_loss < self.best_valid_loss:
             self.best_valid_loss = valid_loss
             self.best_loss_epoch = epoch
             torch.save(valid_preds, os.path.join(
-                self.model_name, 'epochs', 'best_valid_preds_loss.pt'))
+                self.epochs_dir, 'best_valid_preds_loss.pt'))
             torch.save(valid_targs, os.path.join(
-                self.model_name, 'epochs', 'best_valid_targets_loss.pt'))
+                self.epochs_dir, 'best_valid_targets_loss.pt'))
             if test_preds is not None:
                 torch.save(test_preds, os.path.join(
-                    self.model_name, 'epochs', 'best_test_preds_loss.pt'))
+                    self.epochs_dir, 'best_test_preds_loss.pt'))
                 torch.save(test_targs, os.path.join(
-                    self.model_name, 'epochs', 'best_test_targets_loss.pt'))
+                    self.epochs_dir, 'best_test_targets_loss.pt'))
 
-        if valid_metrics_sum > self.best_valid_metric:
-            self.best_valid_metric = valid_metrics_sum
-            torch.save(valid_preds, os.path.join(
-                self.model_name, 'epochs', 'best_valid_preds_metrics.pt'))
-            torch.save(valid_targs, os.path.join(
-                self.model_name, 'epochs', 'best_valid_targets_metrics.pt'))
-            if test_preds is not None:
-                torch.save(test_preds, os.path.join(
-                    self.model_name, 'epochs', 'best_test_preds_metrics.pt'))
-                torch.save(test_targs, os.path.join(
-                    self.model_name, 'epochs', 'best_test_targets_metrics.pt'))
+        # if valid_metrics_sum > self.best_valid_metric:
+        #     self.best_valid_metric = valid_metrics_sum
+        #     torch.save(valid_preds, os.path.join(
+        #         self.epochs_dir, 'best_valid_preds_metrics.pt'))
+        #     torch.save(valid_targs, os.path.join(
+        #         self.epochs_dir, 'best_valid_targets_metrics.pt'))
+        #     if test_preds is not None:
+        #         torch.save(test_preds, os.path.join(
+        #             self.epochs_dir, 'best_test_preds_metrics.pt'))
+        #         torch.save(test_targs, os.path.join(
+        #             self.epochs_dir, 'best_test_targets_metrics.pt'))
 
         if 'test' not in self.model_name and not opt.test_only:
             if opt.pretrain:
-                save_model(opt, epoch, base_model, valid_metrics_sum,
-                           valid_metrics_sums)
+                save_model(opt, epoch, base_model)
             else:
-                save_model(opt, epoch, chrome_model, valid_metrics_sum,
-                           valid_metrics_sums)
+                save_model(opt, epoch, graph_model)
 
     def log(self, file_name, epoch, loss, metrics):
         log_file = open(path.join(self.model_name, file_name), 'a')

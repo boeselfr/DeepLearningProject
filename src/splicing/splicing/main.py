@@ -12,7 +12,8 @@ import wandb
 import coloredlogs
 
 from splicing.utils.config_args import config_args, get_args
-from splicing.models.graph_models import ChromeGCN
+# from splicing.models.graph_models import SpliceGraph
+from splicing.models.geometric_models import SpliceGraph
 from runner import run_model
 from splicing.utils import graph_utils
 
@@ -99,8 +100,10 @@ def main(opt):
         # Creating GNNModel
 
         if not opt.save_feats:
-            graph_model = ChromeGCN(
-                32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
+            # graph_model = SpliceGraph(
+            #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
+            graph_model = SpliceGraph(
+                config.n_channels, opt.hidden_size, opt.gcn_dropout)
 
             logging.info(graph_model)
 
@@ -113,13 +116,21 @@ def main(opt):
             # Initialize GCN output layer with window_model output layer
             logging.info('Loading Saved base_model')
 
-            model_fname = f'SpliceAI{opt.context_length}_g{opt.model_index}.h5'
+            model_fname = f'SpliceAI' \
+                          f'_e1190' \
+                          f'_cl{opt.context_length}' \
+                          f'_g{opt.model_index}.h5'
 
             checkpoint = torch.load(path.join(
                 opt.model_name.split('.finetune')[0], model_fname))
+
+            for param in base_model.parameters():
+                param.requires_grad = False
+
             base_model = nn.DataParallel(base_model)
-            base_model = base_model.cuda()
             base_model.load_state_dict(checkpoint['model'])
+
+            base_model = base_model.cuda()
 
             # graph_model.out.weight.data = \
             #     base_model.module.model.classifier.weight.data

@@ -1,15 +1,14 @@
 # !import code; code.interact(local=vars())
-from os import path
 import time
 import logging
 
-import h5py
 from tqdm.auto import trange
 
 from finetune import finetune
 from pretrain import pretrain
 
-from splicing.utils.utils import get_data, print_topl_statistics
+from splicing.utils.utils import print_topl_statistics
+from splicing.utils.evals import SaveLogger
 
 
 def pass_end(elapsed, predictions, targets, loss):
@@ -64,8 +63,8 @@ def run_epoch(base_model, graph_model, datasets, criterion, optimizer,
 def run_model(base_model, graph_model, datasets,
               criterion, optimizer, scheduler, opt, logger):
 
-    # if not opt.save_feats:
-    #     save_logger = SaveLogger(opt.model_name)
+    if not opt.save_feats:
+        save_logger = SaveLogger(opt.model_name)
 
     for epoch in trange(1, opt.epochs + 1):
 
@@ -95,18 +94,17 @@ def run_model(base_model, graph_model, datasets,
                     elapsed, valid_predictions.numpy(), valid_targets.numpy(),
                     valid_loss)
 
+                if not opt.save_feats:
+                    save_logger.save(
+                        epoch, opt, base_model, graph_model,
+                        valid_loss, valid_predictions, valid_targets)
+                    # save_logger.log('valid.log', epoch, valid_loss)
+                    # save_logger.log('train.log', epoch, train_loss)
+
         # LOGGING
         # best_valid, best_test = logger.evaluate(
         #     train_metrics, valid_metrics, test_metrics=None,
         #     epoch=epoch, num_params=opt.total_num_parameters)
-
-        # if not opt.save_feats:
-        #     save_logger.save(
-        #         epoch, opt, window_model, chrome_model,
-        #         valid_loss, valid_metrics_sum, valid_metrics_sums,
-        #         valid_preds, valid_targs)
-        #     save_logger.log('valid.log', epoch, valid_loss, valid_metrics)
-        #     save_logger.log('train.log', epoch, train_loss, train_metrics)
 
         # print('best loss epoch: ' + str(save_logger.best_loss_epoch))
         # print(opt.model_name)

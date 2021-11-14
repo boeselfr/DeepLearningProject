@@ -45,8 +45,6 @@ def get_args(parser):
     parser.add_argument('-gcn_layers', type=int, default=2)
     parser.add_argument('-save_feats', action='store_true')
     parser.add_argument('-A_saliency', action='store_true')
-    parser.add_argument('-chrome_model', type=str, choices=['gcn', 'rnn'],
-                        default='gcn')
     parser.add_argument('-adj_type', type=str,
                         choices=['constant', 'hic', 'both', 'random', 'none',
                                  ''], default='hic')

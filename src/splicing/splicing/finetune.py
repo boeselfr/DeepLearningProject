@@ -9,12 +9,11 @@ from splicing.utils.graph_utils import process_graph, split2desc
 
 
 # TODO
-def finetune(chrome_model, dataset, criterion, optimizer,
-             epoch, opt, split):
+def finetune(graph_model, dataset, criterion, optimizer, epoch, opt, split):
     if split == 'train':
-        chrome_model.train()
+        graph_model.train()
     else:
-        chrome_model.eval()
+        graph_model.eval()
 
     all_preds = torch.Tensor().cpu()
     all_targets = torch.Tensor().cpu()
@@ -30,7 +29,7 @@ def finetune(chrome_model, dataset, criterion, optimizer,
     else:
         split_adj_dict = None
 
-    for (x, y, loc, chr) in tqdm(dataloader, mininterval=0.5, leave=False,
+    for (x, y, loc, chr) in tqdm(dataset, mininterval=0.5, leave=False,
                                  desc='(' + split2desc[split] + ')'):
         x = x[0]
         x.requires_grad = True
@@ -41,7 +40,7 @@ def finetune(chrome_model, dataset, criterion, optimizer,
         if split == 'train':
             optimizer.zero_grad()
 
-        _, pred, _, z = chrome_model(x, split_adj, None)
+        _, pred, _, z = graph_model(x, split_adj, None)
 
         loss = criterion(pred, y)
 

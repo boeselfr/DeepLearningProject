@@ -254,20 +254,20 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size, chrom):
 
 def save_feats(model_name, split, Y, locations, X):
     logging.info(f'Saving features for model {model_name}.')
-    chrom_feature_dict = {}
-    chrom_index_dict = {}
+    location_feature_dict = {}
+    location_index_dict = {}
     for idx, location in enumerate(locations):
-        if location not in chrom_index_dict:
-            chrom_index_dict[location] = []
-        chrom_index_dict[location].append(idx)
+        if location not in location_index_dict:
+            location_index_dict[location] = []
+        location_index_dict[location].append(idx)
 
-    for location in chrom_index_dict:
-        chrom_indices = torch.Tensor(chrom_index_dict[location]).long()
+    for location in location_index_dict:
+        chrom_indices = torch.Tensor(location_index_dict[location]).long()
         x = torch.index_select(X, 0, chrom_indices)
         y = torch.index_select(Y, 0, chrom_indices)
-        chrom_feature_dict[location] = {'x': x, 'y': y}
+        location_feature_dict[location] = {'x': x, 'y': y}
 
     features_dir = model_name.split('.finetune')[0]
     directory_setup(features_dir)
-    torch.save(chrom_feature_dict, path.join(
+    torch.save(location_feature_dict, path.join(
         features_dir, f'chrom_feature_dict_{split}.pt'))
