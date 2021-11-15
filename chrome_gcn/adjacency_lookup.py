@@ -2,6 +2,7 @@
 import os
 import pickle
 import numpy as np
+import csv
 
 
 def adjacency_lookup(chr, pos, adjacency_matrix, idx_dict):
@@ -30,23 +31,49 @@ def adjacency_lookup(chr, pos, adjacency_matrix, idx_dict):
 
 
 if __name__ == '__main__':
-    matrix_folder = '/Users/fredericboesel/Documents/master/herbst21/deeplearning/data/processed_data_allw/GM12878/5000/hic/'
+    matrix_folder = '/Users/fredericboesel/Documents/master/herbst21/deeplearning/data/processed_data_onlygenes/GM12878/5000/hic/'
     matrix_all = 'train_graphs_500000_SQRTVCnorm.pkl'
     idx_dict = 'test_vail_train_bin_dict_500000_SQRTVCnorm.pkl'
+    windows = '/Users/fredericboesel/Documents/master/herbst21/deeplearning/data/processed_data_onlygenes/GM12878/5000/graph_windows_5000.bed'
+
+    chr = 'chr2'
+    pos = 35000
 
 
     with open(os.path.join(matrix_folder, matrix_all), "rb") as f:
         data = pickle.load(f)
-        #print(data)
+        print(data)
 
     with open(os.path.join(matrix_folder, idx_dict), "rb") as f:
         idx_data = pickle.load(f)
         #print(idx_data)
 
-    chr = 'chr2'
-    pos = 35000
+    window_counter = dict()
+    for i in range(1,23):
+        window_counter[f'chr{i}'] = 0
+    window_counter[f'chrX'] = 0
+    window_counter[f'chrY'] = 0
 
-    adjacencies_inidices, adjacencies_locations = adjacency_lookup(chr, pos, data, idx_data)
+    with open(windows) as csvfile:
+        csv_reader = csv.DictReader(csvfile, delimiter='\t',
+                                    fieldnames=['chrom', 'start_pos', 'end_pos', 'assay_id', 'score', 'strand',
+                                                'signalValue', 'pvalue', 'qValue', 'peak'])
+        for i,csv_row in enumerate(csv_reader):
+            chrom = str(csv_row['chrom'])
+            start_pos = int(csv_row['start_pos'])
+            assay_id = str(csv_row['assay_id'])
+            window_counter[chrom] = window_counter[chrom] + 1
+            """if chrom == chr:
+                print(f'chromosome_ {chrom}')
+                print(f'start: {start_pos}')"""
+
+    print(window_counter)
+
+
+
+
+
+    #adjacencies_inidices, adjacencies_locations = adjacency_lookup(chr, pos, data, idx_data)
     print(f'indexes of 3d adjacent windows : {adjacencies_inidices} ')
     print(f'start positions of windows (on same chromosome as query): {adjacencies_locations}')
 
