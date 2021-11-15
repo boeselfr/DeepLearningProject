@@ -13,7 +13,7 @@ import numpy as np
 import re
 import time
 import h5py
-import csv 
+import csv
 import os
 import yaml
 
@@ -32,19 +32,19 @@ parser.add_argument(
 parser.add_argument(
     '-p', '--paralog', dest='paralog', type=str,
     help='Whether to include the genes with paralogs or not.')
-#parser.add_argument(
-#    '-a', '--aligned', dest='aligned', type=bool,
-#    help='Whether to use graph-aligned genes or normal.')
+parser.add_argument(
+   '-a', '--aligned', dest='aligned', action='store_true',
+   help='Whether to use graph-aligned genes or normal.')
 
 args = parser.parse_args()
 
 group = args.group
 paralog = args.paralog
-#aligned = args.aligned
+# aligned = args.aligned
 
 assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
-#assert aligned in [True, False]
+# assert aligned in [True, False]
 
 ###############################################################################
 # Loading Config
@@ -56,26 +56,22 @@ with open("config.yaml", "r") as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
-DATA_DIR = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['SPLICEAI']['data']
-)
+DATA_DIR = config['DATA_DIRECTORY']
 
 # input
 SPLICE_TABLE_PATH = os.path.join(
     DATA_DIR,
-    config['SPLICEAI']['splice_table']
+    config['RAW_DATA']['splice_table']
 )
 
 REF_GENOME_PATH = os.path.join(
     DATA_DIR,
-    config['SPLICEAI']['genome']
+    config['RAW_DATA']['genome']
 )
 
 CHROM_SIZE_FILE = os.path.join(
-    config['DATA_DIRECTORY'], 
-    config['CHROME_GCN']['data_dir'],
-    config['CHROME_GCN']['chrom_sizes']
+    config['DATA_DIRECTORY'],
+    config['RAW_DATA']['chrom_sizes']
 )
 
 # data pipeline config
@@ -94,24 +90,28 @@ elif group == 'test':
 else:
     CHROM_GROUP = ALL_CHROMS
 
-#output paths
+# output paths
 GENE_WINDOWS_PATH = os.path.join(
     DATA_DIR,
+    config['DATA_PIPELINE']['output_dir'],
     f'gene_windows_{INTERVAL}.bed'
 )
 
 GRAPH_WINDOWS_PATH = os.path.join(
     DATA_DIR,
+    config['DATA_PIPELINE']['output_dir'],
     f'graph_windows_{INTERVAL}.bed'
-    )
+)
 
 SEQUENCE_FILE_PATH = os.path.join(
     DATA_DIR,
+    config['DATA_PIPELINE']['output_dir'],
     f'gtex_sequence_{INTERVAL}.txt'
 )
 
 DATAFILE_PATH = os.path.join(
-    DATA_DIR, 
+    DATA_DIR,
+    config['DATA_PIPELINE']['output_dir'],
     f'datafile_{group}_{paralog}_{INTERVAL}.h5'
 )
 
@@ -123,12 +123,14 @@ DATAFILE_PATH = os.path.join(
 CL_R = int(CL_MAX / 2)
 CL_L = int(CL_R + 1)
 
+
 def apply_adjustment(start, end):
     # round gene start/end down/up adjusting to graph
-    adj_start = (start//INTERVAL)*INTERVAL
-    adj_end = ((end//INTERVAL)+1)*INTERVAL
+    adj_start = (start // INTERVAL) * INTERVAL
+    adj_end = ((end // INTERVAL) + 1) * INTERVAL
 
-    assert (adj_end - adj_start)%INTERVAL == 0, "gene window index adjustment error"
+    assert (adj_end - adj_start) % INTERVAL == 0, \
+        "gene window index adjustment error"
 
     # add in extra context window for edge nucleotides
     cl_start = adj_start - CL_L
@@ -143,9 +145,10 @@ def apply_adjustment(start, end):
 # Collecting chromosome length
 lengths = {}
 with open(CHROM_SIZE_FILE) as csvfile:
-    csv_reader = csv.DictReader(csvfile,delimiter='\t',fieldnames=['chrom_name','length'])
+    csv_reader = csv.DictReader(csvfile, delimiter='\t',
+                                fieldnames=['chrom_name', 'length'])
     for csv_row in csv_reader:
-        lengths[csv_row['chrom_name']] = int(csv_row['length'])-INTERVAL
+        lengths[csv_row['chrom_name']] = int(csv_row['length']) - INTERVAL
 
 gene_windows_file_w = open(GENE_WINDOWS_PATH, 'w')
 
@@ -155,11 +158,11 @@ with open(SPLICE_TABLE_PATH, 'r') as fpr1:
     for line1 in fpr1:
         data1 = re.split('\n|\t', line1)[:-1]
 
-        #TODO: decide if we want to limit this by CHROM_GROUP
+        # TODO: decide if we want to limit this by CHROM_GROUP
         chrom = data1[2]
         startint = int(data1[4])
         endint = int(data1[5])
-    
+
         adj_start, adj_end, cl_start, cl_end = apply_adjustment(
             startint, endint
         )
@@ -168,22 +171,25 @@ with open(SPLICE_TABLE_PATH, 'r') as fpr1:
             print("CHROMOSOME INDEX OVER THE MAX")
             break
 
-        gene_windows_file_w.write(chrom+'\t'+str(cl_start)+'\t'+str(cl_end)+'\n')
+        gene_windows_file_w.write(
+            chrom + '\t' + str(cl_start) + '\t' + str(cl_end) + '\n')
 
         chrom_bins = chrom_bin_dict.get(chrom, [])
-        for i in range(int((adj_end - adj_start)/INTERVAL)):
-            chrom_bins.append((adj_start + i * INTERVAL, adj_start + (i+1) * INTERVAL))
+        for i in range(int((adj_end - adj_start) / INTERVAL)):
+            chrom_bins.append(
+                (adj_start + i * INTERVAL, adj_start + (i + 1) * INTERVAL))
         chrom_bin_dict[chrom] = chrom_bins
-        
+
 gene_windows_file_w.close()
 
 # Export bed file with unique list of graph windows for each chromosome
 graph_windows_file_w = open(GRAPH_WINDOWS_PATH, 'w')
 
-for chrom, windows in chrom_bin_dict.items(): 
+for chrom, windows in chrom_bin_dict.items():
     unique_windows = sorted(list(set(windows)))
     for start, end in unique_windows:
-        graph_windows_file_w.write(chrom+'\t'+str(start)+'\t'+str(end)+'\n')
+        graph_windows_file_w.write(
+            chrom + '\t' + str(start) + '\t' + str(end) + '\n')
 
 graph_windows_file_w.close()
 
@@ -191,7 +197,10 @@ graph_windows_file_w.close()
 # Create sequences from gene index bed file
 ###############################################################################
 
-sys_command = f'bedtools getfasta -bed {GENE_WINDOWS_PATH} -fi {REF_GENOME_PATH} -fo {SEQUENCE_FILE_PATH} -tab'
+sys_command = f'bedtools getfasta ' \
+              f'-bed {GENE_WINDOWS_PATH} ' \
+              f'-fi {REF_GENOME_PATH} ' \
+              f'-fo {SEQUENCE_FILE_PATH} -tab'
 print(f"Executing syscommand {sys_command}")
 os.system(sys_command)
 
@@ -204,9 +213,9 @@ PARALOG = []  # 0 if no paralogs exist, 1 otherwise
 CHROM = []  # Chromosome number
 STRAND = []  # Strand in which the gene lies (+ or -)
 TX_START = []  # Position where transcription starts
-TX_START_ADJ = [] # adjusted start position, rounding down by interval
+TX_START_ADJ = []  # adjusted start position, rounding down by interval
 TX_END = []  # Position where transcription ends
-TX_END_ADJ = [] # adjusted end position, rounding up by interval
+TX_END_ADJ = []  # adjusted end position, rounding up by interval
 JN_START = []  # Positions where gtex exons end
 JN_END = []  # Positions where gtex exons start
 SEQ = []  # Nucleotide sequence
@@ -224,7 +233,7 @@ with open(SPLICE_TABLE_PATH, 'r') as fpr1:
         # recomputing adjusted indices for genes from splicing data
         startint = int(data1[4])
         endint = int(data1[5])
-    
+
         adj_start, adj_end, cl_start, cl_end = apply_adjustment(
             startint, endint
         )

@@ -1,7 +1,5 @@
 
-DATA_DIRECTORY: /Users/cguerner/data/dl_data
-#/cluster/scratch/cguerner/dl_data
-#"${SCRATCH}/dl_data" 
+DATA_DIRECTORY: /home/anej/repos/studies/deep-learning-project/data
 
 SPLICEAI:
   data: spliceai
@@ -12,8 +10,18 @@ CHROME_GCN:
   data_dir: chrome_gcn
   chrom_sizes: orig_data/genome/hg19/hg19.chrom_sizes
 
+RAW_DATA:  
+  splice_table: raw_data/gtex_dataset.txt
+  genome: raw_data/genome.fa
+  chrom_sizes: raw_data/genome/hg19/hg19.chrom_sizes
+  genome_root: raw_data/genome
+  input_root: raw_data/encode
+  hic_root: raw_data/hic
+  expr_root: raw_data/roadmap_expression
+
 DATA_PIPELINE:
-  context_length: 80
+  output_dir: processed_data
+  context_length: 400
   window_size: 5000 # need to integrate
   train_chroms: 
     - chr11
@@ -41,3 +49,6 @@ DATA_PIPELINE:
     - chr5
     - chr7
     - chr9
+
+TRAINING:
+  results_dir: results
