@@ -124,7 +124,8 @@ def config_args(opt, config):
     if opt.save_feats:
         opt.pretrain = False
         opt.shuffle_train = False
-        opt.epochs = 1
+        opt.train_ratio = 1.0
+        # opt.epochs = 1
 
     elif opt.load_pretrained:
         opt.model_name += '.finetune'

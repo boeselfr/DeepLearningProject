@@ -31,7 +31,7 @@ class SpliceDataset(Dataset):
         loc = torch.tensor(
             self.locations[index], dtype=torch.float32).to(self.device)
         chr = torch.tensor(
-            self.chromosomes[index], dtype=torch.float32).to(self.device)
+            self.chromosomes[index], dtype=torch.int).to(self.device)
         return x, y, loc, chr
 
     def __len__(self):

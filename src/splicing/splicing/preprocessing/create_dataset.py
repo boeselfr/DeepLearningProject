@@ -105,14 +105,14 @@ for i in range(SEQ.shape[0] // CHUNK_SIZE):
 
         idx = i * CHUNK_SIZE + j  # idx of the gene data in datafile
 
-        X, Y, locations, chromosome = create_datapoints(
+        X, Y, locations, chromosomes = create_datapoints(
             SEQ[idx], STRAND[idx],
             TX_START[idx], TX_END[idx],
             JN_START[idx], JN_END[idx], CHROM[idx])
 
         X_batch.extend(X)
         locations_batch.extend(locations)
-        chromosomes_batch.extend(chromosome)
+        chromosomes_batch.extend(chromosomes)
         for t in range(1):
             Y_batch[t].extend(Y[t])
 
