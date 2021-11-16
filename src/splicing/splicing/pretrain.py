@@ -31,11 +31,17 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
     else:
         base_model.eval()
 
-    load_full = epoch > 0 and (epoch % len(opt.idxs['train']) == 0) \
-                and split in ['valid', 'test']
-    dataloader = get_data(
-        data_file, opt.idxs[split], opt.context_length, opt.batch_size,
-        full=load_full)
+    if opt.save_feats:
+        # go one by one to avoid large memory consumption
+        dataloader = get_data(
+            data_file, opt.idxs[split], opt.context_length, opt.batch_size,
+            full=False, ix=opt.idxs[split][epoch - 1])
+    else:
+        load_full = (epoch > 0 and (epoch % len(opt.idxs['train']) == 0)
+                     and split in ['valid', 'test'])
+        dataloader = get_data(
+            data_file, opt.idxs[split], opt.context_length, opt.batch_size,
+            full=load_full)
 
     n_instances = len(dataloader.dataset)
     all_predictions = torch.zeros(n_instances, 3, opt.window_size).cpu()
@@ -47,11 +53,9 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
     batch_size = opt.batch_size
     n_batches = n_instances // batch_size
 
-    pbar = tqdm(total=n_batches, mininterval=0.5,
-                desc=split2desc[split], leave=False)
-
-    for batch, (X, y, loc, chr) in enumerate(dataloader):
-        pbar.update()
+    for batch, (X, y, loc, chr) in enumerate(
+            tqdm(dataloader, total=n_batches,
+                 desc=split2desc[split], leave=False)):
 
         if opt.pretrain and split == 'train':
             optimizer.zero_grad()
@@ -72,9 +76,10 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
 
         if opt.save_feats:
             all_x_f = torch.cat((all_x_f, x.detach().cpu()), 0)
-            chr = list(chr.detach().cpu().numpy().astype(int))
+            # chr = list(chr.detach().cpu().numpy().astype(int))
             loc = list(loc.detach().cpu().numpy().astype(int))
-            all_locs.extend(list(zip(chr, loc)))
+            # all_locs.extend(list(zip(chr, loc)))
+            all_locs.extend(loc)
 
         if split == 'train' and batch % opt.log_interval == 0 \
                 and opt.wandb:
@@ -86,8 +91,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
 
     if opt.save_feats:
         graph_utils.save_feats(
-            opt.model_name, split, all_targets, all_locs, all_x_f)
-
-    pbar.close()
+            opt.model_name, split, all_targets, all_locs, all_x_f,
+            chr[0], epoch)
 
     return all_predictions, all_targets, total_loss

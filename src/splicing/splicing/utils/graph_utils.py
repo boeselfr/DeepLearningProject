@@ -38,7 +38,7 @@ def get_wandb_config(opt):
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate
     config.batch_size = opt.batch_size
-    config.epochs = opt.epochs
+    # config.epochs = opt.epochs
     config.context_length = opt.context_length
     config.lr = opt.lr
     config.train_ratio = opt.train_ratio
@@ -252,10 +252,18 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size, chrom):
     return split_adj
 
 
-def save_feats(model_name, split, Y, locations, X):
-    logging.info(f'Saving features for model {model_name}.')
+def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
+    # logging.info(f'Saving features for model {model_name}.')
+
+    features_dir = model_name.split('.finetune')[0]
+    directory_setup(features_dir)
+    data_fname = path.join(
+        features_dir, f'chrom_feature_dict_{split}_chr{chromosome}.pt')
     location_feature_dict = {}
     location_index_dict = {}
+    if path.exists(data_fname):
+        location_feature_dict = torch.load(data_fname)
+
     for idx, location in enumerate(locations):
         if location not in location_index_dict:
             location_index_dict[location] = []
@@ -266,8 +274,4 @@ def save_feats(model_name, split, Y, locations, X):
         x = torch.index_select(X, 0, chrom_indices)
         y = torch.index_select(Y, 0, chrom_indices)
         location_feature_dict[location] = {'x': x, 'y': y}
-
-    features_dir = model_name.split('.finetune')[0]
-    directory_setup(features_dir)
-    torch.save(location_feature_dict, path.join(
-        features_dir, f'chrom_feature_dict_{split}.pt'))
+    torch.save(location_feature_dict, data_fname)
