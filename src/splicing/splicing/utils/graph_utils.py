@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from scipy import sparse
 import wandb
-import pickle
 from splicing.models.losses import CategoricalCrossEntropy2d
 
 
