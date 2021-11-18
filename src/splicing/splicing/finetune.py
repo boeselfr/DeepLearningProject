@@ -31,6 +31,13 @@ def finetune(graph_model, data, criterion, optimizer, epoch, opt, split):
     else:
         split_adj_dict = None
 
+    # bin dict has information for all chromosomes thats why we can load it here before:
+    # we need it also for the constant case, thus always has to be loaded
+    bin_dict_file = path.join(
+        opt.graph_data_root,
+        'test_vail_train_bin_dict_' + opt.hicsize + '_' + opt.hicnorm + 'norm.pkl')
+    bin_dict = pickle.load(open(bin_dict_file, "rb"))
+
     for chromosome in tqdm(data, mininterval=0.5, leave=False,
                            desc='(' + split2desc[split] + ')'):
         chromosome_data = data[chromosome]
@@ -40,8 +47,8 @@ def finetune(graph_model, data, criterion, optimizer, epoch, opt, split):
         x.requires_grad = True
 
         split_adj = process_graph(
-            opt.adj_type, split_adj_dict, len(x), chromosome).cuda()
-
+            opt.adj_type, split_adj_dict, len(x), chr, bin_dict, opt.window_size).cuda()
+        
         if split == 'train':
             optimizer.zero_grad()
 
