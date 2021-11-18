@@ -78,14 +78,14 @@ def run_model(base_model, graph_model, datasets,
                 base_model, graph_model, datasets,
                 criterion, optimizer, epoch, opt, 'train')
 
-            if epoch % opt.validation_interval == 0:
+            if epoch % opt.validation_interval == 0 and not opt.save_feats:
 
                 # VALIDATE
                 valid_predictions, valid_targets, valid_loss, elapsed = \
                     run_epoch(base_model, graph_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
-            if epoch % len(opt.idxs['train']) == 0:
+            if epoch % len(opt.idxs['train']) == 0 and not opt.save_feats:
                 # FULL VALIDATION
                 valid_predictions, valid_targets, valid_loss, elapsed = \
                     run_epoch(base_model, graph_model, datasets,
@@ -110,10 +110,15 @@ def run_model(base_model, graph_model, datasets,
         # print(opt.model_name)
 
     # TEST
-    test_predictions, test_targets, test_loss, elapsed = run_epoch(
-        base_model, graph_model, datasets,
-        criterion, optimizer, opt.epochs, opt, 'test')
-    pass_end(
-        elapsed, test_predictions.numpy(), test_targets.numpy(), test_loss)
-    # if not opt.save_feats:
-    #     save_logger.log('test.log', opt.epochs, test_loss, test_metrics)
+    if opt.save_feats:  # hacky
+        for ix in opt.idxs['test']:
+            run_epoch(
+                base_model, graph_model, datasets, criterion, optimizer,
+                ix, opt, 'test')
+    else:
+        test_predictions, test_targets, test_loss, elapsed = run_epoch(
+            base_model, graph_model, datasets,
+            criterion, optimizer, opt.epochs, opt, 'test')
+        pass_end(
+            elapsed, test_predictions.numpy(), test_targets.numpy(), test_loss)
+        # save_logger.log('test.log', opt.epochs, test_loss, test_metrics)

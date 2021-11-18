@@ -35,7 +35,7 @@ DATA_PIPELINE:
     - chr6
     - chr8
     - chr10
-    - chr12,
+    - chr12
     - chr14
     - chr16
     - chr18

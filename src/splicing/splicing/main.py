@@ -74,7 +74,9 @@ def main(opt):
             'test': list(range(test_data_file.attrs['n_datasets']))
         }
 
-        if not opt.save_feats:
+        if opt.save_feats:
+            opt.epochs = len(opt.idxs['train'])
+        else:
             opt.epochs = len(opt.idxs['train']) * opt.passes
 
         datasets = {
@@ -139,7 +141,8 @@ def main(opt):
             base_model = nn.DataParallel(base_model)
             base_model.load_state_dict(checkpoint['model'])
 
-            base_model = base_model.cuda()
+            if opt.cuda:
+                base_model = base_model.cuda()
 
             # graph_model.out.weight.data = \
             #     base_model.module.model.classifier.weight.data
@@ -153,7 +156,7 @@ def main(opt):
         # optimizer = graph_utils.get_optimizer(graph_model, opt)
 
     scheduler = torch.torch.optim.lr_scheduler.StepLR(
-        optimizer, step_size=config.epochs, gamma=0.5)
+        optimizer, step_size=opt.lr_step_size, gamma=0.5)
     logging.info(optimizer)
 
     criterion = graph_utils.get_criterion(opt)
