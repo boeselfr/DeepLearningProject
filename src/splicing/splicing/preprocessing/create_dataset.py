@@ -12,7 +12,6 @@ import numpy as np
 import time
 import os
 import yaml
-from tqdm import trange
 
 from splicing.utils.utils import create_datapoints
 
