@@ -3,15 +3,18 @@ import pickle
 
 import torch
 import torch.nn.functional as F
+from torch_geometric.data import Data
 from tqdm import tqdm
 
-from splicing.utils.graph_utils import process_graph, split2desc
+from splicing.utils.graph_utils import process_graph, split2desc, \
+    build_node_representations
 
 
 # TODO
 # data form: dict of chromosomes, each a dict of locations with the
 #            corresponding (5000, 32) nucleotide features and (5000, 1) targets
-def finetune(graph_model, data, criterion, optimizer, epoch, opt, split):
+def finetune(graph_model, full_model, data, criterion, optimizer,
+             epoch, opt, split):
     if split == 'train':
         graph_model.train()
     else:
@@ -35,27 +38,33 @@ def finetune(graph_model, data, criterion, optimizer, epoch, opt, split):
                            desc='(' + split2desc[split] + ')'):
         chromosome_data = data[chromosome]
 
-        x = chromosome_data['x'][0]  # data of shape (1, 5000, 32)...
+        xs = chromosome_data['x'][0]  # data of shape (1, 32, 5000)...
         y = chromosome_data['y'][0]
+
+        x = build_node_representations(xs, mode=opt.node_representation)
+
         x.requires_grad = True
 
-        split_adj = process_graph(
+        edge_index = process_graph(
             opt.adj_type, split_adj_dict, len(x), chromosome).cuda()
+
+        chromosome_dataset = Data(x=x, edge_index=edge_index)
 
         if split == 'train':
             optimizer.zero_grad()
 
-        # TODO
-        _, pred, _, z = graph_model(x, split_adj, None)
+        # TODO... x is not of the correct form...
+        node_representation = graph_model(x)
+        y_hat = full_model(x, node_representation)
 
-        loss = criterion(pred, y)
+        loss = criterion(y_hat, y)
 
         if split == 'train':
             loss.backward()
             optimizer.step()
 
         total_loss += loss.sum().item()
-        all_preds = torch.cat((all_preds, F.sigmoid(pred).cpu().data), 0)
+        all_preds = torch.cat((all_preds, y_hat.cpu().data), 0)
         all_targets = torch.cat((all_targets, y.cpu().data), 0)
 
         # A Saliency or TF-TF Relationships

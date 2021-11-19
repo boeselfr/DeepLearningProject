@@ -263,7 +263,7 @@ class SaveLogger:
         open(path.join(self.logs_dir, 'valid.log'), 'w').close()
         open(path.join(self.logs_dir, 'test.log'), 'w').close()
 
-    def save(self, epoch, opt, base_model, graph_model, valid_loss,
+    def save(self, epoch, opt, base_model, graph_model, full_model, valid_loss,
              valid_preds, valid_targs, test_preds=None, test_targs=None):
         if valid_loss < self.best_valid_loss:
             self.best_valid_loss = valid_loss

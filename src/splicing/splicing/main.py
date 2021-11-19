@@ -15,7 +15,7 @@ import coloredlogs
 
 from splicing.utils.config_args import config_args, get_args
 # from splicing.models.graph_models import SpliceGraph
-from splicing.models.geometric_models import SpliceGraph
+from splicing.models.geometric_models import SpliceGraph, FullModel
 from runner import run_model
 from splicing.utils import graph_utils
 
@@ -106,7 +106,7 @@ def main(opt):
 
     optimizer = graph_utils.get_optimizer(base_model, opt)
 
-    graph_model = None
+    graph_model, full_model = None, None
     if not opt.pretrain:
         # Creating GNNModel
 
@@ -115,8 +115,10 @@ def main(opt):
             #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
             graph_model = SpliceGraph(
                 config.n_channels, opt.hidden_size, opt.gcn_dropout)
+            full_model = FullModel(graph_model)
 
             logging.info(graph_model)
+            logging.info(full_model)
 
         if opt.load_gcn:
             logging.info('Loading Saved GCN')
@@ -178,7 +180,7 @@ def main(opt):
     # logger = Logger(opt)
 
     try:
-        run_model(base_model, graph_model, datasets, criterion,
+        run_model(base_model, graph_model, full_model, datasets, criterion,
                   optimizer, scheduler, opt, logger=None)
     except KeyboardInterrupt:
         logging.info('-' * 89 + '\nManual Exit')

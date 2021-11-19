@@ -11,7 +11,7 @@ from splicing.utils.utils import print_topl_statistics
 from splicing.utils.evals import SaveLogger
 
 
-def pass_end(elapsed, predictions, targets, loss):
+def pass_end(elapsed, predictions, targets, loss, opt):
 
     print('----------------------------------------------------------')
     logging.info('\nValidation set metrics:')
@@ -28,15 +28,15 @@ def pass_end(elapsed, predictions, targets, loss):
         logging.info("\nAcceptor:")
         print_topl_statistics(
             targets_ix, predictions_ix, loss=loss,
-            prediction_type=prediction_type, test=True)
+            prediction_type=prediction_type, log_wandb=opt.wandb)
 
     logging.info('--- %s seconds ---' % elapsed)
 
     print('----------------------------------------------------------')
 
 
-def run_epoch(base_model, graph_model, datasets, criterion, optimizer,
-              epoch, opt, split):
+def run_epoch(base_model, graph_model, full_model, datasets, criterion,
+              optimizer, epoch, opt, split):
     start = time.time()
     if opt.pretrain or opt.save_feats:
 
@@ -49,7 +49,7 @@ def run_epoch(base_model, graph_model, datasets, criterion, optimizer,
     elif not opt.save_feats:
         logging.info('Fine-tuning the graph-based model')
         predictions, targets, loss = finetune(
-            graph_model, datasets[split], criterion, optimizer,
+            graph_model, full_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
 
     elapsed = (time.time() - start) / 60
@@ -60,7 +60,7 @@ def run_epoch(base_model, graph_model, datasets, criterion, optimizer,
     return predictions, targets, loss, elapsed
 
 
-def run_model(base_model, graph_model, datasets,
+def run_model(base_model, graph_model, full_model, datasets,
               criterion, optimizer, scheduler, opt, logger):
 
     if not opt.save_feats:
@@ -75,28 +75,28 @@ def run_model(base_model, graph_model, datasets,
         if not opt.load_gcn and not opt.test_only:
             # TRAIN
             train_predictions, train_targets, train_loss, elapsed = run_epoch(
-                base_model, graph_model, datasets,
+                base_model, graph_model, full_model, datasets,
                 criterion, optimizer, epoch, opt, 'train')
 
             if epoch % opt.validation_interval == 0 and not opt.save_feats:
 
                 # VALIDATE
                 valid_predictions, valid_targets, valid_loss, elapsed = \
-                    run_epoch(base_model, graph_model, datasets,
+                    run_epoch(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
             if epoch % len(opt.idxs['train']) == 0 and not opt.save_feats:
                 # FULL VALIDATION
                 valid_predictions, valid_targets, valid_loss, elapsed = \
-                    run_epoch(base_model, graph_model, datasets,
+                    run_epoch(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
                 pass_end(
                     elapsed, valid_predictions.numpy(), valid_targets.numpy(),
-                    valid_loss)
+                    valid_loss, opt)
 
                 if not opt.save_feats:
                     save_logger.save(
-                        epoch, opt, base_model, graph_model,
+                        epoch, opt, base_model, graph_model, full_model,
                         valid_loss, valid_predictions, valid_targets)
                     # save_logger.log('valid.log', epoch, valid_loss)
                     # save_logger.log('train.log', epoch, train_loss)
@@ -113,12 +113,13 @@ def run_model(base_model, graph_model, datasets,
     if opt.save_feats:  # hacky
         for ix in opt.idxs['test']:
             run_epoch(
-                base_model, graph_model, datasets, criterion, optimizer,
-                ix, opt, 'test')
+                base_model, graph_model, full_model, datasets, criterion,
+                optimizer, ix, opt, 'test')
     else:
         test_predictions, test_targets, test_loss, elapsed = run_epoch(
-            base_model, graph_model, datasets,
+            base_model, graph_model, full_model, datasets,
             criterion, optimizer, opt.epochs, opt, 'test')
         pass_end(
-            elapsed, test_predictions.numpy(), test_targets.numpy(), test_loss)
+            elapsed, test_predictions.numpy(), test_targets.numpy(),
+            test_loss, opt)
         # save_logger.log('test.log', opt.epochs, test_loss, test_metrics)

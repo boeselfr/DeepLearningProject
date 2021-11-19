@@ -252,6 +252,15 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size, chrom):
     return split_adj
 
 
+def build_node_representations(xs, mode):
+    assert mode in ['average'], \
+        'The specified node representation not supported'
+    if mode == 'average':
+        x = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
+
+    return x
+
+
 def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
     # logging.info(f'Saving features for model {model_name}.')
 
@@ -263,6 +272,9 @@ def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
     location_index_dict = {}
     if path.exists(data_fname):
         location_feature_dict = torch.load(data_fname)
+    else:
+        location_feature_dict['x'] = {}
+        location_feature_dict['y'] = {}
 
     for idx, location in enumerate(locations):
         if location not in location_index_dict:
@@ -273,5 +285,53 @@ def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
         chrom_indices = torch.Tensor(location_index_dict[location]).long()
         x = torch.index_select(X, 0, chrom_indices)
         y = torch.index_select(Y, 0, chrom_indices)
-        location_feature_dict[location] = {'x': x, 'y': y}
+        # location_feature_dict[location] = {'x': x, 'y': y}
+        location_feature_dict['x'][location] = x
+        location_feature_dict['y'][location] = y
     torch.save(location_feature_dict, data_fname)
+
+
+def save_feats_per_chromosome(
+        model_name, split, Y, locations, X, chromosomes, epoch):
+    # logging.info(f'Saving features for model {model_name}.')
+
+    features_dir = model_name.split('.finetune')[0]
+    directory_setup(features_dir)
+    all_chromosomes = set(chromosomes)
+    data_fnames = {
+        chromosome: path.join(
+            features_dir, f'chrom_feature_dict_{split}_chr{chromosome}.pt')
+        for chromosome in all_chromosomes
+    }
+
+    location_feature_dict = {}
+    location_index_dict = {}
+
+    for chromosome in all_chromosomes:
+        if path.exists(data_fnames[chromosome]):
+            location_feature_dict[chromosome] = torch.load(
+                data_fnames[chromosome])
+        else:
+            location_feature_dict[chromosome] = {
+                'x': {}, 'y': {}
+            }
+
+    for chromosome in all_chromosomes:
+        location_index_dict[chromosome] = {}
+
+    for idx, (chromosome, location) in enumerate(zip(chromosomes, locations)):
+        if location not in location_index_dict[chromosome]:
+            location_index_dict[chromosome][location] = []
+        location_index_dict[chromosome][location].append(idx)
+
+    for chromosome in all_chromosomes:
+        for location in location_index_dict[chromosome].keys():
+            chrom_indices = torch.Tensor(
+                location_index_dict[chromosome][location]).long()
+            x = torch.index_select(X, 0, chrom_indices)
+            y = torch.index_select(Y, 0, chrom_indices)
+            location_feature_dict[chromosome]['x'][location] = x
+            location_feature_dict[chromosome]['y'][location] = y
+
+    for chromosome in all_chromosomes:
+        torch.save(location_feature_dict[chromosome], data_fnames[chromosome])
