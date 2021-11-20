@@ -135,7 +135,8 @@ def reformat_data(X0, Y0, tx_start):
     # of interest. The CL_max context nucleotides are such that they are
     # CL_max/2 on either side of the SL nucleotides of interest.
 
-    num_points = ceil_div(len(Y0[0]), SL)
+    #num_points = ceil_div(len(Y0[0]), SL)
+    num_points = int(len(Y0[0]) // SL)
     locs = np.zeros(num_points)
 
     # create matrix of shape [# of sequences of length SL, SL + context window]
@@ -144,9 +145,9 @@ def reformat_data(X0, Y0, tx_start):
 
     # TODO: INVESTIGATE WHY ADDING ONE LAST WINDOW OF PADDING
     # add padding of size SL (e.g. 5000) to the end of the Xs and Ys
-    X0 = np.pad(X0, [0, SL], 'constant', constant_values=0)
-    Y0 = [np.pad(Y0[t], [0, SL], 'constant', constant_values=-1)
-          for t in range(1)]
+    #X0 = np.pad(X0, [0, SL], 'constant', constant_values=0)
+    #Y0 = [np.pad(Y0[t], [0, SL], 'constant', constant_values=-1)
+    #      for t in range(1)]
 
     # populate rows with incremented sequence values
     for i in range(num_points):
