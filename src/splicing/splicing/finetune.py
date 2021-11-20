@@ -3,11 +3,13 @@ import pickle
 
 import torch
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 from tqdm import tqdm
 
 from splicing.utils.graph_utils import process_graph, split2desc, \
     build_node_representations
+from splicing.data_models.splice_dataset import ChromosomeDataset
 
 
 # TODO
@@ -25,6 +27,14 @@ def finetune(graph_model, full_model, data, criterion, optimizer,
 
     total_loss = 0
 
+    # bin dict has information for all chromosomes
+    # that's why we can load it here before:
+    # we need it also for the constant case, thus always has to be loaded
+    bin_dict_file = path.join(
+        opt.graph_data_root,
+        f'test_vail_train_bin_dict_{opt.hicsize}_{opt.hicnorm}norm.pkl')
+    bin_dict = pickle.load(open(bin_dict_file, "rb"))
+
     if opt.adj_type in ['hic', 'both']:
         graph_file = path.join(
             opt.graph_data_root,
@@ -38,34 +48,42 @@ def finetune(graph_model, full_model, data, criterion, optimizer,
                            desc='(' + split2desc[split] + ')'):
         chromosome_data = data[chromosome]
 
-        xs = chromosome_data['x'][0]  # data of shape (1, 32, 5000)...
-        y = chromosome_data['y'][0]
+        xs = chromosome_data['x']
+        ys = chromosome_data['y']
 
         x = build_node_representations(xs, mode=opt.node_representation)
 
         x.requires_grad = True
 
         edge_index = process_graph(
-            opt.adj_type, split_adj_dict, len(x), chromosome).cuda()
+            opt.adj_type, split_adj_dict, len(x),
+            chromosome, bin_dict, opt.window_size).cuda()
 
-        chromosome_dataset = Data(x=x, edge_index=edge_index)
-
-        if split == 'train':
-            optimizer.zero_grad()
+        graph = Data(x=x, edge_index=edge_index)
 
         # TODO... x is not of the correct form...
-        node_representation = graph_model(x)
-        y_hat = full_model(x, node_representation)
+        node_representation = graph_model(graph)
 
-        loss = criterion(y_hat, y)
+        chromosome_dataset = ChromosomeDataset(xs, ys)
+        dataloader = DataLoader(
+            chromosome_dataset, batch_size=opt.graph_batch_size)
 
-        if split == 'train':
-            loss.backward()
-            optimizer.step()
+        for _x, _y in dataloader:
 
-        total_loss += loss.sum().item()
-        all_preds = torch.cat((all_preds, y_hat.cpu().data), 0)
-        all_targets = torch.cat((all_targets, y.cpu().data), 0)
+            if split == 'train':
+                optimizer.zero_grad()
+
+            _y_hat = full_model(_x, node_representation)
+
+            loss = criterion(_y_hat, _y)
+
+            if split == 'train':
+                loss.backward()
+                optimizer.step()
+
+            total_loss += loss.sum().item()
+            all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
+            all_targets = torch.cat((all_targets, _y.cpu().data), 0)
 
         # A Saliency or TF-TF Relationships
         # Compare to CNN Preds

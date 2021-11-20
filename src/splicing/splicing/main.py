@@ -18,6 +18,7 @@ from splicing.utils.config_args import config_args, get_args
 from splicing.models.geometric_models import SpliceGraph, FullModel
 from runner import run_model
 from splicing.utils import graph_utils
+from splicing.utils.utils import CHR2IX
 
 from splicing.models.splice_ai import SpliceAI
 
@@ -38,6 +39,14 @@ parser = argparse.ArgumentParser()
 args = get_args(parser)
 opt = config_args(args, project_config)
 
+# TODO
+train_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+                     project_config['DATA_PIPELINE']['train_chroms']][:1]
+test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+                    project_config['DATA_PIPELINE']['test_chroms']][:1]
+valid_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+                     project_config['DATA_PIPELINE']['test_chroms']][:1]
+
 
 def main(opt):
 
@@ -49,13 +58,24 @@ def main(opt):
         features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
-            'train': torch.load(
-                path.join(features_dir, 'chrom_feature_dict_train.pt')),
-            'valid': torch.load(
-                path.join(features_dir, 'chrom_feature_dict_valid.pt')),
-            'test': torch.load(
-                path.join(features_dir, 'chrom_feature_dict_test.pt'))
+            'train': {
+                chrom: torch.load(
+                    path.join(features_dir,
+                              f'chrom_feature_dict_train_chr{chrom}.pt'))
+                for chrom in train_chromosomes},
+            'valid': {
+                chrom: torch.load(
+                    path.join(features_dir,
+                              f'chrom_feature_dict_test_chr{chrom}.pt'))
+                for chrom in valid_chromosomes},
+            'test': {
+                chrom: torch.load(
+                    path.join(features_dir,
+                              f'chrom_feature_dict_test_chr{chrom}.pt'))
+                for chrom in test_chromosomes},
         }
+
+        opt.epochs = opt.finetune_epochs
     else:
 
         train_data_file = h5py.File(path.join(
@@ -100,9 +120,9 @@ def main(opt):
     logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
     logging.info('Total number of parameters in the base model: '
                  f'{opt.total_num_parameters}.')
-    summary(base_model,
-            input_size=(4, opt.context_length + opt.window_size),
-            device='cuda')
+    # summary(base_model,
+    #         input_size=(4, opt.context_length + opt.window_size),
+    #         device='cuda')
 
     optimizer = graph_utils.get_optimizer(base_model, opt)
 
@@ -115,10 +135,13 @@ def main(opt):
             #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
             graph_model = SpliceGraph(
                 config.n_channels, opt.hidden_size, opt.gcn_dropout)
-            full_model = FullModel(graph_model)
+            full_model = FullModel(opt.n_channels)
 
             logging.info(graph_model)
             logging.info(full_model)
+            # summary(full_model,
+            #         input_size=(2 * opt.n_channels,
+            #                     opt.context_length + opt.window_size))
 
         if opt.load_gcn:
             logging.info('Loading Saved GCN')
@@ -145,6 +168,9 @@ def main(opt):
 
             if opt.cuda:
                 base_model = base_model.cuda()
+
+        optimizer = graph_utils.get_combined_optimizer(
+            graph_model, full_model, opt)
 
             # graph_model.out.weight.data = \
             #     base_model.module.model.classifier.weight.data

@@ -36,3 +36,19 @@ class SpliceDataset(Dataset):
 
     def __len__(self):
         return len(self.X)
+
+
+class ChromosomeDataset(Dataset):
+
+    def __init__(self, xs, ys, device='cuda'):
+        self.X = [xs[loc][0] for loc in xs]
+        self.Y = [xs[loc][0] for loc in ys]
+        self.device = device
+
+    def __getitem__(self, index) -> T_co:
+        x = self.X[index].to(self.device)
+        y = self.Y[index].to(self.device)
+        return x, y
+
+    def __len__(self):
+        return len(self.X)

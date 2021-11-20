@@ -43,6 +43,8 @@ OUT_MAP = np.asarray([[1, 0, 0],
 
 
 CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
+IX2CHR = lambda ix: 'chrX' if ix == 23 else 'chrY' \
+    if chr == 24 else f'chr{str(ix)}'
 
 
 # One-hot encoding of the outputs: 0 is for no splice, 1 is for acceptor,
