@@ -56,8 +56,6 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             path.join(opt.model_name.split('.finetune')[0],
                       f'chrom_feature_dict_{temp_split}_chr{chromosome}.pt'))
 
-        # chromosome_data = data[chromosome]
-
         xs = chromosome_data['x']
         ys = chromosome_data['y']
 
@@ -81,7 +79,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
             if split == 'train':
                 optimizer.zero_grad()
-
+                
             batch_node_representation = node_representation[
                 opt.graph_batch_size * batch:
                 opt.graph_batch_size * (batch + 1), :]
