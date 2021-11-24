@@ -9,7 +9,9 @@ from splicing.utils.graph_utils import process_graph, split2desc
 
 
 # TODO
-def finetune(graph_model, dataset, criterion, optimizer, epoch, opt, split):
+# data form: dict of chromosomes, each a dict of locations with the
+#            corresponding (5000, 32) nucleotide features and (5000, 1) targets
+def finetune(graph_model, data, criterion, optimizer, epoch, opt, split):
     if split == 'train':
         graph_model.train()
     else:
@@ -29,17 +31,28 @@ def finetune(graph_model, dataset, criterion, optimizer, epoch, opt, split):
     else:
         split_adj_dict = None
 
-    for (x, y, loc, chr) in tqdm(dataset, mininterval=0.5, leave=False,
-                                 desc='(' + split2desc[split] + ')'):
-        x = x[0]
+    # bin dict has information for all chromosomes thats why we can load it here before:
+    # we need it also for the constant case, thus always has to be loaded
+    bin_dict_file = path.join(
+        opt.graph_data_root,
+        'test_vail_train_bin_dict_' + opt.hicsize + '_' + opt.hicnorm + 'norm.pkl')
+    bin_dict = pickle.load(open(bin_dict_file, "rb"))
+
+    for chromosome in tqdm(data, mininterval=0.5, leave=False,
+                           desc='(' + split2desc[split] + ')'):
+        chromosome_data = data[chromosome]
+
+        x = chromosome_data['x'][0]  # data of shape (1, 5000, 32)...
+        y = chromosome_data['y'][0]
         x.requires_grad = True
 
         split_adj = process_graph(
-            opt.adj_type, split_adj_dict, x.size(0), chr).cuda()
-
+            opt.adj_type, split_adj_dict, len(x), chr, bin_dict, opt.window_size).cuda()
+        
         if split == 'train':
             optimizer.zero_grad()
 
+        # TODO
         _, pred, _, z = graph_model(x, split_adj, None)
 
         loss = criterion(pred, y)

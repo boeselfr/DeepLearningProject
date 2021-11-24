@@ -315,21 +315,23 @@ def get_architecture(size, N_GPUS=1):
     return W, AR, BATCH_SIZE
 
 
-def get_data(h5f, ixs, context_length, batch_size, full=False):
+def get_data(h5f, ixs, context_length, batch_size, full=False, ix=None):
     from splicing.data_models.splice_dataset import SpliceDataset
     from torch.utils.data import DataLoader, ConcatDataset
 
-    def get_dataset(ix):
+    def get_dataset(dix):
 
-        X = h5f['X' + str(ix)][:]
-        y = np.asarray(h5f['Y' + str(ix)][:], dtype=np.float32)
-        locs = np.asarray(h5f['Locations' + str(ix)][:], dtype=np.float32)
-        chroms = np.asarray(h5f['Chromosomes' + str(ix)][:], dtype=np.float32)
+        X = h5f['X' + str(dix)][:]
+        y = np.asarray(h5f['Y' + str(dix)][:], dtype=np.float32)
+        locs = np.asarray(h5f['Locations' + str(dix)][:], dtype=np.float32)
+        chroms = np.asarray(h5f['Chromosomes' + str(dix)][:], dtype=np.float32)
 
         return SpliceDataset(X, y, locs, chroms, context_length)
 
     if not full:
-        return DataLoader(
-            get_dataset(np.random.choice(ixs)), batch_size=batch_size)
+        ix = np.random.choice(ixs) if ix is None else ix
+        return DataLoader(get_dataset(ix), batch_size=batch_size)
     else:  # test/valid
-        return DataLoader(ConcatDataset([get_dataset(idx) for idx in ixs]))
+        return DataLoader(
+            ConcatDataset([get_dataset(idx) for idx in ixs]),
+            batch_size=batch_size)

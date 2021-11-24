@@ -32,19 +32,14 @@ parser.add_argument(
 parser.add_argument(
     '-p', '--paralog', dest='paralog', type=str,
     help='Whether to include the genes with paralogs or not.')
-parser.add_argument(
-   '-a', '--aligned', dest='aligned', action='store_true',
-   help='Whether to use graph-aligned genes or normal.')
 
 args = parser.parse_args()
 
 group = args.group
 paralog = args.paralog
-# aligned = args.aligned
 
 assert group in ['train', 'test', 'all']
 assert paralog in ['0', '1', 'all']
-# assert aligned in [True, False]
 
 ###############################################################################
 # Loading Config
@@ -213,9 +208,7 @@ PARALOG = []  # 0 if no paralogs exist, 1 otherwise
 CHROM = []  # Chromosome number
 STRAND = []  # Strand in which the gene lies (+ or -)
 TX_START = []  # Position where transcription starts
-TX_START_ADJ = []  # adjusted start position, rounding down by interval
 TX_END = []  # Position where transcription ends
-TX_END_ADJ = []  # adjusted end position, rounding up by interval
 JN_START = []  # Positions where gtex exons end
 JN_END = []  # Positions where gtex exons start
 SEQ = []  # Nucleotide sequence

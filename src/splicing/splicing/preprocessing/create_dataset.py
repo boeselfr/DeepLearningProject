@@ -88,45 +88,75 @@ h5f2 = h5py.File(DATASET_PATH, 'w')
 # CHUNK_SIZE: max number of genes to be stored in a single h5 dataset.
 CHUNK_SIZE = 100
 
-for i in range(SEQ.shape[0] // CHUNK_SIZE):
-    # Each dataset has CHUNK_SIZE genes
+chroms = np.unique(CHROM)
+overall_chunk_counter = 0
 
-    if (i + 1) == SEQ.shape[0] // CHUNK_SIZE:
-        NEW_CHUNK_SIZE = CHUNK_SIZE + SEQ.shape[0] % CHUNK_SIZE
-    else:
-        NEW_CHUNK_SIZE = CHUNK_SIZE
-
+for chrom in chroms:
+    print(f"Processing chromosome: {chrom}")
+    #initialize first batch for this chromosome 
+    chunk_counter = 1
+    counter = 0
     X_batch = []
     Y_batch = [[] for t in range(1)]  # TODO: remove this [[]] ...
     locations_batch = []
     chromosomes_batch = []
 
-    for j in range(NEW_CHUNK_SIZE):  # for each gene
+    for idx in range(SEQ.shape[0]):    
+        # loop though all genes        
+        if CHROM[idx] == chrom: 
+            counter += 1
+            X, Y, locations, chromosomes = create_datapoints(
+                SEQ[idx], STRAND[idx],
+                TX_START[idx], TX_END[idx],
+                JN_START[idx], JN_END[idx], 
+                CHROM[idx]
+            )
+            X_batch.extend(X)
+            locations_batch.extend(locations)
+            chromosomes_batch.extend(chromosomes)
+            for t in range(1):
+                Y_batch[t].extend(Y[t])
+            
+        if (counter == CHUNK_SIZE or 
+            (idx == (SEQ.shape[0] - 1) and len(X_batch) > 0)):
+            # export batch if it reaches chunk size
+            # or last gene and non-empty
 
-        idx = i * CHUNK_SIZE + j  # idx of the gene data in datafile
+            X_batch = np.asarray(X_batch).astype('int8')
+            for t in range(1):
+                Y_batch[t] = np.asarray(Y_batch[t]).astype('int8')
 
-        X, Y, locations, chromosome = create_datapoints(
-            SEQ[idx], STRAND[idx],
-            TX_START[idx], TX_END[idx],
-            JN_START[idx], JN_END[idx], CHROM[idx])
+            h5f2.create_dataset(
+                chrom + '_X' + str(chunk_counter), 
+                data=X_batch
+            )
+            h5f2.create_dataset(
+                chrom + '_Y' + str(chunk_counter), 
+                data=Y_batch
+            )
+            h5f2.create_dataset(
+                chrom + '_Locations' + str(chunk_counter), 
+                data=locations_batch
+            )
+            h5f2.create_dataset(
+                chrom + '_Chromosomes' + str(chunk_counter), 
+                data=chromosomes_batch,
+                dtype=int
+            )
+            
+            # update chrom chunk counter and overall counter
+            chunk_counter += 1
+            overall_chunk_counter += 1
 
-        X_batch.extend(X)
-        locations_batch.extend(locations)
-        chromosomes_batch.extend(chromosome)
-        for t in range(1):
-            Y_batch[t].extend(Y[t])
+            # reinitialize the batches
+            counter = 0
+            X_batch = []
+            Y_batch = [[] for t in range(1)]  # TODO: remove this [[]] ...
+            locations_batch = []
+            chromosomes_batch = []
 
-    X_batch = np.asarray(X_batch).astype('int8')
-    for t in range(1):
-        Y_batch[t] = np.asarray(Y_batch[t]).astype('int8')
 
-    h5f2.create_dataset('X' + str(i), data=X_batch)
-    h5f2.create_dataset('Y' + str(i), data=Y_batch)
-    h5f2.create_dataset('Locations' + str(i), data=locations_batch)
-    h5f2.create_dataset('Chromosomes' + str(i), data=chromosomes_batch,
-                        dtype=int)
-
-h5f2.attrs['n_datasets'] = SEQ.shape[0] // CHUNK_SIZE
+h5f2.attrs['n_datasets'] = overall_chunk_counter
 
 h5f2.close()
 

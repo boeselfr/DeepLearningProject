@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from scipy import sparse
 import wandb
-
 from splicing.models.losses import CategoricalCrossEntropy2d
 
 
@@ -38,7 +37,7 @@ def get_wandb_config(opt):
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate
     config.batch_size = opt.batch_size
-    config.epochs = opt.epochs
+    # config.epochs = opt.epochs
     config.context_length = opt.context_length
     config.lr = opt.lr
     config.train_ratio = opt.train_ratio
@@ -216,21 +215,44 @@ def create_constant_graph(constant_range, x_size):
     return split_adj
 
 
-def process_graph(adj_type, split_adj_dict_chrom, x_size, chrom):
+def create_constant_graph_intragenetic(constant_range, x_size, chrom, bin_dict, window_size):
+    diagonals, indices = [], []
+    for i in range(-constant_range, constant_range + 1):
+        if i != 0:
+            diagonals.append(np.ones(x_size - abs(i)))
+            indices.append(i)
+    split_adj = sparse.diags(diagonals, indices).tocoo()
+    mat_format = split_adj.toarray()
+    location_list = list(bin_dict[chrom].keys())
+    for row_ind in range(0, x_size):
+        # bin_dict[chrom] is an ordered dict, thats why we can just access by index
+        total_pos_row = location_list[row_ind]
+        for col_ind in range(row_ind - constant_range, row_ind + constant_range + 1):
+            # need to check for out of index due to the range going out of bounds at the edges:
+            if 0 <= col_ind < x_size:
+                total_pos_col = location_list[col_ind]
+                # check if difference is more than the expected because of jumps and then set to zero
+                if np.abs(total_pos_col-total_pos_row) > np.abs(window_size * (col_ind - row_ind)):
+                    mat_format[row_ind, col_ind] = 0
+    split_adj = sparse.coo_matrix(mat_format)
+    return split_adj
+
+
+def process_graph(adj_type, split_adj_dict_chrom, x_size, chrom, bin_dict, window_size):
     constant_range = 7
     if adj_type == 'constant':
-        split_adj = create_constant_graph(constant_range, x_size)
+        split_adj = create_constant_graph_intragenetic(constant_range, x_size, chrom, bin_dict, window_size)
         split_adj = split_adj + sparse.eye(split_adj.shape[0])
 
     elif adj_type in ['hic']:
         split_adj = split_adj_dict_chrom[chrom].tocoo()
-        # Set [i,i] = 1 for any row i with no positives 
+        # Set [i,i] = 1 for any row i with no positives
         # diag = split_adj.sum(0)
         # diag = np.array(diag).squeeze()
         # diag[diag>0]=-1
         # diag[diag==0]=1
         # diag[diag==-1]=0
-        # split_adj = split_adj.tocsr() 
+        # split_adj = split_adj.tocsr()
         # split_adj.setdiag(diag)
         split_adj = split_adj + sparse.eye(split_adj.shape[0])
 
@@ -239,7 +261,7 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size, chrom):
 
         # split_adj = split_adj.tocoo()
     elif adj_type == 'both':
-        const_adj = create_constant_graph(constant_range, x_size)
+        const_adj = create_constant_graph_intragenetic(constant_range, x_size, chrom, bin_dict, window_size)
         split_adj = split_adj_dict_chrom[chrom].tocoo() + const_adj
         split_adj = split_adj + sparse.eye(split_adj.shape[0])
 
@@ -247,15 +269,29 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size, chrom):
         split_adj = sparse.eye(x_size).tocoo()
 
     split_adj = normalize(split_adj)
+    # not sure we need this:
     split_adj = sparse_mx_to_torch_sparse_tensor(split_adj)
-
+    # the above does exactly what we need already: ...
+    # output from sparse_mx_to_torch...:
+    """tensor(indices=tensor([[    0,     1,     2,  ..., 19636, 19637, 19638],
+                       [    0,     0,     0,  ..., 19638, 19638, 19638]]),
+       values=tensor([0.3333, 0.3333, 0.3333,  ..., 0.0312, 0.0263, 0.0233]),
+       size=(19639, 19639), nnz=519639, layout=torch.sparse_coo)"""
     return split_adj
 
 
-def save_feats(model_name, split, Y, locations, X):
-    logging.info(f'Saving features for model {model_name}.')
+def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
+    # logging.info(f'Saving features for model {model_name}.')
+
+    features_dir = model_name.split('.finetune')[0]
+    directory_setup(features_dir)
+    data_fname = path.join(
+        features_dir, f'chrom_feature_dict_{split}_chr{chromosome}.pt')
     location_feature_dict = {}
     location_index_dict = {}
+    if path.exists(data_fname):
+        location_feature_dict = torch.load(data_fname)
+
     for idx, location in enumerate(locations):
         if location not in location_index_dict:
             location_index_dict[location] = []
@@ -266,8 +302,4 @@ def save_feats(model_name, split, Y, locations, X):
         x = torch.index_select(X, 0, chrom_indices)
         y = torch.index_select(Y, 0, chrom_indices)
         location_feature_dict[location] = {'x': x, 'y': y}
-
-    features_dir = model_name.split('.finetune')[0]
-    directory_setup(features_dir)
-    torch.save(location_feature_dict, path.join(
-        features_dir, f'chrom_feature_dict_{split}.pt'))
+    torch.save(location_feature_dict, data_fname)
