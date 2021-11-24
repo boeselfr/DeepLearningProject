@@ -94,8 +94,5 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         graph_utils.save_feats(
             opt.model_name, split, all_targets, all_locs, all_x_f,
             chr[0], epoch)
-        # graph_utils.save_feats_per_chromosome(
-        #     opt.model_name, split, all_targets, all_locs, all_x_f,
-        #     all_chroms, epoch)
 
     return all_predictions, all_targets, total_loss

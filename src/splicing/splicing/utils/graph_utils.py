@@ -334,12 +334,12 @@ def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
         chrom_indices = torch.Tensor(location_index_dict[location]).long()
         x = torch.index_select(X, 0, chrom_indices)
         y = torch.index_select(Y, 0, chrom_indices)
-        # location_feature_dict[location] = {'x': x, 'y': y}
         location_feature_dict['x'][location] = x
         location_feature_dict['y'][location] = y
     torch.save(location_feature_dict, data_fname)
 
 
+# Deprecated
 def save_feats_per_chromosome(
         model_name, split, Y, locations, X, chromosomes, epoch):
     # logging.info(f'Saving features for model {model_name}.')
