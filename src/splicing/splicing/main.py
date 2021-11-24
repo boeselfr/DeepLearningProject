@@ -39,13 +39,16 @@ parser = argparse.ArgumentParser()
 args = get_args(parser)
 opt = config_args(args, project_config)
 
-# TODO
+# TODO: this is going to be have to be loaded 1 chromosome at a time...
 train_chromosomes = [CHR2IX(chrom[3:]) for chrom in
-                     project_config['DATA_PIPELINE']['train_chroms']][:1]
-test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
-                    project_config['DATA_PIPELINE']['test_chroms']][:1]
+                     project_config['DATA_PIPELINE']['train_chroms']]
 valid_chromosomes = [CHR2IX(chrom[3:]) for chrom in
-                     project_config['DATA_PIPELINE']['test_chroms']][:1]
+                     project_config['DATA_PIPELINE']['test_chroms']]
+test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+                    project_config['DATA_PIPELINE']['test_chroms']]
+# train_chromosomes = [22]
+# valid_chromosomes = [22]
+# test_chromosomes = [22]
 
 
 def main(opt):
@@ -55,25 +58,32 @@ def main(opt):
 
     logging.info('==> Loading Data')
     if not opt.pretrain and not opt.save_feats:
-        features_dir = opt.model_name.split('.finetune')[0]
+        # features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
-            'train': {
-                chrom: torch.load(
-                    path.join(features_dir,
-                              f'chrom_feature_dict_train_chr{chrom}.pt'))
-                for chrom in train_chromosomes},
-            'valid': {
-                chrom: torch.load(
-                    path.join(features_dir,
-                              f'chrom_feature_dict_test_chr{chrom}.pt'))
-                for chrom in valid_chromosomes},
-            'test': {
-                chrom: torch.load(
-                    path.join(features_dir,
-                              f'chrom_feature_dict_test_chr{chrom}.pt'))
-                for chrom in test_chromosomes},
+            # 'train': {
+            #     chrom: torch.load(
+            #         path.join(features_dir,
+            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
+            #     for chrom in train_chromosomes},
+            # 'valid': {
+            #     chrom: torch.load(
+            #         path.join(features_dir,
+            #                   # f'chrom_feature_dict_test_chr{chrom}.pt'))
+            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
+            #     for chrom in valid_chromosomes},
+            # 'test': {
+            #     chrom: torch.load(
+            #         path.join(features_dir,
+            #                   # f'chrom_feature_dict_test_chr{chrom}.pt'))
+            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
+            #     for chrom in test_chromosomes},
+            'train': train_chromosomes,
+            'valid': valid_chromosomes,
+            'test': test_chromosomes,
         }
+
+        opt.full_validation_interval = 1
 
         opt.epochs = opt.finetune_epochs
     else:
@@ -93,6 +103,8 @@ def main(opt):
             'valid': idx_all[int(opt.train_ratio * num_idx):],
             'test': list(range(test_data_file.attrs['n_datasets']))
         }
+
+        opt.full_validation_interval = len(opt.idxs['train'])
 
         if opt.save_feats:
             opt.epochs = len(opt.idxs['train'])
@@ -133,9 +145,14 @@ def main(opt):
         if not opt.save_feats:
             # graph_model = SpliceGraph(
             #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
+            # TODO: add n_hidden to config
             graph_model = SpliceGraph(
                 config.n_channels, opt.hidden_size, opt.gcn_dropout)
-            full_model = FullModel(opt.n_channels)
+            full_model = FullModel(opt.n_channels, opt.hidden_size)
+
+            if opt.cuda:
+                graph_model = graph_model.cuda()
+                full_model = full_model.cuda()
 
             logging.info(graph_model)
             logging.info(full_model)
@@ -168,6 +185,17 @@ def main(opt):
 
             if opt.cuda:
                 base_model = base_model.cuda()
+
+            # Initialize the final layer of the full model
+            # with pretrained weights
+            combined_params = list(zip(
+                list(base_model.parameters())[-2:],
+                list(full_model.parameters())[-2:]
+            ))
+            combined_params[0][1].data[:, :32, :] = \
+                combined_params[0][0].data[:, :, :]
+            combined_params[1][1].data[:] = \
+                combined_params[1][0].data[:]
 
         optimizer = graph_utils.get_combined_optimizer(
             graph_model, full_model, opt)

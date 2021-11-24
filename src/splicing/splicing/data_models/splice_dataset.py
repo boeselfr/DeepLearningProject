@@ -42,7 +42,7 @@ class ChromosomeDataset(Dataset):
 
     def __init__(self, xs, ys, device='cuda'):
         self.X = [xs[loc][0] for loc in xs]
-        self.Y = [xs[loc][0] for loc in ys]
+        self.Y = [ys[loc][0] for loc in ys]
         self.device = device
 
     def __getitem__(self, index) -> T_co:

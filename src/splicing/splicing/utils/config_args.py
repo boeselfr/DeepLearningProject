@@ -1,3 +1,4 @@
+import os
 import os.path as path
 
 from splicing.utils.utils import get_architecture

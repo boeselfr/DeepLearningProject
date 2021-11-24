@@ -261,7 +261,7 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type, log_wandb):
         idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
 
         topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred))
-                           / float(min(len(idx_pred), len(idx_true)))]
+                           / (float(min(len(idx_pred), len(idx_true))) + 1e-6)]
         threshold += [sorted_y_pred[-int(top_length * len(idx_true))]]
 
     auprc = average_precision_score(y_true, y_pred)

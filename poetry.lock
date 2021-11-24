@@ -1301,7 +1301,7 @@ termcolor = ">=1.1.0,<2.0.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "~3.9"
-content-hash = "203f1b14ae0832d121635594869f190f01acf7f69ac0e4c36e2c9a596dac623a"
+content-hash = "57a764cf27538b231eb1bb3c6fb9200b12068a24d2550372a67661ad1b11f2b2"
 
 [metadata.files]
 anyio = [

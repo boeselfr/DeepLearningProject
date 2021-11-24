@@ -85,7 +85,8 @@ def run_model(base_model, graph_model, full_model, datasets,
                     run_epoch(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
-            if epoch % len(opt.idxs['train']) == 0 and not opt.save_feats:
+            if epoch % opt.full_validation_interval == 0 \
+                    and not opt.save_feats:
                 # FULL VALIDATION
                 valid_predictions, valid_targets, valid_loss, elapsed = \
                     run_epoch(base_model, graph_model, full_model, datasets,
