@@ -229,8 +229,7 @@ def create_constant_graph(constant_range, x_size):
     return split_adj
 
 
-def create_constant_graph_intragenetic(constant_range, x_size, chrom,
-                                       bin_dict, window_size):
+def create_constant_graph_intragenetic(constant_range, x_size, chrom, bin_dict, window_size):
     diagonals, indices = [], []
     for i in range(-constant_range, constant_range + 1):
         if i != 0:
@@ -238,17 +237,13 @@ def create_constant_graph_intragenetic(constant_range, x_size, chrom,
             indices.append(i)
     split_adj = sparse.diags(diagonals, indices).tocoo()
     mat_format = split_adj.toarray()
-    location_list = list(bin_dict[IX2CHR(chrom)].keys())
-    # print(f'x_size = {x_size}')
-    # print(f'len(location_list) = {len(location_list)}')
-    # for row_ind in range(0, x_size):
-    for row_ind in range(0, min(x_size, len(location_list))):
+    location_list = list(bin_dict[chrom].keys())
+    for row_ind in range(0, x_size):
         # bin_dict[chrom] is an ordered dict, thats why we can just access by index
         total_pos_row = location_list[row_ind]
         for col_ind in range(row_ind - constant_range, row_ind + constant_range + 1):
             # need to check for out of index due to the range going out of bounds at the edges:
-            # if 0 <= col_ind < x_size:
-            if 0 <= col_ind < min(len(location_list), x_size):
+            if 0 <= col_ind < x_size:
                 total_pos_col = location_list[col_ind]
                 # check if difference is more than the expected because of jumps and then set to zero
                 if np.abs(total_pos_col-total_pos_row) > np.abs(window_size * (col_ind - row_ind)):
