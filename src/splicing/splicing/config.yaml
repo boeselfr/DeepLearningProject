@@ -11,7 +11,7 @@ RAW_DATA:
   expr_root: raw_data/roadmap_expression
 
 DATA_PIPELINE:
-  output_dir: test_processed_data
+  output_dir: processed_data
   context_length: 400
   window_size: 5000
   # max number of genes to be stored in a single h5 dataset.
