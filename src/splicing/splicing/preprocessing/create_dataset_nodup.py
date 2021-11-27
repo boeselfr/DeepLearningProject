@@ -53,6 +53,9 @@ DATA_DIR = config['DATA_DIRECTORY']
 
 INTERVAL = config['DATA_PIPELINE']['window_size']
 
+# CHUNK_SIZE: max number of genes to be stored in a single h5 dataset.
+CHUNK_SIZE = config['DATA_PIPELINE']['dataset_chunk_size']
+
 # inputs
 DATAFILE_PATH = os.path.join(
     DATA_DIR,
@@ -85,9 +88,6 @@ h5f.close()
 
 print(f"Outputting to dataset {DATASET_PATH}")
 h5f2 = h5py.File(DATASET_PATH, 'w')
-
-# CHUNK_SIZE: max number of genes to be stored in a single h5 dataset.
-CHUNK_SIZE = 100
 
 def count_nonzero_labels(Y):
     counts = np.unique(Y, axis=0, return_counts=True)
@@ -126,15 +126,16 @@ for chrom in chroms:
                 chrom_dict[loc] = loc_dict
 
     #initialize first batch for this chromosome 
-    chunk_counter = 1
+    chunk_counter = 0
     counter = 0
     X_batch = []
     Y_batch = [[] for t in range(1)]
     locations_batch = []
+    total_keys = len(chrom_dict.keys())
 
     for loc, loc_dict in chrom_dict.items():
         counter += 1
-        locations_batch.extent(loc)
+        locations_batch.append(loc)
         Xs = loc_dict['Xs']
         Ys = loc_dict['Ys']
         assert len(Xs) == len(Ys)
@@ -143,22 +144,26 @@ for chrom in chroms:
             stats_Ys = []
             for i, Y in enumerate(Ys):
                 stats_Ys.append((i, Y, count_nonzero_labels(Y)))
-            ordered_Ys = sorted(stats_Ys, lambda x: x[2], reverse=True)
+            ordered_Ys = sorted(
+                stats_Ys, 
+                key = lambda x: x[2], 
+                reverse = True
+            )
             selected_index = ordered_Ys[0][0]
             
             # export corresponding data point
-            X_batch.extent(Xs[selected_index])
-            Y_batch[0].extend(Ys[selected_index])
+            X_batch.append(Xs[selected_index])
+            Y_batch[0].append(Ys[selected_index])
 
         else:
-            X_batch.extend(Xs[0])
-            Y_batch[0].extend(Ys[0])
+            X_batch.append(Xs[0])
+            Y_batch[0].append(Ys[0])
             
         if (counter == CHUNK_SIZE or 
-            (idx == (SEQ.shape[0] - 1) and len(X_batch) > 0)):
+            counter == total_keys - chunk_counter * CHUNK_SIZE):
             # export batch if it reaches chunk size
             # or last gene and non-empty
-
+            print(f"Exporting batch {chrom} - {chunk_counter}")
             X_batch = np.asarray(X_batch).astype('int8')
             for t in range(1):
                 Y_batch[t] = np.asarray(Y_batch[t]).astype('int8')
