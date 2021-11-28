@@ -115,8 +115,8 @@ DATAFILE_PATH = os.path.join(
 ###############################################################################
 
 # CL length adjustment after alignment modification
-CL_R = int(CL_MAX / 2)
-CL_L = int(CL_R + 1)
+CL_R = int(CL_MAX / 2) # 200
+CL_L = int(CL_R + 1) # 201
 
 
 def apply_adjustment(start, end):
@@ -242,6 +242,8 @@ with open(SPLICE_TABLE_PATH, 'r') as fpr1:
 
         if (paralog != data1[1]) and (paralog != 'all'):
             continue
+
+        # example: adj_start 5000, adj_end 10000, cl_start 4799, cl_end 10200
 
         NAME.append(data1[0])
         PARALOG.append(int(data1[1]))

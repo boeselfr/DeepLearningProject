@@ -16,8 +16,8 @@ Then, run:
 python preprocessing/create_datafile.py -g train -p all
 python preprocessing/create_datafile.py -g test -p 0
 
-python preprocessing/create_dataset.py -g train -p all
-python preprocessing/create_dataset.py -g test -p 0
+python preprocessing/create_dataset_nodup.py -g train -p all
+python preprocessing/create_dataset_nodup.py -g test -p 0
 
 python preprocessing/gcn_create_data.py --cell_type 'GM12878' --expr_root '' --run_file 1
 

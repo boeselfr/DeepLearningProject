@@ -28,25 +28,24 @@ SL = config['DATA_PIPELINE']['window_size']
 
 assert CL_max % 2 == 0
 
+# One-hot encoding of the inputs: 0 is for padding, and 1, 2, 3, 4 correspond
+# to A, C, G, T respectively.
 IN_MAP = np.asarray([[0, 0, 0, 0],
                      [1, 0, 0, 0],
                      [0, 1, 0, 0],
                      [0, 0, 1, 0],
                      [0, 0, 0, 1]])
-# One-hot encoding of the inputs: 0 is for padding, and 1, 2, 3, 4 correspond
-# to A, C, G, T respectively.
 
+# One-hot encoding of the outputs: 0 is for no splice, 1 is for acceptor,
+# 2 is for donor and -1 is for padding.
 OUT_MAP = np.asarray([[1, 0, 0],
                       [0, 1, 0],
                       [0, 0, 1],
                       [0, 0, 0]])
 
 
+
 CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
-
-
-# One-hot encoding of the outputs: 0 is for no splice, 1 is for acceptor,
-# 2 is for donor and -1 is for padding.
 
 
 def ceil_div(x, y):
@@ -64,8 +63,8 @@ def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end, chrom):
 
     # replace the context window base pairs outside of the main sequence
     # with Ns
-    seq = 'N' * (CL_max // 2) + seq[CL_max // 2:-CL_max // 2] + 'N' * (
-            CL_max // 2)
+    #seq = 'N' * (CL_max // 2) + seq[CL_max // 2:-CL_max // 2] + 'N' * (
+    #        CL_max // 2)
     # Context being provided on the RNA and not the DNA
 
     seq = seq.upper().replace('A', '1').replace('C', '2')
@@ -99,7 +98,7 @@ def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end, chrom):
 
         X0 = (5 - np.asarray(
             list(map(int, list(seq[::-1]))))) % 5  # Reverse complement
-        Y0 = [-np.ones(tx_end - tx_start + 1) for t in range(1)]
+        Y0 = [-np.ones(tx_end - tx_start + 1) for t in range(1)] # WHY IS THIS + 1
 
         for t in range(1):
 
@@ -135,25 +134,25 @@ def reformat_data(X0, Y0, tx_start):
     # of interest. The CL_max context nucleotides are such that they are
     # CL_max/2 on either side of the SL nucleotides of interest.
 
-    num_points = ceil_div(len(Y0[0]), SL)
+    #num_points = ceil_div(len(Y0[0]), SL)
+    num_points = int(len(Y0[0]) // SL)
     locs = np.zeros(num_points)
 
     # create matrix of shape [# of sequences of length SL, SL + context window]
     Xd = np.zeros((num_points, SL + CL_max))
     Yd = [-np.ones((num_points, SL)) for t in range(1)]
 
-    # TODO: INVESTIGATE WHY ADDING ONE LAST WINDOW OF PADDING
     # add padding of size SL (e.g. 5000) to the end of the Xs and Ys
-    X0 = np.pad(X0, [0, SL], 'constant', constant_values=0)
-    Y0 = [np.pad(Y0[t], [0, SL], 'constant', constant_values=-1)
-          for t in range(1)]
+    #X0 = np.pad(X0, [0, SL], 'constant', constant_values=0)
+    #Y0 = [np.pad(Y0[t], [0, SL], 'constant', constant_values=-1)
+    #      for t in range(1)]
 
     # populate rows with incremented sequence values
     for i in range(num_points):
         Xd[i] = X0[SL * i:CL_max + SL * (i + 1)]
         # for debugging purposes
-        #x_start = (tx_start - CL_max // 2) + SL * i
-        #x_end = (tx_start - CL_max // 2) + CL_max + SL * (i + 1)
+        x_start = (tx_start - (CL_max // 2 + 1)) + SL * i
+        x_end = (tx_start - (CL_max // 2 + 1)) + CL_max + SL * (i + 1)
 
 
     # populate labels for all nucleotides in each incremental sequence
