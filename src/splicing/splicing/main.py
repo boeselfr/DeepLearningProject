@@ -39,16 +39,12 @@ parser = argparse.ArgumentParser()
 args = get_args(parser)
 opt = config_args(args, project_config)
 
-# TODO: this is going to be have to be loaded 1 chromosome at a time...
 train_chromosomes = [CHR2IX(chrom[3:]) for chrom in
                      project_config['DATA_PIPELINE']['train_chroms']]
 valid_chromosomes = [CHR2IX(chrom[3:]) for chrom in
                      project_config['DATA_PIPELINE']['test_chroms']]
 test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
                     project_config['DATA_PIPELINE']['test_chroms']]
-# train_chromosomes = [22]
-# valid_chromosomes = [22]
-# test_chromosomes = [22]
 
 
 def main(opt):
@@ -83,9 +79,9 @@ def main(opt):
             'test': test_chromosomes,
         }
 
-        opt.full_validation_interval = 1
+        opt.full_validation_interval = len(datasets['train'])
 
-        opt.epochs = opt.finetune_epochs
+        opt.epochs = opt.finetune_epochs * len(datasets['train'])
     else:
 
         train_data_file = h5py.File(path.join(

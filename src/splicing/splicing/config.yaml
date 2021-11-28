@@ -41,8 +41,8 @@ DATA_PIPELINE:
     - chr18
     - chr20
     - chr22
-    - chrX
-    - chrY
+#    - chrX
+#    - chrY
   test_chroms:
     - chr1
     - chr3

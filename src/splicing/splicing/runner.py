@@ -47,7 +47,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
             epoch, opt, split)
 
     elif not opt.save_feats:
-        logging.info('Fine-tuning the graph-based model')
+        # logging.info('Fine-tuning the graph-based model')
         predictions, targets, loss = finetune(
             graph_model, full_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
