@@ -44,6 +44,10 @@ OUT_MAP = np.asarray([[1, 0, 0],
                       [0, 0, 0]])
 
 
+CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
+IX2CHR = lambda ix: 'chrX' if ix == 23 else 'chrY' \
+    if chr == 24 else f'chr{str(ix)}'
+
 
 CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
 
@@ -243,7 +247,7 @@ def validate(model, h5f, idxs, context_length, batch_size,
         prediction_type='Donor', test=test)
 
 
-def print_topl_statistics(y_true, y_pred, loss, prediction_type, test=False):
+def print_topl_statistics(y_true, y_pred, loss, prediction_type, log_wandb):
     # Prints the following information: top-kL statistics for k=0.5,1,2,4,
     # auprc, thresholds for k=0.5,1,2,4, number of true splice sites.
 
@@ -258,7 +262,7 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type, test=False):
         idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
 
         topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred))
-                           / float(min(len(idx_pred), len(idx_true)))]
+                           / (float(min(len(idx_pred), len(idx_true))) + 1e-6)]
         threshold += [sorted_y_pred[-int(top_length * len(idx_true))]]
 
     auprc = average_precision_score(y_true, y_pred)
@@ -277,15 +281,14 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type, test=False):
     logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
     logging.info('# Predicted Splice Sites: '
                  f'{no_positive_predictions} / {len(y_pred)}')
-    log_wandb = not test
     if log_wandb:
         wandb.log({
-            f'Test Loss: {prediction_type}': loss,
-            f'AUPRC: {prediction_type}': auprc,
-            f'Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
-            f'Thresholds for K: {prediction_type}': threshold[1],
-            f'Proportion of True Splice Sites Predicted: {prediction_type}':
-                no_positive_predictions / len(idx_true),
+            f'full_valid/Test Loss: {prediction_type}': loss,
+            f'full_valid/AUPRC: {prediction_type}': auprc,
+            f'full_valid/Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
+            f'full_valid/Thresholds for K: {prediction_type}': threshold[1],
+            f'full_valid/Proportion of True Splice Sites Predicted'
+            f': {prediction_type}': no_positive_predictions / len(idx_true),
         })
 
 

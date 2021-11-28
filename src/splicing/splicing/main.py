@@ -15,9 +15,10 @@ import coloredlogs
 
 from splicing.utils.config_args import config_args, get_args
 # from splicing.models.graph_models import SpliceGraph
-from splicing.models.geometric_models import SpliceGraph
+from splicing.models.geometric_models import SpliceGraph, FullModel
 from runner import run_model
 from splicing.utils import graph_utils
+from splicing.utils.utils import CHR2IX
 
 from splicing.models.splice_ai import SpliceAI
 
@@ -38,6 +39,13 @@ parser = argparse.ArgumentParser()
 args = get_args(parser)
 opt = config_args(args, project_config)
 
+train_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+                     project_config['DATA_PIPELINE']['train_chroms']]
+valid_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+                     project_config['DATA_PIPELINE']['test_chroms']]
+test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+                    project_config['DATA_PIPELINE']['test_chroms']]
+
 
 def main(opt):
 
@@ -46,16 +54,34 @@ def main(opt):
 
     logging.info('==> Loading Data')
     if not opt.pretrain and not opt.save_feats:
-        features_dir = opt.model_name.split('.finetune')[0]
+        # features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
-            'train': torch.load(
-                path.join(features_dir, 'chrom_feature_dict_train.pt')),
-            'valid': torch.load(
-                path.join(features_dir, 'chrom_feature_dict_valid.pt')),
-            'test': torch.load(
-                path.join(features_dir, 'chrom_feature_dict_test.pt'))
+            # 'train': {
+            #     chrom: torch.load(
+            #         path.join(features_dir,
+            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
+            #     for chrom in train_chromosomes},
+            # 'valid': {
+            #     chrom: torch.load(
+            #         path.join(features_dir,
+            #                   # f'chrom_feature_dict_test_chr{chrom}.pt'))
+            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
+            #     for chrom in valid_chromosomes},
+            # 'test': {
+            #     chrom: torch.load(
+            #         path.join(features_dir,
+            #                   # f'chrom_feature_dict_test_chr{chrom}.pt'))
+            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
+            #     for chrom in test_chromosomes},
+            'train': train_chromosomes,
+            'valid': valid_chromosomes,
+            'test': test_chromosomes,
         }
+
+        opt.full_validation_interval = len(datasets['train'])
+
+        opt.epochs = opt.finetune_epochs * len(datasets['train'])
     else:
 
         train_data_file = h5py.File(path.join(
@@ -73,6 +99,8 @@ def main(opt):
             'valid': idx_all[int(opt.train_ratio * num_idx):],
             'test': list(range(test_data_file.attrs['n_datasets']))
         }
+
+        opt.full_validation_interval = len(opt.idxs['train'])
 
         if opt.save_feats:
             opt.epochs = len(opt.idxs['train'])
@@ -100,23 +128,33 @@ def main(opt):
     logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
     logging.info('Total number of parameters in the base model: '
                  f'{opt.total_num_parameters}.')
-    summary(base_model,
-            input_size=(4, opt.context_length + opt.window_size),
-            device='cuda')
+    # summary(base_model,
+    #         input_size=(4, opt.context_length + opt.window_size),
+    #         device='cuda')
 
     optimizer = graph_utils.get_optimizer(base_model, opt)
 
-    graph_model = None
+    graph_model, full_model = None, None
     if not opt.pretrain:
         # Creating GNNModel
 
         if not opt.save_feats:
             # graph_model = SpliceGraph(
             #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
+            # TODO: add n_hidden to config
             graph_model = SpliceGraph(
                 config.n_channels, opt.hidden_size, opt.gcn_dropout)
+            full_model = FullModel(opt.n_channels, opt.hidden_size)
+
+            if opt.cuda:
+                graph_model = graph_model.cuda()
+                full_model = full_model.cuda()
 
             logging.info(graph_model)
+            logging.info(full_model)
+            # summary(full_model,
+            #         input_size=(2 * opt.n_channels,
+            #                     opt.context_length + opt.window_size))
 
         if opt.load_gcn:
             logging.info('Loading Saved GCN')
@@ -143,6 +181,20 @@ def main(opt):
 
             if opt.cuda:
                 base_model = base_model.cuda()
+
+            # Initialize the final layer of the full model
+            # with pretrained weights
+            combined_params = list(zip(
+                list(base_model.parameters())[-2:],
+                list(full_model.parameters())[-2:]
+            ))
+            combined_params[0][1].data[:, :32, :] = \
+                combined_params[0][0].data[:, :, :]
+            combined_params[1][1].data[:] = \
+                combined_params[1][0].data[:]
+
+        optimizer = graph_utils.get_combined_optimizer(
+            graph_model, full_model, opt)
 
             # graph_model.out.weight.data = \
             #     base_model.module.model.classifier.weight.data
@@ -178,7 +230,7 @@ def main(opt):
     # logger = Logger(opt)
 
     try:
-        run_model(base_model, graph_model, datasets, criterion,
+        run_model(base_model, graph_model, full_model, datasets, criterion,
                   optimizer, scheduler, opt, logger=None)
     except KeyboardInterrupt:
         logging.info('-' * 89 + '\nManual Exit')

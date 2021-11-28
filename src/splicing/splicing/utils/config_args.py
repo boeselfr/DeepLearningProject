@@ -1,3 +1,4 @@
+import os
 import os.path as path
 
 from splicing.utils.utils import get_architecture
@@ -12,8 +13,7 @@ def get_args(parser):
     #                     dest='results_dir', type=str)
 
     parser.add_argument('-cell_type', type=str, default='GM12878')
-    parser.add_argument('-batch_size', type=int, default=64)
-    parser.add_argument('-test_batch_size', type=int, default=-1)
+    parser.add_argument('-test_batch_size', type=int, default=512)
     parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
                         default='adam')
     parser.add_argument('-optim2', type=str, choices=['adam', 'sgd'],
@@ -52,7 +52,7 @@ def get_args(parser):
                         choices=['KR', 'VC', 'SQRTVC', ''], default='SQRTVC')
     parser.add_argument('-hicsize', type=str,
                         choices=['125000', '250000', '500000', '1000000'],
-                        default='1000000')
+                        default='500000')
     parser.add_argument('-gate', action='store_true')
     parser.add_argument('-load_gcn', action='store_true')
 
@@ -89,6 +89,20 @@ def get_args(parser):
         '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
         help='The dimensionality of the hidden layer in the graph network.')
 
+    parser.add_argument(
+        '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
+        default=1024, help='Batch size for finetuning.')
+
+    parser.add_argument(
+        '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
+        default=4, help='Number of epochs for graph training.')
+
+    parser.add_argument(
+        '-rep', '--node_representation', type=str, default='average',
+        dest='node_representation',
+        help='How to construct the node representation '
+             'from the nucleotide representations.')
+
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
 
     opt = parser.parse_args()
@@ -96,8 +110,6 @@ def get_args(parser):
 
 
 def config_args(opt, config):
-    if opt.test_batch_size <= 0:
-        opt.test_batch_size = opt.batch_size
 
     # OUR DATA DIRECTORIES
     opt.splice_data_root = path.join(

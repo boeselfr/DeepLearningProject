@@ -47,7 +47,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
     all_predictions = torch.zeros(n_instances, 3, opt.window_size).cpu()
     all_targets = torch.zeros(n_instances, 3, opt.window_size).cpu()
     all_x_f = torch.Tensor().cpu()
-    all_locs = []
+    all_locs, all_chroms = [], []
 
     total_loss = 0
     batch_size = opt.batch_size
@@ -76,10 +76,11 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
 
         if opt.save_feats:
             all_x_f = torch.cat((all_x_f, x.detach().cpu()), 0)
-            # chr = list(chr.detach().cpu().numpy().astype(int))
+            chr = list(chr.detach().cpu().numpy().astype(int))
             loc = list(loc.detach().cpu().numpy().astype(int))
             # all_locs.extend(list(zip(chr, loc)))
             all_locs.extend(loc)
+            all_chroms.extend(chr)
 
         if split == 'train' and batch % opt.log_interval == 0 \
                 and opt.wandb:
