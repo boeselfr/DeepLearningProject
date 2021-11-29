@@ -42,7 +42,7 @@ opt = config_args(args, project_config)
 train_chromosomes = [CHR2IX(chrom[3:]) for chrom in
                      project_config['DATA_PIPELINE']['train_chroms']]
 valid_chromosomes = [CHR2IX(chrom[3:]) for chrom in
-                     project_config['DATA_PIPELINE']['test_chroms']]
+                     project_config['DATA_PIPELINE']['valid_chroms']]
 test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
                     project_config['DATA_PIPELINE']['test_chroms']]
 
@@ -57,23 +57,6 @@ def main(opt):
         # features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
-            # 'train': {
-            #     chrom: torch.load(
-            #         path.join(features_dir,
-            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
-            #     for chrom in train_chromosomes},
-            # 'valid': {
-            #     chrom: torch.load(
-            #         path.join(features_dir,
-            #                   # f'chrom_feature_dict_test_chr{chrom}.pt'))
-            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
-            #     for chrom in valid_chromosomes},
-            # 'test': {
-            #     chrom: torch.load(
-            #         path.join(features_dir,
-            #                   # f'chrom_feature_dict_test_chr{chrom}.pt'))
-            #                   f'chrom_feature_dict_train_chr{chrom}.pt'))
-            #     for chrom in test_chromosomes},
             'train': train_chromosomes,
             'valid': valid_chromosomes,
             'test': test_chromosomes,
@@ -88,30 +71,31 @@ def main(opt):
             opt.splice_data_root,
             f'dataset_train_all_{opt.window_size}.h5'), 'r')
 
+        valid_data_file = h5py.File(path.join(
+            opt.splice_data_root,
+            f'dataset_valid_all_{opt.window_size}.h5'), 'r')
+
         test_data_file = h5py.File(path.join(
             opt.splice_data_root, f'dataset_test_0_{opt.window_size}.h5'), 'r')
 
-        num_idx = train_data_file.attrs['n_datasets']
-        idx_all = np.random.permutation(num_idx)
-
-        opt.idxs = {
-            'train': idx_all[:int(opt.train_ratio * num_idx)],
-            'valid': idx_all[int(opt.train_ratio * num_idx):],
-            'test': list(range(test_data_file.attrs['n_datasets']))
-        }
-
-        opt.full_validation_interval = len(opt.idxs['train'])
+        opt.full_validation_interval = train_data_file.attrs['n_datasets']
 
         if opt.save_feats:
-            opt.epochs = len(opt.idxs['train'])
+            opt.epochs = len(train_chromosomes)
         else:
-            opt.epochs = len(opt.idxs['train']) * opt.passes
+            opt.epochs = train_data_file.attrs['n_datasets'] * opt.passes
 
         datasets = {
             'train': train_data_file,
-            'valid': train_data_file,
+            'valid': valid_data_file,
             'test': test_data_file
         }
+
+    opt.chromosomes = {
+        'train': train_chromosomes,
+        'valid': valid_chromosomes,
+        'test': test_chromosomes,
+    }
 
     logging.info('==> Creating window_model')
 
@@ -141,10 +125,9 @@ def main(opt):
         if not opt.save_feats:
             # graph_model = SpliceGraph(
             #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
-            # TODO: add n_hidden to config
             graph_model = SpliceGraph(
-                config.n_channels, opt.hidden_size, opt.gcn_dropout)
-            full_model = FullModel(opt.n_channels, opt.hidden_size)
+                config.n_channels, config.hidden_size, config.gcn_dropout)
+            full_model = FullModel(config.n_channels, config.hidden_size)
 
             if opt.cuda:
                 graph_model = graph_model.cuda()
@@ -166,7 +149,7 @@ def main(opt):
             logging.info('Loading Saved base_model')
 
             model_fname = f'SpliceAI' \
-                          f'_e1190' \
+                          f'_e{opt.model_iteration}' \
                           f'_cl{opt.context_length}' \
                           f'_g{opt.model_index}.h5'
 
@@ -182,19 +165,21 @@ def main(opt):
             if opt.cuda:
                 base_model = base_model.cuda()
 
-            # Initialize the final layer of the full model
-            # with pretrained weights
-            combined_params = list(zip(
-                list(base_model.parameters())[-2:],
-                list(full_model.parameters())[-2:]
-            ))
-            combined_params[0][1].data[:, :32, :] = \
-                combined_params[0][0].data[:, :, :]
-            combined_params[1][1].data[:] = \
-                combined_params[1][0].data[:]
+            if not opt.save_feats:
+                # Initialize the final layer of the full model
+                # with pretrained weights
+                combined_params = list(zip(
+                    list(base_model.parameters())[-2:],
+                    list(full_model.parameters())[-2:]
+                ))
+                combined_params[0][1].data[:, :32, :] = \
+                    combined_params[0][0].data[:, :, :]
+                combined_params[1][1].data[:] = \
+                    combined_params[1][0].data[:]
 
-        optimizer = graph_utils.get_combined_optimizer(
-            graph_model, full_model, opt)
+        if not opt.save_feats:
+            optimizer = graph_utils.get_combined_optimizer(
+                graph_model, full_model, opt)
 
             # graph_model.out.weight.data = \
             #     base_model.module.model.classifier.weight.data

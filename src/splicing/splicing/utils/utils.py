@@ -46,7 +46,7 @@ OUT_MAP = np.asarray([[1, 0, 0],
 
 CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
 IX2CHR = lambda ix: 'chrX' if ix == 23 else 'chrY' \
-    if chr == 24 else f'chr{str(ix)}'
+    if ix == 24 else f'chr{str(ix)}'
 
 
 CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
@@ -317,23 +317,44 @@ def get_architecture(size, N_GPUS=1):
     return W, AR, BATCH_SIZE
 
 
-def get_data(h5f, ixs, context_length, batch_size, full=False, ix=None):
+def get_data(h5f, available_chromosomes, context_length, batch_size,
+             full=False, chromosome=None):
     from splicing.data_models.splice_dataset import SpliceDataset
     from torch.utils.data import DataLoader, ConcatDataset
 
-    def get_dataset(dix):
+    def get_dataset(dchromosome, dix):
 
-        X = h5f['X' + str(dix)][:]
-        y = np.asarray(h5f['Y' + str(dix)][:], dtype=np.float32)
-        locs = np.asarray(h5f['Locations' + str(dix)][:], dtype=np.float32)
-        chroms = np.asarray(h5f['Chromosomes' + str(dix)][:], dtype=np.float32)
+        X = h5f[dchromosome + '_X' + str(dix)][:]
+        y = np.asarray(h5f[dchromosome + '_Y' + str(dix)][:], dtype=np.float32)
+        locs = np.asarray(h5f[dchromosome + '_Locations' + str(dix)][:],
+                          dtype=np.float32)
 
-        return SpliceDataset(X, y, locs, chroms, context_length)
+        return SpliceDataset(X, y, locs, context_length)
 
     if not full:
-        ix = np.random.choice(ixs) if ix is None else ix
-        return DataLoader(get_dataset(ix), batch_size=batch_size)
+        if chromosome is None:  # return a random chunk
+            chromosome = IX2CHR(np.random.choice(available_chromosomes))
+            n_chromosome_chunks = sum(
+                [chromosome + '_X' == key[:len(chromosome + '_X')]
+                 for key in h5f.keys()])
+            ix = np.random.choice(n_chromosome_chunks)
+            return DataLoader(
+                get_dataset(chromosome, ix), batch_size=batch_size)
+        else:  # return the full chromosome
+            datasets = []
+            n_chromosome_chunks = sum(
+                [chromosome + '_X' == key[:len(chromosome + '_X')]
+                 for key in h5f.keys()])
+            for ix in range(n_chromosome_chunks):
+                datasets.append(get_dataset(chromosome, ix))
+            return DataLoader(ConcatDataset(datasets), batch_size=batch_size)
+
     else:  # test/valid
-        return DataLoader(
-            ConcatDataset([get_dataset(idx) for idx in ixs]),
-            batch_size=batch_size)
+        datasets = []
+        for chromosome in [IX2CHR(c) for c in available_chromosomes]:
+            n_chromosome_chunks = sum(
+                [chromosome + '_X' == key[:len(chromosome + '_X')]
+                 for key in h5f.keys()])
+            for ix in range(n_chromosome_chunks):
+                datasets.append(get_dataset(chromosome, ix))
+        return DataLoader(ConcatDataset(datasets), batch_size=batch_size)

@@ -34,6 +34,8 @@ def get_wandb_config(opt):
     config = wandb.config
 
     config.n_channels = opt.n_channels
+    config.hidden_size = opt.hidden_size
+    config.gcn_dropout = opt.gcn_dropout
     config.context_length = opt.context_length
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate

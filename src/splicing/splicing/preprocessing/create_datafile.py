@@ -38,7 +38,7 @@ args = parser.parse_args()
 group = args.group
 paralog = args.paralog
 
-assert group in ['train', 'test', 'all']
+assert group in ['train', 'test', 'valid', 'all']
 assert paralog in ['0', '1', 'all']
 
 ###############################################################################
@@ -73,13 +73,16 @@ CHROM_SIZE_FILE = os.path.join(
 CL_MAX = config['DATA_PIPELINE']['context_length']
 
 TRAIN_CHROMS = config['DATA_PIPELINE']['train_chroms']
+VALID_CHROMS = config['DATA_PIPELINE']['valid_chroms']
 TEST_CHROMS = config['DATA_PIPELINE']['test_chroms']
-ALL_CHROMS = TRAIN_CHROMS + TEST_CHROMS
+ALL_CHROMS = TRAIN_CHROMS + VALID_CHROMS + TEST_CHROMS
 
 INTERVAL = config['DATA_PIPELINE']['window_size']
 
 if group == 'train':
     CHROM_GROUP = TRAIN_CHROMS
+elif group == 'valid':
+    CHROM_GROUP = VALID_CHROMS
 elif group == 'test':
     CHROM_GROUP = TEST_CHROMS
 else:

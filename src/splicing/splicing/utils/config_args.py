@@ -84,6 +84,10 @@ def get_args(parser):
     parser.add_argument(
         '-midx', '--model_index', type=int, default=1, dest='model_index',
         help='The index of the SpliceAI model to load.')
+    parser.add_argument(
+        '-mit', '--model_iteration', type=int, required=False,
+        dest='model_iteration',
+        help='The iteration (pass) of the SpliceAI model to load.')
 
     parser.add_argument(
         '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
