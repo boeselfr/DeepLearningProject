@@ -10,7 +10,9 @@ setup(
                       'numpy',
                       'pandas',
                       'matplotlib',
-                      'pyyaml'
+                      'pyyaml',
+                      'torchsummary',
+                      'coloredlogs'
                       ],
 
     classifiers=[

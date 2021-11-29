@@ -4,8 +4,8 @@ import logging
 
 from tqdm.auto import trange
 
-from finetune import finetune
-from pretrain import pretrain
+from splicing.finetune import finetune
+from splicing.pretrain import pretrain
 
 from splicing.utils.utils import print_topl_statistics
 from splicing.utils.evals import SaveLogger

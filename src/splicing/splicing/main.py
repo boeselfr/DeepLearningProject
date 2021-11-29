@@ -16,7 +16,7 @@ import coloredlogs
 from splicing.utils.config_args import config_args, get_args
 # from splicing.models.graph_models import SpliceGraph
 from splicing.models.geometric_models import SpliceGraph, FullModel
-from runner import run_model
+from splicing.runner import run_model
 from splicing.utils import graph_utils
 from splicing.utils.utils import CHR2IX
 
