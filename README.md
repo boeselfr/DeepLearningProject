@@ -32,6 +32,8 @@ bsub -R "rusage[mem=16000]" python preprocessing/create_dataset_nodup.py -g trai
 bsub -R "rusage[mem=16000]" python preprocessing/create_dataset_nodup.py -g valid -p all
 bsub -R "rusage[mem=16000]" python preprocessing/create_dataset_nodup.py -g test -p 0
 
+
+### WIP GRAPH STUFF
 python preprocessing/gcn_create_data.py --cell_type 'GM12878' --expr_root '' --run_file 1
 
 python preprocessing/gcn_create_data.py --cell_type 'GM12878' --expr_root '' --run_file 7
