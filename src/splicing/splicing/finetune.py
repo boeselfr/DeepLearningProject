@@ -61,7 +61,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     node_representation = build_node_representations(
         xs, chromosome, opt.node_representation, opt)
     # node_representation.requires_grad = True
-    logging.info(f'node_representation.shape = {node_representation.shape}')
+    # logging.info(f'node_representation.shape = {node_representation.shape}')
 
     graph = process_graph(
         opt.adj_type, split_adj_dict, len(node_representation),
@@ -73,12 +73,11 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     logging.info(f'Number of batches of size {opt.graph_batch_size}:'
                  f' {len(dataloader)}')
 
-    # TODO: should this be outside or inside the loop?
-    node_representation = graph_model(graph_data)
-
     for batch, (_x, _y) in tqdm(enumerate(dataloader), leave=False,
                                 total=len(dataloader), desc=desc_i):
 
+        # TODO: should this be outside or inside the loop?
+        node_representation = graph_model(graph_data)
 
         if split == 'train':
             optimizer.zero_grad()
