@@ -297,13 +297,28 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
     return split_adj
 
 
-def build_node_representations(xs, mode):
-    assert mode in ['average'], \
+def build_node_representations(xs, chromosome, mode, opt):
+    assert mode in ['average', 'random'], \
         'The specified node representation not supported'
+
+    # Load computed features if they exist
+    # node_features_fname = path.join(
+    #     opt.results_dir, f'node_features_{chromosome}_{mode}.pt')
+    # if path.exists(node_features_fname):
+    #     return torch.load(node_features_fname)
+
     if mode == 'average':
         x = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
-
+    elif mode == 'random':
+        x = torch.rand((len(xs), opt.hidden_size))
     return x
+
+
+def save_node_representations(node_representation, chromosome, opt):
+    node_features_fname = path.join(
+        opt.results_dir,
+        f'node_features_{chromosome}_{opt.node_representation}.pt')
+    torch.save(node_representation, node_features_fname)
 
 
 def save_feats(model_name, split, Y, locations, X, chromosome, epoch):

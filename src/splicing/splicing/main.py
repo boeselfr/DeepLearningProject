@@ -16,7 +16,7 @@ import coloredlogs
 from splicing.utils.config_args import config_args, get_args
 # from splicing.models.graph_models import SpliceGraph
 from splicing.models.geometric_models import SpliceGraph, FullModel
-from runner import run_model
+from splicing.runner import run_model
 from splicing.utils import graph_utils
 from splicing.utils.utils import CHR2IX
 
@@ -125,6 +125,8 @@ def main(opt):
         if not opt.save_feats:
             # graph_model = SpliceGraph(
             #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
+            # TODO: the first parameter should correspond to
+            #  the node representation we choose
             graph_model = SpliceGraph(
                 config.n_channels, config.hidden_size, config.gcn_dropout)
             full_model = FullModel(config.n_channels, config.hidden_size)
