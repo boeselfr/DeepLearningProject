@@ -143,7 +143,7 @@ def config_args(opt, config):
         opt.train_ratio = 1.0
         # opt.epochs = 1
 
-    elif opt.load_pretrained:
+    if opt.load_pretrained:
         opt.model_name += '.finetune'
         opt.model_name += '.lr2_' + str(opt.lr2).split('.')[1]
         opt.model_name += '.gcndrop_' + (

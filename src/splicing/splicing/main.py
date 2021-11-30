@@ -109,8 +109,6 @@ def main(opt):
         config.kernel_size, 
         config.dilation_rate
     )
-    
-    logging.info(f"==> Load model val: {opt.load_pretrained}")
 
     if opt.load_pretrained: 
 
