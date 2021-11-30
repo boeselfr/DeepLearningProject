@@ -105,15 +105,23 @@ def get_top_contact_locs(contact_edge_pairs,total_edges):
 
 
 
-def create_adj_mat(bin_dict,chrom,top_contact_locs):
+def create_adj_mat(bin_dict,chrom,top_contact_locs, keep_edge_strength=False):
 	adj_mat = np.zeros((len(bin_dict[chrom]),len(bin_dict[chrom])))
+	if not keep_edge_strength:
+		for bin1,bin2 in top_contact_locs:
+			bin1idx = bin_dict[chrom][bin1]['bin_idx']
+			bin2idx = bin_dict[chrom][bin2]['bin_idx']
 
-	for bin1,bin2 in top_contact_locs:
-		bin1idx = bin_dict[chrom][bin1]['bin_idx']
-		bin2idx = bin_dict[chrom][bin2]['bin_idx']
+			adj_mat[bin1idx,bin2idx] = 1
+			adj_mat[bin2idx,bin1idx] = 1
+	else:
+		for bin1, bin2 in top_contact_locs:
+			bin1idx = bin_dict[chrom][bin1]['bin_idx']
+			bin2idx = bin_dict[chrom][bin2]['bin_idx']
+			val = top_contact_locs[(bin1,bin2)]
 
-		adj_mat[bin1idx,bin2idx] = 1
-		adj_mat[bin2idx,bin1idx] = 1
+			adj_mat[bin1idx, bin2idx] = val
+			adj_mat[bin2idx, bin1idx] = val
 
 	sparse_adj_mat = sparse.csr_matrix(adj_mat)
 
@@ -140,13 +148,15 @@ def create_graph(args):
 	if args.use_all_windows:
 		all_peaks_file_name = os.path.join(args.output_root,'windows.bed')
 	else:
-		all_peaks_file_name = os.path.join(args.output_root,'chipseq_windows.bed')
+		all_peaks_file_name = os.path.join(args.output_root,'graph_windows_'+str(args.window_length)+'.bed')
 
 	hic_root = os.path.join(args.hic_root,args.cell_type+'_combined',args.resolution+'kb_resolution_intrachromosomal/')
 	
 	train_dict = os.path.join(output_root,'hic/train_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
 	valid_dict = os.path.join(output_root,'hic/valid_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
 	test_dict = os.path.join(output_root,'hic/test_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
+	bin_dict_file = os.path.join(output_root, 'hic/test_vail_train_bin_dict' + '_' + str(
+		args.hic_edges) + '_' + args.norm + 'norm.pkl')
 
 	print('\nInputs')
 	print('| '+all_peaks_file_name)
@@ -185,7 +195,7 @@ def create_graph(args):
 		top_contact_edge_pairs = get_top_contact_locs(contact_edge_pairs,total_edges)
 
 		# print('--------Part4-----------')
-		sparse_adj_mat = create_adj_mat(bin_dict,chrom,top_contact_edge_pairs)
+		sparse_adj_mat = create_adj_mat(bin_dict,chrom,top_contact_edge_pairs, keep_edge_strength=args.keep_edge_strength)
 
 		if chrom in args.test_chroms:
 			test_idx_dict[chrom] = sparse_adj_mat
@@ -200,6 +210,8 @@ def create_graph(args):
 		pickle.dump(valid_idx_dict, fp)
 	with open(test_dict, "wb") as fp: 
 		pickle.dump(test_idx_dict, fp)
+	with open(bin_dict_file, "wb") as fp:
+		pickle.dump(bin_dict, fp)
 
 
 

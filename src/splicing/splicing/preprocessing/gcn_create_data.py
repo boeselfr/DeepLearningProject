@@ -70,6 +70,8 @@ parser.add_argument('--norm', type=str, choices=['','KR','VC','SQRTVC'], default
 parser.add_argument('--resolution', type=str, default='1')
 parser.add_argument('--hic_edges', type=int, default=500000)
 parser.add_argument('--min_distance_threshold', type=int, default=1000)
+parser.add_argument('--keep_edge_strength', type=bool, default=True)
+
 args = parser.parse_args()
 
 args.stride_length=args.window_length
@@ -95,10 +97,11 @@ if args.cell_type == 'GM12878':
 else:
     args.residuals = [0,1000,2000,3000,4000]
 
-if args.cell_type == 'GM12878':
+# we dont need this anymore i guess, as we use 5k resolution for now:
+"""if args.cell_type == 'GM12878':
 		args.resolution='1'
 else:
-    args.resolution = '5'
+    args.resolution = '5'"""
     # args.min_distance_threshold=5000
 
 if args.run_file in ['1','all']:
