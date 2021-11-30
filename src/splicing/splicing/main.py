@@ -128,8 +128,8 @@ def main(opt):
         
         checkpoint = torch.load(checkpoint_path)
 
-        for param in base_model.parameters():
-            param.requires_grad = False
+        #for param in base_model.parameters():
+        #    param.requires_grad = False
 
         base_model = nn.DataParallel(base_model)
         base_model.load_state_dict(checkpoint['model'])
@@ -174,7 +174,11 @@ def main(opt):
                 opt.model_name.replace('.load_gcn', '') + '/model.chkpt')
             graph_model.load_state_dict(checkpoint['model'])
         else:
+            assert opt.load_pretrained == True, "Have to load pretrained model"
             # Initialize GCN output layer with window_model output layer
+            for param in base_model.parameters():
+                param.requires_grad = False
+            
             if opt.cuda:
                 base_model = base_model.cuda()
 
