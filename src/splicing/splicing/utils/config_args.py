@@ -143,21 +143,21 @@ def config_args(opt, config):
         opt.train_ratio = 1.0
         # opt.epochs = 1
 
-    if opt.load_pretrained:
-        opt.model_name += '.finetune'
-        opt.model_name += '.lr2_' + str(opt.lr2).split('.')[1]
-        opt.model_name += '.gcndrop_' + (
-                "%.2f" % opt.gcn_dropout).split('.')[1]
-        opt.model_name += '.' + str(opt.optim2)
-        opt.model_name += '.layers_' + str(opt.gcn_layers)
-        if opt.gate:
-            opt.model_name += '.gate'
-        opt.model_name += '.adj_' + opt.adj_type
-        if opt.adj_type == 'hic' or opt.adj_type == 'both':
-            opt.model_name += '.norm_' + opt.hicnorm
-        if opt.lr_decay2 > 0:
-            opt.model_name += '.decay_' + str(opt.lr_decay2).replace(
-                '.', '') + '_' + str(opt.lr_step_size2)
+    #if opt.load_pretrained:
+    #    opt.model_name += '.finetune'
+    #    opt.model_name += '.lr2_' + str(opt.lr2).split('.')[1]
+    #    opt.model_name += '.gcndrop_' + (
+    #            "%.2f" % opt.gcn_dropout).split('.')[1]
+    #    opt.model_name += '.' + str(opt.optim2)
+    #    opt.model_name += '.layers_' + str(opt.gcn_layers)
+    #    if opt.gate:
+    #        opt.model_name += '.gate'
+    #    opt.model_name += '.adj_' + opt.adj_type
+    #    if opt.adj_type == 'hic' or opt.adj_type == 'both':
+    #        opt.model_name += '.norm_' + opt.hicnorm
+    #    if opt.lr_decay2 > 0:
+    #        opt.model_name += '.decay_' + str(opt.lr_decay2).replace(
+    #            '.', '') + '_' + str(opt.lr_step_size2)
 
     opt.model_name = path.join(opt.results_dir, opt.cell_type, opt.model_name)
 
