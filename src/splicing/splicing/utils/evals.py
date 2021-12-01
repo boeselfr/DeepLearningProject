@@ -241,7 +241,7 @@ class Logger:
 def save_model(opt, epoch, model):
 
     model_suffix = f'SpliceAI' \
-                   f'_e{epoch}' \
+                   f'_e{epoch // opt.full_validation_interval}' \
                    f'_cl{opt.context_length}' \
                    f'_g{opt.model_index}.h5'
 

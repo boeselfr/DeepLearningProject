@@ -12,8 +12,8 @@ from splicing.utils.evals import SaveLogger
 
 
 def pass_end(elapsed, predictions, targets, loss, opt):
-
-    print('----------------------------------------------------------')
+    start_time = time.time()
+    logging.info('\n---------------------------------------------------------')
     logging.info('\nValidation set metrics:')
 
     is_expr = targets.sum(axis=(1, 2)) >= 1
@@ -30,9 +30,8 @@ def pass_end(elapsed, predictions, targets, loss, opt):
             targets_ix, predictions_ix, loss=loss,
             prediction_type=prediction_type, log_wandb=opt.wandb)
 
-    logging.info('--- %s seconds ---' % elapsed)
-
-    print('----------------------------------------------------------')
+    logging.info('--- %s seconds ---' % (time.time() - start_time + elapsed))
+    logging.info('\n---------------------------------------------------------')
 
 
 def run_epoch(base_model, graph_model, full_model, datasets, criterion,
@@ -112,10 +111,14 @@ def run_model(base_model, graph_model, full_model, datasets,
 
     # TEST
     if opt.save_feats:  # hacky
-        for ix in opt.idxs['test']:
+        for chromosome in range(len(opt.chromosomes['test'])):
             run_epoch(
                 base_model, graph_model, full_model, datasets, criterion,
-                optimizer, ix, opt, 'test')
+                optimizer, chromosome, opt, 'test')
+        for chromosome in range(len(opt.chromosomes['valid'])):
+            run_epoch(
+                base_model, graph_model, full_model, datasets, criterion,
+                optimizer, chromosome, opt, 'valid')
     else:
         test_predictions, test_targets, test_loss, elapsed = run_epoch(
             base_model, graph_model, full_model, datasets,

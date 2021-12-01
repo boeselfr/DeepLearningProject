@@ -9,13 +9,11 @@ from splicing.utils.utils import clip_datapoints
 
 class SpliceDataset(Dataset):
 
-    def __init__(self, X, Y, locations, chromosomes,
-                 context_length, n_gpus=1, device='cuda'):
-        X, Y = clip_datapoints(X, Y, context_length, n_gpus)
+    def __init__(self, X, Y, locations, context_length, device='cuda'):
+        X, Y = clip_datapoints(X, Y, context_length, N_GPUS=1)
         self.X = np.array([np.transpose(x) for x in X])
         self.Y = np.array([np.transpose(y) for y in Y[0]])
         self.locations = np.array(locations)
-        self.chromosomes = np.array(chromosomes)
 
         self.device = device
 
@@ -30,9 +28,7 @@ class SpliceDataset(Dataset):
         y = torch.tensor(self.Y[index], dtype=torch.float32).to(self.device)
         loc = torch.tensor(
             self.locations[index], dtype=torch.float32).to(self.device)
-        chr = torch.tensor(
-            self.chromosomes[index], dtype=torch.int).to(self.device)
-        return x, y, loc, chr
+        return x, y, loc
 
     def __len__(self):
         return len(self.X)
