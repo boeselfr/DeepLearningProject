@@ -17,6 +17,10 @@ def get_args(parser):
     parser.add_argument('-save_feats', action='store_true')
     parser.add_argument('-finetune', action='store_true')
 
+    # Directory
+    parser.add_argument('-modelid', type=str, default="0", dest='model_id',
+        help='Model identifier, placed in front of other folder name defining args.')
+
     # Model loading 
     parser.add_argument('-load_pretrained', action='store_true')
     parser.add_argument(
@@ -128,6 +132,7 @@ def config_args(opt, config):
     opt.results_dir = path.join(
         config['DATA_DIRECTORY'], config['TRAINING']['results_dir'])
 
+    # Workflow
     assert (sum([opt.pretrain, opt.save_feats, opt.finetune]) == 1, 
         "Must have only one of: -pretrain, -save_feats, -finetune")
     
@@ -140,7 +145,7 @@ def config_args(opt, config):
 
     opt.dec_dropout = opt.dropout
 
-    opt.model_name = 'graph.splice_ai'
+    opt.model_name = f'{opt.model_id}_graph.splice_ai'
     opt.model_name += '.' + str(opt.optim)
     opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
 
@@ -209,5 +214,8 @@ def config_args(opt, config):
     if not opt.pretrain:
         opt.batch_size = 512
         opt.test_batch_size = 512
+
+    assert not os.path.exists(opt.model_name), \
+        "Model directory already exists, please specify another -modelid"
 
     return opt
