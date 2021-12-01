@@ -102,7 +102,7 @@ def get_args(parser):
     parser.add_argument('-weight_decay', type=float, default=5e-5,
                         help='weight decay')
     parser.add_argument('-lr_decay', type=float, default=0)
-    parser.add_argument('-lr_step_size', type=int, default=5)
+    parser.add_argument('-lr_step_size', type=int, default=1)
     parser.add_argument('-lr_decay2', type=float, default=0)
     parser.add_argument('-lr_step_size2', type=int, default=100)
     parser.add_argument('-dropout', type=float, default=0.1)

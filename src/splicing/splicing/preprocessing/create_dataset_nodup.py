@@ -52,6 +52,7 @@ with open("config.yaml", "r") as stream:
 DATA_DIR = config['DATA_DIRECTORY']
 
 INTERVAL = config['DATA_PIPELINE']['window_size']
+CL_MAX = config['DATA_PIPELINE']['context_length']
 
 # CHUNK_SIZE: max number of genes to be stored in a single h5 dataset.
 CHUNK_SIZE = config['DATA_PIPELINE']['dataset_chunk_size']
@@ -60,14 +61,14 @@ CHUNK_SIZE = config['DATA_PIPELINE']['dataset_chunk_size']
 DATAFILE_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'datafile_{group}_{paralog}_{INTERVAL}.h5'
+    f'datafile_{group}_{paralog}_{INTERVAL}_{CL_MAX}.h5'
 )
 
 # outputs
 DATASET_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'dataset_{group}_{paralog}_{INTERVAL}.h5'
+    f'dataset_{group}_{paralog}_{INTERVAL}_{CL_MAX}.h5'
 )
 
 ###############################################################################

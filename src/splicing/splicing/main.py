@@ -72,14 +72,15 @@ def main(opt):
 
         train_data_file = h5py.File(path.join(
             opt.splice_data_root,
-            f'dataset_train_all_{opt.window_size}.h5'), 'r')
+            f'dataset_train_all_{opt.window_size}_{opt.context_length}.h5'), 'r')
 
         valid_data_file = h5py.File(path.join(
             opt.splice_data_root,
-            f'dataset_valid_all_{opt.window_size}.h5'), 'r')
+            f'dataset_valid_all_{opt.window_size}_{opt.context_length}.h5'), 'r')
 
         test_data_file = h5py.File(path.join(
-            opt.splice_data_root, f'dataset_test_0_{opt.window_size}.h5'), 'r')
+            opt.splice_data_root, 
+            f'dataset_test_0_{opt.window_size}_{opt.context_length}.h5'), 'r')
 
         opt.full_validation_interval = train_data_file.attrs['n_datasets']
 

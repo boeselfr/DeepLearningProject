@@ -92,25 +92,25 @@ else:
 GENE_WINDOWS_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'gene_windows_{INTERVAL}.bed'
+    f'gene_windows_{INTERVAL}_{CL_MAX}.bed'
 )
 
 GRAPH_WINDOWS_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'graph_windows_{INTERVAL}.bed'
+    f'graph_windows_{INTERVAL}_{CL_MAX}.bed'
 )
 
 SEQUENCE_FILE_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'gtex_sequence_{INTERVAL}.txt'
+    f'gtex_sequence_{INTERVAL}_{CL_MAX}.txt'
 )
 
 DATAFILE_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'datafile_{group}_{paralog}_{INTERVAL}.h5'
+    f'datafile_{group}_{paralog}_{INTERVAL}_{CL_MAX}.h5'
 )
 
 ###############################################################################
