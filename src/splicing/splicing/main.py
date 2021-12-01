@@ -49,11 +49,12 @@ test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
 
 def main(opt):
 
-    # Loading Dataset
-    logging.info(opt.model_name)
+    # Workflow
+    logging.info(f"==> {opt.workflow}, model name: {opt.model_name}")
 
+    # Loading Dataset
     logging.info('==> Loading Data')
-    if not opt.pretrain and not opt.save_feats:
+    if opt.finetune:
         # features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
@@ -146,66 +147,65 @@ def main(opt):
 
     graph_model, full_model = None, None
 
-    if not opt.pretrain:
+    # if fine_tuning, create the SpliceGraph and Full Model
+    if opt.finetune:
         # Creating GNNModel
+        # graph_model = SpliceGraph(
+        #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
+        graph_model = SpliceGraph(
+            config.n_channels, config.hidden_size, config.gcn_dropout)
+        full_model = FullModel(config.n_channels, config.hidden_size)
 
-        if not opt.save_feats:
-            # graph_model = SpliceGraph(
-            #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
-            graph_model = SpliceGraph(
-                config.n_channels, config.hidden_size, config.gcn_dropout)
-            full_model = FullModel(config.n_channels, config.hidden_size)
+        if opt.cuda:
+            graph_model = graph_model.cuda()
+            full_model = full_model.cuda()
 
-            if opt.cuda:
-                graph_model = graph_model.cuda()
-                full_model = full_model.cuda()
+        logging.info(graph_model)
+        logging.info(full_model)
+        # summary(full_model,
+        #         input_size=(2 * opt.n_channels,
+        #                     opt.context_length + opt.window_size))
 
-            logging.info(graph_model)
-            logging.info(full_model)
-            # summary(full_model,
-            #         input_size=(2 * opt.n_channels,
-            #                     opt.context_length + opt.window_size))
+    # if finetune and load_gcn
+    if opt.finetune and opt.load_gcn:
+        logging.info('Loading Saved GCN')
+        checkpoint = torch.load(
+            opt.model_name.replace('.load_gcn', '') + '/model.chkpt')
+        graph_model.load_state_dict(checkpoint['model'])
 
-        if opt.load_gcn:
-            logging.info('Loading Saved GCN')
-            checkpoint = torch.load(
-                opt.model_name.replace('.load_gcn', '') + '/model.chkpt')
-            graph_model.load_state_dict(checkpoint['model'])
-        else:
-            assert opt.load_pretrained == True, "Have to load pretrained model"
-            # Initialize GCN output layer with window_model output layer
-            for param in base_model.parameters():
-                param.requires_grad = False
-            
-            if opt.cuda:
-                base_model = base_model.cuda()
+    # if saving feats or finetuning, need to load a base model
+    if opt.save_feats or opt.finetune:
+        assert opt.load_pretrained == True, "Have to load pretrained model"
+        # Initialize GCN output layer with window_model output layer
+        for param in base_model.parameters():
+            param.requires_grad = False
 
-            if not opt.save_feats:
-                # Initialize the final layer of the full model
-                # with pretrained weights
-                combined_params = list(zip(
-                    list(base_model.parameters())[-2:],
-                    list(full_model.parameters())[-2:]
-                ))
-                combined_params[0][1].data[:, :32, :] = \
-                    combined_params[0][0].data[:, :, :]
-                combined_params[1][1].data[:] = \
-                    combined_params[1][0].data[:]
+        if opt.finetune:
+            # Initialize the final layer of the full model
+            # with pretrained weights
+            combined_params = list(zip(
+                list(base_model.parameters())[-2:],
+                list(full_model.parameters())[-2:]
+            ))
+            combined_params[0][1].data[:, :32, :] = \
+                combined_params[0][0].data[:, :, :]
+            combined_params[1][1].data[:] = \
+                combined_params[1][0].data[:]
 
-        if not opt.save_feats:
-            optimizer = graph_utils.get_combined_optimizer(
-                graph_model, full_model, opt)
+    if opt.finetune:
+        optimizer = graph_utils.get_combined_optimizer(
+            graph_model, full_model, opt)
 
-            # graph_model.out.weight.data = \
-            #     base_model.module.model.classifier.weight.data
-            # graph_model.out.bias.data = \
-            #     base_model.module.model.classifier.bias.data
-            # graph_model.batch_norm.weight.data = \
-            #     base_model.module.model.batch_norm.weight.data
-            # graph_model.batch_norm.bias.data = \
-            #     base_model.module.model.batch_norm.bias.data
+        # graph_model.out.weight.data = \
+        #     base_model.module.model.classifier.weight.data
+        # graph_model.out.bias.data = \
+        #     base_model.module.model.classifier.bias.data
+        # graph_model.batch_norm.weight.data = \
+        #     base_model.module.model.batch_norm.weight.data
+        # graph_model.batch_norm.bias.data = \
+        #     base_model.module.model.batch_norm.bias.data
 
-        # optimizer = graph_utils.get_optimizer(graph_model, opt)
+    # optimizer = graph_utils.get_optimizer(graph_model, opt)
 
     scheduler = torch.torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=opt.lr_step_size, gamma=0.5)
@@ -219,8 +219,7 @@ def main(opt):
 
     if torch.cuda.is_available() and opt.cuda:
         criterion = criterion.cuda()
-        if opt.pretrain:
-            base_model = base_model.cuda()
+        base_model = base_model.cuda()
         if graph_model is not None:
             graph_model = graph_model.cuda()
         if opt.gpu_id != -1:
