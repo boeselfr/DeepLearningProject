@@ -127,9 +127,6 @@ def main(opt):
         
         checkpoint = torch.load(checkpoint_path)
 
-        #for param in base_model.parameters():
-        #    param.requires_grad = False
-
         base_model = nn.DataParallel(base_model)
         base_model.load_state_dict(checkpoint['model'])
 
@@ -168,14 +165,18 @@ def main(opt):
 
     # if finetune and load_gcn
     if opt.finetune and opt.load_gcn:
-        logging.info('Loading Saved GCN')
-        checkpoint = torch.load(
-            opt.model_name.replace('.load_gcn', '') + '/model.chkpt')
+        gcn_model_path = opt.model_name.replace('.load_gcn', '') + '/model.chkpt'
+        logging.info(f'==> Loading Saved GCN {gcn_model_path}')
+        
+        checkpoint = torch.load(gcn_model_path)
         graph_model.load_state_dict(checkpoint['model'])
 
     # if saving feats or finetuning, need to load a base model
     if opt.save_feats or opt.finetune:
         assert opt.load_pretrained == True, "Have to load pretrained model"
+
+        logging.info(f"==> Turning off base model params for {opt.workflow}")
+
         # Initialize GCN output layer with window_model output layer
         for param in base_model.parameters():
             param.requires_grad = False
