@@ -270,12 +270,12 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type, log_wandb):
     no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
     logging.info('Top-K Accuracy')
     logging.info('|0.5\t|1\t|2\t|4\t|')
-    logging.info('|{:.3f}\t|{:.3f}\t|{:.3f}\t|{:.3f}\t|'.format(
+    logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
         topkl_accuracy[0], topkl_accuracy[1],
         topkl_accuracy[2], topkl_accuracy[3]))
     logging.info('Thresholds for K')
     logging.info('|0.5\t|1\t|2\t|4\t|')
-    logging.info('|{:.3f}\t|{:.3f}\t|{:.3f}\t|{:.3f}\t|'.format(
+    logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
         threshold[0], threshold[1], threshold[2], threshold[3]))
     logging.info(f'AUPRC: {auprc:.6f}')
     logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')

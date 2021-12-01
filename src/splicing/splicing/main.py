@@ -153,7 +153,7 @@ def main(opt):
     optimizer = graph_utils.get_optimizer(base_model, opt)
 
     graph_model, full_model = None, None
-
+    
     # if fine_tuning, create the SpliceGraph and Full Model
     if opt.finetune:
         # Creating GNNModel

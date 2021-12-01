@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 
 from splicing.utils.graph_utils import process_graph, split2desc, \
-    build_node_representations
+    build_node_representations, save_node_representations
 from splicing.data_models.splice_dataset import ChromosomeDataset
 from splicing.utils.utils import IX2CHR
 
@@ -40,14 +40,13 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         graph_file = path.join(
             opt.graph_data_root,
             split + '_graphs_' + opt.hicsize + '_' + opt.hicnorm + 'norm.pkl')
-        print(graph_file)
         split_adj_dict = pickle.load(open(graph_file, "rb"))
     else:
         split_adj_dict = None
 
     chromosome = chromosomes[epoch % len(chromosomes)]
 
-    tqdm.write(f'Reading in chromosome {chromosome} data.')
+    # tqdm.write(f'Reading in chromosome {chromosome} data.')
     chromosome_data = torch.load(
         path.join(opt.model_name.split('.finetune')[0],
                   f'chrom_feature_dict_{split}_chr{chromosome}.pt'))
@@ -59,20 +58,25 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     dataloader = DataLoader(
         chromosome_dataset, batch_size=opt.graph_batch_size)
 
-    x = build_node_representations(xs, mode=opt.node_representation, opt=opt)
-    x.requires_grad = True
+    node_representation = build_node_representations(
+        xs, chromosome, opt.node_representation, opt)
+    # node_representation.requires_grad = True
+    # logging.info(f'node_representation.shape = {node_representation.shape}')
 
     graph = process_graph(
-        opt.adj_type, split_adj_dict, len(x),
+        opt.adj_type, split_adj_dict, len(node_representation),
         IX2CHR(chromosome), bin_dict, opt.window_size).cuda()
-    graph_data = Data(x=x, edge_index=graph.coalesce().indices()).cuda()
+    graph_data = Data(
+        x=node_representation, edge_index=graph.coalesce().indices()).cuda()
 
     desc_i = f'({split2desc[split]} on chromosome {chromosome})'
     logging.info(f'Number of batches of size {opt.graph_batch_size}:'
                  f' {len(dataloader)}')
+
     for batch, (_x, _y) in tqdm(enumerate(dataloader), leave=False,
                                 total=len(dataloader), desc=desc_i):
 
+        # TODO: should this be outside or inside the loop?
         node_representation = graph_model(graph_data)
 
         if split == 'train':
@@ -93,6 +97,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         total_loss += loss.sum().item()
         all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
         all_targets = torch.cat((all_targets, _y.cpu().data), 0)
+
+    # save_node_representations(node_representation, chromosome, opt)
 
     # A Saliency or TF-TF Relationships
     # Compare to CNN Preds

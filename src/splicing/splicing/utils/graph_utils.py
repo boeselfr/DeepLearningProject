@@ -326,6 +326,13 @@ def build_node_representations(xs, mode, opt):
     return x
 
 
+def save_node_representations(node_representation, chromosome, opt):
+    node_features_fname = path.join(
+        opt.results_dir,
+        f'node_features_{chromosome}_{opt.node_representation}.pt')
+    torch.save(node_representation, node_features_fname)
+
+
 def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
     # logging.info(f'Saving features for model {model_name}.')
 
