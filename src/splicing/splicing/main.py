@@ -12,6 +12,7 @@ import torch.nn as nn
 from torchsummary import summary
 import wandb
 import coloredlogs
+from collections import OrderedDict
 
 from splicing.utils.config_args import config_args, get_args
 # from splicing.models.graph_models import SpliceGraph
@@ -50,7 +51,7 @@ test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
 def main(opt):
 
     # Workflow
-    logging.info(f"==> {opt.workflow}, model name: {opt.model_name}")
+    logging.info(f"==> Workflow: {opt.workflow}, Model name: {opt.model_name}")
 
     # Loading Dataset
     logging.info('==> Loading Data')
@@ -104,7 +105,6 @@ def main(opt):
     if opt.wandb:
         wandb.init(project='dl-project', config=config)
 
-    logging.info('==> Creating window_model')
     base_model = SpliceAI(
         config.n_channels, 
         config.kernel_size, 
@@ -128,7 +128,17 @@ def main(opt):
         checkpoint = torch.load(checkpoint_path)
 
         base_model = nn.DataParallel(base_model)
-        base_model.load_state_dict(checkpoint['model'])
+        
+        try:
+            base_model.load_state_dict(checkpoint['model'])
+        except RuntimeError:
+            logging.info(f'==> Applying DataParrallel Fix')
+            
+            new_state_dict = OrderedDict()
+            for k, v in checkpoint["model"].items():
+                name = k[7:] # remove `module.`
+                new_state_dict[name] = v
+            base_model.load_state_dict(new_state_dict)
 
     # TODO: I think using non-strand specific is not necessary
     opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
@@ -167,7 +177,7 @@ def main(opt):
     if opt.finetune and opt.load_gcn:
         gcn_model_path = opt.model_name.replace('.load_gcn', '') + '/model.chkpt'
         logging.info(f'==> Loading Saved GCN {gcn_model_path}')
-        
+
         checkpoint = torch.load(gcn_model_path)
         graph_model.load_state_dict(checkpoint['model'])
 
