@@ -153,7 +153,7 @@ def main(opt):
     optimizer = graph_utils.get_optimizer(base_model, opt)
 
     graph_model, full_model = None, None
-    
+
     # if fine_tuning, create the SpliceGraph and Full Model
     if opt.finetune:
         # Creating GNNModel
@@ -217,9 +217,19 @@ def main(opt):
         #     base_model.module.model.batch_norm.bias.data
 
     # optimizer = graph_utils.get_optimizer(graph_model, opt)
-
-    scheduler = torch.torch.optim.lr_scheduler.StepLR(
-        optimizer, step_size=opt.lr_step_size, gamma=0.5)
+    if opt.pretrain:
+        spliceai_step_size = (
+            train_data_file.attrs['n_datasets'] * opt.lr_step_size
+        )
+        logging.info("==> Pretraining step size: every "
+                     f"{spliceai_step_size} epochs out of "
+                     f"{opt.epochs}")
+        scheduler = torch.torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=spliceai_step_size, gamma=0.5
+        )
+    else: 
+        scheduler = torch.torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=opt.lr_step_size, gamma=0.5)
     logging.info(optimizer)
 
     criterion = graph_utils.get_criterion(opt)
