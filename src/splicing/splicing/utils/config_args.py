@@ -130,12 +130,13 @@ def config_args(opt, config):
 
     assert (sum([opt.pretrain, opt.save_feats, opt.finetune]) == 1, 
         "Must have only one of: -pretrain, -save_feats, -finetune")
+    
     if opt.pretrain:
-        opt.workflow == "pretrain"
+        opt.workflow = "pretrain"
     elif opt.save_feats:
-        opt.workflow == "save_feats"
+        opt.workflow = "save_feats"
     else:
-        opt.workflow == "finetune"
+        opt.workflow = "finetune"
 
     opt.dec_dropout = opt.dropout
 
