@@ -157,6 +157,7 @@ def config_args(opt, config):
                       ("%.2f" % opt.dec_dropout).split('.')[1]
 
     if opt.save_feats:
+        opt.model_name += '.save_feats'
         opt.pretrain = False
         opt.shuffle_train = False
         opt.train_ratio = 1.0
