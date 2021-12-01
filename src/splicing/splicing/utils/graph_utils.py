@@ -297,12 +297,32 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
     return split_adj
 
 
-def build_node_representations(xs, mode):
-    assert mode in ['average'], \
+def build_node_representations(xs, mode, opt):
+    assert mode in ['average', 'max', 'min', 'min-max', 'Conv1d'], \
         'The specified node representation not supported'
+    # xs[loc] is of shape : [1, 32, 5000]
     if mode == 'average':
         x = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
-
+    elif mode == 'max':
+        x = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
+    elif mode == 'min':
+        x = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
+    elif mode == 'min-max':
+        x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
+        x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
+        x = torch.cat((x_min, x_max), 1)
+    elif mode == 'Conv1d':
+        device = 'cuda'
+        n_elements = list(xs.values())[0].numel() / opt.n_channels
+        conv1 = torch.nn.Conv1d(
+            in_channels=n_elements,
+            out_channels=1,
+            kernel_size=1).to(device)
+        x_all = torch.stack([(xs[loc][0]) for loc in xs])
+        x_all = torch.moveaxis(x_all,1,2)
+        x = conv1(x_all)
+        # of shape:  n_windows x 1 x 32
+        x = torch.squeeze(x)
     return x
 
 
