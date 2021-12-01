@@ -167,7 +167,7 @@ with open(SPLICE_TABLE_PATH, 'r') as fpr1:
 
         if cl_end >= lengths[chrom]:
             print("CHROMOSOME INDEX OVER THE MAX")
-            break
+            continue
 
         gene_windows_file_w.write(
             chrom + '\t' + str(cl_start) + '\t' + str(cl_end) + '\n')
