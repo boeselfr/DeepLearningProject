@@ -65,6 +65,7 @@ def main(opt):
         opt.full_validation_interval = len(datasets['train'])
 
         opt.epochs = opt.finetune_epochs * len(datasets['train'])
+
     else:
 
         train_data_file = h5py.File(path.join(
@@ -97,18 +98,43 @@ def main(opt):
         'test': test_chromosomes,
     }
 
-    logging.info('==> Creating window_model')
-
     config = graph_utils.get_wandb_config(opt)
-
-    base_model = SpliceAI(
-        config.n_channels, config.kernel_size, config.dilation_rate)
 
     if opt.wandb:
         wandb.init(project='dl-project', config=config)
 
+    logging.info('==> Creating window_model')
+    base_model = SpliceAI(
+        config.n_channels, 
+        config.kernel_size, 
+        config.dilation_rate
+    )
+
+    if opt.load_pretrained: 
+
+        model_fname = f'SpliceAI' \
+            f'_e{opt.model_iteration}' \
+            f'_cl{opt.context_length}' \
+            f'_g{opt.model_index}.h5'
+
+        checkpoint_path = path.join(
+            opt.model_name.split('.finetune')[0], 
+            model_fname
+        )
+
+        logging.info(f'==> Loading saved base_model {checkpoint_path}')
+        
+        checkpoint = torch.load(checkpoint_path)
+
+        #for param in base_model.parameters():
+        #    param.requires_grad = False
+
+        base_model = nn.DataParallel(base_model)
+        base_model.load_state_dict(checkpoint['model'])
+
     # TODO: I think using non-strand specific is not necessary
     opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
+    
     logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
     logging.info('Total number of parameters in the base model: '
                  f'{opt.total_num_parameters}.')
@@ -119,6 +145,7 @@ def main(opt):
     optimizer = graph_utils.get_optimizer(base_model, opt)
 
     graph_model, full_model = None, None
+
     if not opt.pretrain:
         # Creating GNNModel
 
@@ -145,23 +172,11 @@ def main(opt):
                 opt.model_name.replace('.load_gcn', '') + '/model.chkpt')
             graph_model.load_state_dict(checkpoint['model'])
         else:
+            assert opt.load_pretrained == True, "Have to load pretrained model"
             # Initialize GCN output layer with window_model output layer
-            logging.info('Loading Saved base_model')
-
-            model_fname = f'SpliceAI' \
-                          f'_e{opt.model_iteration}' \
-                          f'_cl{opt.context_length}' \
-                          f'_g{opt.model_index}.h5'
-
-            checkpoint = torch.load(path.join(
-                opt.model_name.split('.finetune')[0], model_fname))
-
             for param in base_model.parameters():
                 param.requires_grad = False
-
-            base_model = nn.DataParallel(base_model)
-            base_model.load_state_dict(checkpoint['model'])
-
+            
             if opt.cuda:
                 base_model = base_model.cuda()
 
