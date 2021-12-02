@@ -219,4 +219,7 @@ def config_args(opt, config):
     assert not (os.path.exists(opt.model_name) and opt.pretrain), \
         "Model directory already exists, please specify another -modelid"
 
+    assert not (os.path.exists(opt.model_name) and opt.finetune), \
+        "Finetune model directory already exists"
+
     return opt
