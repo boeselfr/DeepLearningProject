@@ -119,8 +119,11 @@ def main(opt):
             f'_cl{opt.context_length}' \
             f'_g{opt.model_index}.h5'
 
+        # in case you're loading a pretrained model in a finetune
+        # workflow, the main folder name is obtained by
+        # cutting before finetune bit.
         checkpoint_path = path.join(
-            opt.model_name.split('.finetune')[0], 
+            opt.model_name.split('/finetune')[0], 
             model_fname
         )
 
@@ -184,17 +187,17 @@ def main(opt):
 
     # if saving feats or finetuning, need to load a base model
     if opt.save_feats or opt.finetune:
-        assert opt.load_pretrained == True, "Have to load pretrained model"
+        
+        if opt.save_feats:
+            assert opt.load_pretrained == True, "Have to load pretrained model"
 
         logging.info(f"==> Turning off base model params for {opt.workflow}")
 
-        # Initialize GCN output layer with window_model output layer
         for param in base_model.parameters():
             param.requires_grad = False
 
-        if opt.finetune:
-            # Initialize the final layer of the full model
-            # with pretrained weights
+        # Initialize GCN output layer with window_model output layer
+        if opt.finetune and opt.load_pretrained:
             combined_params = list(zip(
                 list(base_model.parameters())[-2:],
                 list(full_model.parameters())[-2:]
