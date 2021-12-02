@@ -119,8 +119,11 @@ def main(opt):
             f'_cl{opt.context_length}' \
             f'_g{opt.model_index}.h5'
 
+        # in case you're loading a pretrained model in a finetune
+        # workflow, the main folder name is obtained by
+        # cutting before finetune bit.
         checkpoint_path = path.join(
-            opt.model_name.split('.finetune')[0], 
+            opt.model_name.split('/finetune')[0], 
             model_fname
         )
 

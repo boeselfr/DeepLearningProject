@@ -164,7 +164,7 @@ def config_args(opt, config):
         # opt.epochs = 1
 
     if opt.finetune:
-        opt.model_name += '.finetune'
+        opt.model_name += '/finetune'
         opt.model_name += '.lr2_' + str(opt.lr2).split('.')[1]
         opt.model_name += '.gcndrop_' + (
                 "%.2f" % opt.gcn_dropout).split('.')[1]
