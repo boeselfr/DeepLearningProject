@@ -336,7 +336,7 @@ def save_node_representations(node_representation, chromosome, opt):
 def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
     # logging.info(f'Saving features for model {model_name}.')
 
-    features_dir = model_name.split('.finetune')[0]
+    features_dir = model_name.split('/finetune')[0]
     directory_setup(features_dir)
     data_fname = path.join(
         features_dir, f'chrom_feature_dict_{split}_chr{chromosome}.pt')
@@ -367,7 +367,7 @@ def save_feats_per_chromosome(
         model_name, split, Y, locations, X, chromosomes, epoch):
     # logging.info(f'Saving features for model {model_name}.')
 
-    features_dir = model_name.split('.finetune')[0]
+    features_dir = model_name.split('/finetune')[0]
     directory_setup(features_dir)
     all_chromosomes = set(chromosomes)
     data_fnames = {

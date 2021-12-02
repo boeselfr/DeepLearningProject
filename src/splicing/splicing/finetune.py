@@ -48,7 +48,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
     # tqdm.write(f'Reading in chromosome {chromosome} data.')
     chromosome_data = torch.load(
-        path.join(opt.model_name.split('.finetune')[0],
+        path.join(opt.model_name.split('/finetune')[0],
                   f'chrom_feature_dict_{split}_chr{chromosome}.pt'))
 
     xs = chromosome_data['x']
