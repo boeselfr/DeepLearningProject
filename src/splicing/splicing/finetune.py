@@ -59,7 +59,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         chromosome_dataset, batch_size=opt.graph_batch_size)
 
     node_representation = build_node_representations(
-        xs, chromosome, opt.node_representation, opt)
+        xs, opt.node_representation, opt)
     # node_representation.requires_grad = True
     # logging.info(f'node_representation.shape = {node_representation.shape}')
 

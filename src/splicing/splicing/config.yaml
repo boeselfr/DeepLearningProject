@@ -1,5 +1,5 @@
 
-DATA_DIRECTORY: /home/anej/repos/studies/deep-learning-project/data
+DATA_DIRECTORY: /cluster/scratch/cguerner/dl_data/splicing
 
 RAW_DATA:  
   splice_table: raw_data/gtex_dataset.txt
@@ -15,7 +15,7 @@ DATA_PIPELINE:
   context_length: 400
   window_size: 5000
   # max number of genes to be stored in a single h5 dataset.
-  dataset_chunk_size: 500
+  dataset_chunk_size: 2000
   train_chroms:
     - chr2
     - chr4
@@ -33,8 +33,8 @@ DATA_PIPELINE:
     - chr19
     - chr20
     - chr22
-    - chrX
-    - chrY
+#    - chrX
+#    - chrY
   valid_chroms:
     - chr3
     - chr12

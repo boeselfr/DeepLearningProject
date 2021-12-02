@@ -12,50 +12,30 @@ def get_args(parser):
     # parser.add_argument('-res_d', '--results_dir',
     #                     dest='results_dir', type=str)
 
-    parser.add_argument('-cell_type', type=str, default='GM12878')
-    parser.add_argument('-test_batch_size', type=int, default=512)
-    parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
-                        default='adam')
-    parser.add_argument('-optim2', type=str, choices=['adam', 'sgd'],
-                        default='adam')
-    parser.add_argument('-lr', type=float, default=0.001)
-    parser.add_argument('-lr2', type=float, default=0.002)
-    parser.add_argument('-weight_decay', type=float, default=5e-5,
-                        help='weight decay')
-    parser.add_argument('-lr_decay', type=float, default=0)
-    parser.add_argument('-lr_step_size', type=int, default=1)
-    parser.add_argument('-lr_decay2', type=float, default=0)
-    parser.add_argument('-lr_step_size2', type=int, default=100)
-    parser.add_argument('-dropout', type=float, default=0.1)
-    parser.add_argument('-gcn_dropout', type=float, default=0.2)
-    parser.add_argument('-save_mode', type=str, choices=['all', 'best'],
-                        default='best')
-    parser.add_argument('-br_threshold', type=float, default=0.5)
-    parser.add_argument('-no_cuda', action='store_true')
-    parser.add_argument('-shuffle_train', action='store_true')
+    # Workflow
     parser.add_argument('-pretrain', action='store_true')
-    parser.add_argument('-viz', action='store_true')
-    parser.add_argument('-gpu_id', type=int, default=-1)
-    parser.add_argument('-small', action='store_true')
-    parser.add_argument('-summarize_data', action='store_true')
-    parser.add_argument('-overwrite', action='store_true')
-    parser.add_argument('-test_only', action='store_true')
-    parser.add_argument('-load_pretrained', action='store_true')
-    parser.add_argument('-seq_length', type=int, default=2000)
-    parser.add_argument('-gcn_layers', type=int, default=2)
     parser.add_argument('-save_feats', action='store_true')
-    parser.add_argument('-A_saliency', action='store_true')
-    parser.add_argument('-adj_type', type=str,
-                        choices=['constant', 'hic', 'both', 'random', 'none',
-                                 ''], default='hic')
-    parser.add_argument('-hicnorm', type=str,
-                        choices=['KR', 'VC', 'SQRTVC', ''], default='SQRTVC')
-    parser.add_argument('-hicsize', type=str,
-                        choices=['125000', '250000', '500000', '1000000'],
-                        default='500000')
-    parser.add_argument('-gate', action='store_true')
+    parser.add_argument('-finetune', action='store_true')
+
+    # Directory
+    parser.add_argument('-modelid', type=str, default="0", dest='model_id',
+        help='Model identifier, placed in front of other folder name defining args.')
+
+    # Model loading 
+    parser.add_argument('-load_pretrained', action='store_true')
+    parser.add_argument(
+        '-mpass', '--model_pass', type=int, default=10, dest='model_pass',
+        help='The pass number of the SpliceAI model to load.')
+    parser.add_argument(
+        '-midx', '--model_index', type=int, default=1, dest='model_index',
+        help='The index of the SpliceAI model to load.')
+    parser.add_argument(
+        '-mit', '--model_iteration', type=int, required=False,
+        dest='model_iteration',
+        help='The iteration (pass) of the SpliceAI model to load.')
     parser.add_argument('-load_gcn', action='store_true')
 
+    # SpliceAI / Pretraining args
     parser.add_argument(
         '-cl', '--context_length', dest='context_length',
         type=int, default=400, help='The context length to use.')
@@ -77,38 +57,69 @@ def get_args(parser):
     parser.add_argument(
         '-li', '--log_interval', type=int, default=32,
         dest='log_interval', help='Per how many updates to log to WandB.')
-
-    parser.add_argument(
-        '-mpass', '--model_pass', type=int, default=10, dest='model_pass',
-        help='The pass number of the SpliceAI model to load.')
-    parser.add_argument(
-        '-midx', '--model_index', type=int, default=1, dest='model_index',
-        help='The index of the SpliceAI model to load.')
-    parser.add_argument(
-        '-mit', '--model_iteration', type=int, required=False,
-        dest='model_iteration',
-        help='The iteration (pass) of the SpliceAI model to load.')
-
+    
+    # Finetuning / Graph Training Args
+    parser.add_argument('-gcn_layers', type=int, default=2)
+    parser.add_argument('-A_saliency', action='store_true')
+    parser.add_argument('-adj_type', type=str,
+        choices=['constant', 'hic', 'both', 'random', 'none', ''], 
+        default='hic'
+    )
+    parser.add_argument('-hicnorm', type=str,
+                        choices=['KR', 'VC', 'SQRTVC', ''], default='SQRTVC')
+    parser.add_argument('-hicsize', type=str,
+                        choices=['125000', '250000', '500000', '1000000'],
+                        default='500000')
+    parser.add_argument('-gate', action='store_true')
     parser.add_argument(
         '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
         help='The dimensionality of the hidden layer in the graph network.')
-
     parser.add_argument(
         '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
         default=1024, help='Batch size for finetuning.')
-
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
         default=4, help='Number of epochs for graph training.')
-
+    parser.add_argument('-gcn_dropout', type=float, default=0.2)
     parser.add_argument(
         '-rep', '--node_representation', type=str, default='average',
         dest='node_representation',
         help='How to construct the node representation '
              'from the nucleotide representations.')
 
+    # Logging Args
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
 
+    # need to assign these:
+    parser.add_argument('-cell_type', type=str, default='GM12878')
+    parser.add_argument('-test_batch_size', type=int, default=512)
+    parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
+                        default='adam')
+    parser.add_argument('-optim2', type=str, choices=['adam', 'sgd'],
+                        default='adam')
+    parser.add_argument('-lr', type=float, default=0.001)
+    parser.add_argument('-lr2', type=float, default=0.002)
+    parser.add_argument('-weight_decay', type=float, default=5e-5,
+                        help='weight decay')
+    parser.add_argument('-lr_decay', type=float, default=0)
+    parser.add_argument('-lr_step_size', type=int, default=1)
+    parser.add_argument('-lr_decay2', type=float, default=0)
+    parser.add_argument('-lr_step_size2', type=int, default=100)
+    parser.add_argument('-dropout', type=float, default=0.1)
+    
+    parser.add_argument('-save_mode', type=str, choices=['all', 'best'],
+                        default='best')
+    parser.add_argument('-br_threshold', type=float, default=0.5)
+    parser.add_argument('-no_cuda', action='store_true')
+    parser.add_argument('-shuffle_train', action='store_true')
+    parser.add_argument('-viz', action='store_true')
+    parser.add_argument('-gpu_id', type=int, default=-1)
+    parser.add_argument('-small', action='store_true')
+    parser.add_argument('-summarize_data', action='store_true')
+    parser.add_argument('-overwrite', action='store_true')
+    parser.add_argument('-test_only', action='store_true')
+    parser.add_argument('-seq_length', type=int, default=2000)
+    
     opt = parser.parse_args()
     return opt
 
@@ -121,9 +132,20 @@ def config_args(opt, config):
     opt.results_dir = path.join(
         config['DATA_DIRECTORY'], config['TRAINING']['results_dir'])
 
+    # Workflow
+    assert (sum([opt.pretrain, opt.save_feats, opt.finetune]) == 1, 
+        "Must have only one of: -pretrain, -save_feats, -finetune")
+    
+    if opt.pretrain:
+        opt.workflow = "pretrain"
+    elif opt.save_feats:
+        opt.workflow = "save_feats"
+    else:
+        opt.workflow = "finetune"
+
     opt.dec_dropout = opt.dropout
 
-    opt.model_name = 'graph.splice_ai'
+    opt.model_name = f'{opt.model_id}_graph.splice_ai'
     opt.model_name += '.' + str(opt.optim)
     opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
 
@@ -134,16 +156,14 @@ def config_args(opt, config):
     opt.model_name += '.drop_' + ("%.2f" % opt.dropout).split('.')[1] + '_' + \
                       ("%.2f" % opt.dec_dropout).split('.')[1]
 
-    if opt.pretrain:
-        print('PRETRAINING')
-
     if opt.save_feats:
+        #opt.model_name += '.save_feats'
         opt.pretrain = False
         opt.shuffle_train = False
         opt.train_ratio = 1.0
         # opt.epochs = 1
 
-    elif opt.load_pretrained:
+    if opt.finetune:
         opt.model_name += '.finetune'
         opt.model_name += '.lr2_' + str(opt.lr2).split('.')[1]
         opt.model_name += '.gcndrop_' + (
@@ -195,5 +215,8 @@ def config_args(opt, config):
     if not opt.pretrain:
         opt.batch_size = 512
         opt.test_batch_size = 512
+
+    assert not (os.path.exists(opt.model_name) and opt.pretrain), \
+        "Model directory already exists, please specify another -modelid"
 
     return opt

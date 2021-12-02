@@ -12,6 +12,7 @@ import torch.nn as nn
 from torchsummary import summary
 import wandb
 import coloredlogs
+from collections import OrderedDict
 
 from splicing.utils.config_args import config_args, get_args
 # from splicing.models.graph_models import SpliceGraph
@@ -49,11 +50,12 @@ test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
 
 def main(opt):
 
-    # Loading Dataset
-    logging.info(opt.model_name)
+    # Workflow
+    logging.info(f"==> Workflow: {opt.workflow}, Model name: {opt.model_name}")
 
+    # Loading Dataset
     logging.info('==> Loading Data')
-    if not opt.pretrain and not opt.save_feats:
+    if opt.finetune:
         # features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
@@ -65,18 +67,20 @@ def main(opt):
         opt.full_validation_interval = len(datasets['train'])
 
         opt.epochs = opt.finetune_epochs * len(datasets['train'])
+
     else:
 
         train_data_file = h5py.File(path.join(
             opt.splice_data_root,
-            f'dataset_train_all_{opt.window_size}.h5'), 'r')
+            f'dataset_train_all_{opt.window_size}_{opt.context_length}.h5'), 'r')
 
         valid_data_file = h5py.File(path.join(
             opt.splice_data_root,
-            f'dataset_valid_all_{opt.window_size}.h5'), 'r')
+            f'dataset_valid_all_{opt.window_size}_{opt.context_length}.h5'), 'r')
 
         test_data_file = h5py.File(path.join(
-            opt.splice_data_root, f'dataset_test_0_{opt.window_size}.h5'), 'r')
+            opt.splice_data_root, 
+            f'dataset_test_0_{opt.window_size}_{opt.context_length}.h5'), 'r')
 
         opt.full_validation_interval = train_data_file.attrs['n_datasets']
 
@@ -97,18 +101,49 @@ def main(opt):
         'test': test_chromosomes,
     }
 
-    logging.info('==> Creating window_model')
-
     config = graph_utils.get_wandb_config(opt)
-
-    base_model = SpliceAI(
-        config.n_channels, config.kernel_size, config.dilation_rate)
 
     if opt.wandb:
         wandb.init(project='dl-project', config=config)
 
+    base_model = SpliceAI(
+        config.n_channels, 
+        config.kernel_size, 
+        config.dilation_rate
+    )
+
+    if opt.load_pretrained: 
+
+        model_fname = f'SpliceAI' \
+            f'_e{opt.model_iteration}' \
+            f'_cl{opt.context_length}' \
+            f'_g{opt.model_index}.h5'
+
+        checkpoint_path = path.join(
+            opt.model_name.split('.finetune')[0], 
+            model_fname
+        )
+
+        logging.info(f'==> Loading saved base_model {checkpoint_path}')
+        
+        checkpoint = torch.load(checkpoint_path)
+
+        base_model = nn.DataParallel(base_model)
+        
+        try:
+            base_model.load_state_dict(checkpoint['model'])
+        except RuntimeError:
+            logging.info(f'==> Applying DataParrallel Fix')
+            
+            new_state_dict = OrderedDict()
+            for k, v in checkpoint["model"].items():
+                name = k[7:] # remove `module.`
+                new_state_dict[name] = v
+            base_model.load_state_dict(new_state_dict)
+
     # TODO: I think using non-strand specific is not necessary
     opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
+    
     logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
     logging.info('Total number of parameters in the base model: '
                  f'{opt.total_num_parameters}.')
@@ -119,83 +154,83 @@ def main(opt):
     optimizer = graph_utils.get_optimizer(base_model, opt)
 
     graph_model, full_model = None, None
-    if not opt.pretrain:
+
+    # if fine_tuning, create the SpliceGraph and Full Model
+    if opt.finetune:
         # Creating GNNModel
+        # graph_model = SpliceGraph(
+        #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
+        graph_model = SpliceGraph(
+            config.n_channels, config.hidden_size, config.gcn_dropout)
+        full_model = FullModel(config.n_channels, config.hidden_size)
 
-        if not opt.save_feats:
-            # graph_model = SpliceGraph(
-            #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
-            # TODO: the first parameter should correspond to
-            #  the node representation we choose
-            graph_model = SpliceGraph(
-                config.n_channels, config.hidden_size, config.gcn_dropout)
-            full_model = FullModel(config.n_channels, config.hidden_size)
+        if opt.cuda:
+            graph_model = graph_model.cuda()
+            full_model = full_model.cuda()
 
-            if opt.cuda:
-                graph_model = graph_model.cuda()
-                full_model = full_model.cuda()
+        logging.info(graph_model)
+        logging.info(full_model)
+        # summary(full_model,
+        #         input_size=(2 * opt.n_channels,
+        #                     opt.context_length + opt.window_size))
 
-            logging.info(graph_model)
-            logging.info(full_model)
-            # summary(full_model,
-            #         input_size=(2 * opt.n_channels,
-            #                     opt.context_length + opt.window_size))
+    # if finetune and load_gcn
+    if opt.finetune and opt.load_gcn:
+        gcn_model_path = opt.model_name.replace('.load_gcn', '') + '/model.chkpt'
+        logging.info(f'==> Loading Saved GCN {gcn_model_path}')
 
-        if opt.load_gcn:
-            logging.info('Loading Saved GCN')
-            checkpoint = torch.load(
-                opt.model_name.replace('.load_gcn', '') + '/model.chkpt')
-            graph_model.load_state_dict(checkpoint['model'])
-        else:
-            # Initialize GCN output layer with window_model output layer
-            logging.info('Loading Saved base_model')
+        checkpoint = torch.load(gcn_model_path)
+        graph_model.load_state_dict(checkpoint['model'])
 
-            model_fname = f'SpliceAI' \
-                          f'_e{opt.model_iteration}' \
-                          f'_cl{opt.context_length}' \
-                          f'_g{opt.model_index}.h5'
+    # if saving feats or finetuning, need to load a base model
+    if opt.save_feats or opt.finetune:
+        assert opt.load_pretrained == True, "Have to load pretrained model"
 
-            checkpoint = torch.load(path.join(
-                opt.model_name.split('.finetune')[0], model_fname))
+        logging.info(f"==> Turning off base model params for {opt.workflow}")
 
-            for param in base_model.parameters():
-                param.requires_grad = False
+        # Initialize GCN output layer with window_model output layer
+        for param in base_model.parameters():
+            param.requires_grad = False
 
-            base_model = nn.DataParallel(base_model)
-            base_model.load_state_dict(checkpoint['model'])
+        if opt.finetune:
+            # Initialize the final layer of the full model
+            # with pretrained weights
+            combined_params = list(zip(
+                list(base_model.parameters())[-2:],
+                list(full_model.parameters())[-2:]
+            ))
+            combined_params[0][1].data[:, :32, :] = \
+                combined_params[0][0].data[:, :, :]
+            combined_params[1][1].data[:] = \
+                combined_params[1][0].data[:]
 
-            if opt.cuda:
-                base_model = base_model.cuda()
+    if opt.finetune:
+        optimizer = graph_utils.get_combined_optimizer(
+            graph_model, full_model, opt)
 
-            if not opt.save_feats:
-                # Initialize the final layer of the full model
-                # with pretrained weights
-                combined_params = list(zip(
-                    list(base_model.parameters())[-2:],
-                    list(full_model.parameters())[-2:]
-                ))
-                combined_params[0][1].data[:, :32, :] = \
-                    combined_params[0][0].data[:, :, :]
-                combined_params[1][1].data[:] = \
-                    combined_params[1][0].data[:]
+        # graph_model.out.weight.data = \
+        #     base_model.module.model.classifier.weight.data
+        # graph_model.out.bias.data = \
+        #     base_model.module.model.classifier.bias.data
+        # graph_model.batch_norm.weight.data = \
+        #     base_model.module.model.batch_norm.weight.data
+        # graph_model.batch_norm.bias.data = \
+        #     base_model.module.model.batch_norm.bias.data
 
-        if not opt.save_feats:
-            optimizer = graph_utils.get_combined_optimizer(
-                graph_model, full_model, opt)
-
-            # graph_model.out.weight.data = \
-            #     base_model.module.model.classifier.weight.data
-            # graph_model.out.bias.data = \
-            #     base_model.module.model.classifier.bias.data
-            # graph_model.batch_norm.weight.data = \
-            #     base_model.module.model.batch_norm.weight.data
-            # graph_model.batch_norm.bias.data = \
-            #     base_model.module.model.batch_norm.bias.data
-
-        # optimizer = graph_utils.get_optimizer(graph_model, opt)
-
-    scheduler = torch.torch.optim.lr_scheduler.StepLR(
-        optimizer, step_size=opt.lr_step_size, gamma=0.5)
+    # optimizer = graph_utils.get_optimizer(graph_model, opt)
+    if opt.pretrain:
+        spliceai_step_size = (
+            train_data_file.attrs['n_datasets'] * opt.lr_step_size
+        )
+        logging.info("==> Pretraining step size: every "
+                     f"{spliceai_step_size} epochs out of "
+                     f"{opt.epochs}")
+        scheduler = torch.torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=spliceai_step_size, gamma=0.5
+        )
+    else: 
+        scheduler = torch.torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=opt.lr_step_size, gamma=0.5)
     logging.info(optimizer)
 
     criterion = graph_utils.get_criterion(opt)
@@ -206,8 +241,7 @@ def main(opt):
 
     if torch.cuda.is_available() and opt.cuda:
         criterion = criterion.cuda()
-        if opt.pretrain:
-            base_model = base_model.cuda()
+        base_model = base_model.cuda()
         if graph_model is not None:
             graph_model = graph_model.cuda()
         if opt.gpu_id != -1:
