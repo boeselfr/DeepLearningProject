@@ -40,9 +40,6 @@ def get_args(parser):
         '-cl', '--context_length', dest='context_length',
         type=int, default=400, help='The context length to use.')
     parser.add_argument(
-        '-nc', '--n_channels', type=int, default=32, dest='n_channels',
-        help='Number of convolution channels to use.')
-    parser.add_argument(
         '-w', '--class_weights', type=int, nargs=3, default=(1, 1, 1),
         dest='class_weights', help='Class weights to use.')
     parser.add_argument(
@@ -51,14 +48,20 @@ def get_args(parser):
     parser.add_argument(
         '-npass', '--passes', type=int, default=10,
         dest='passes', help='Number of passes over the train dataset to do.')
-    parser.add_argument(
-        '-vi', '--validation_interval', type=int, default=32,
-        dest='validation_interval', help='Per how many epochs to validate.')
-    parser.add_argument(
-        '-li', '--log_interval', type=int, default=32,
-        dest='log_interval', help='Per how many updates to log to WandB.')
+
     
-    # Finetuning / Graph Training Args
+    ### Finetuning / Graph Training Args
+    # Graph initialization
+    parser.add_argument(
+        '-nc', '--n_channels', type=int, default=32, dest='n_channels',
+        help='Number of convolution channels to use.'
+    )
+    parser.add_argument(
+        '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
+        help='The dimensionality of the hidden layer in the graph network.'
+    )
+    parser.add_argument('-gcn_dropout', type=float, default=0.2)
+
     parser.add_argument('-gcn_layers', type=int, default=2)
     parser.add_argument('-A_saliency', action='store_true')
     parser.add_argument('-adj_type', type=str,
@@ -72,20 +75,21 @@ def get_args(parser):
                         default='500000')
     parser.add_argument('-gate', action='store_true')
     parser.add_argument(
-        '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
-        help='The dimensionality of the hidden layer in the graph network.')
-    parser.add_argument(
         '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
         default=1024, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
         default=4, help='Number of epochs for graph training.')
-    parser.add_argument('-gcn_dropout', type=float, default=0.2)
+    
     parser.add_argument(
-        '-rep', '--node_representation', type=str, default='average',
+        '-rep', '--node_representation', 
+        type=str, 
+        default='average',
         dest='node_representation',
+        choices = ['average', 'max', 'min', 'min-max', 'Conv1d'],
         help='How to construct the node representation '
-             'from the nucleotide representations.')
+             'from the nucleotide representations.'
+    )
     parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
         default='adam')
     
@@ -93,6 +97,12 @@ def get_args(parser):
     # Training args applicable to both -pretrain and -finetune
     parser.add_argument('-lr', type=float, default=0.001)
     #parser.add_argument('-lr_step_size', type=int, default=1)
+    parser.add_argument(
+        '-vi', '--validation_interval', type=int, default=32,
+        dest='validation_interval', help='Per how many epochs to validate.')
+    parser.add_argument(
+        '-li', '--log_interval', type=int, default=32,
+        dest='log_interval', help='Per how many updates to log to WandB.')
 
     # Logging Args
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
@@ -220,6 +230,10 @@ def config_args(opt, config):
     if not opt.pretrain:
         opt.batch_size = 512
         opt.test_batch_size = 512
+
+    # Graph args:
+    if opt.node_representation == "min-max":
+        opt.n_channels = opt.n_channels * 2
 
     # Directory handling
     assert not (os.path.exists(opt.model_name) and opt.pretrain), \

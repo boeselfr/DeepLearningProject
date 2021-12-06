@@ -161,9 +161,10 @@ def main(opt):
         # Creating GNNModel
         # graph_model = SpliceGraph(
         #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
-        graph_model = SpliceGraph(
-            config.n_channels, config.hidden_size, config.gcn_dropout)
-        full_model = FullModel(config.n_channels, config.hidden_size)
+        graph_model = SpliceGraph(opt)
+            #config.n_channels, config.hidden_size, config.gcn_dropout)
+        full_model = FullModel(opt)
+        # config.n_channels, config.hidden_size
 
         if opt.cuda:
             graph_model = graph_model.cuda()
@@ -213,8 +214,8 @@ def main(opt):
         optimizer = torch.optim.Adam(
             base_model.parameters(), lr=opt.lr
         )
-        step_size_milestones = [train_data_file.attrs['n_datasets'] * x \
-            for x in [7, 8, 9, 10]]
+        step_size_milestones = [(train_data_file.attrs['n_datasets'] * x) + 1 \
+            for x in [6, 7, 8, 9, 10]]
         scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=step_size_milestones, 
             gamma=0.5, verbose=True
