@@ -151,7 +151,7 @@ def config_args(opt, config):
 
     opt.model_name = f'{opt.model_id}_graph.splice_ai'
     opt.model_name += '.' + str(opt.optim)
-    opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
+    opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
 
     #if opt.lr_decay > 0:
     #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(
