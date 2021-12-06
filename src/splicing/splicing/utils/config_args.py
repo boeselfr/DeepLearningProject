@@ -48,7 +48,7 @@ def get_args(parser):
     parser.add_argument(
         '-npass', '--passes', type=int, default=10,
         dest='passes', help='Number of passes over the train dataset to do.')
-
+    parser.add_argument('-cnn_lr', type=float, default=0.001)
     
     ### Finetuning / Graph Training Args
     # Graph initialization
@@ -61,8 +61,8 @@ def get_args(parser):
         help='The dimensionality of the hidden layer in the graph network.'
     )
     parser.add_argument('-gcn_dropout', type=float, default=0.2)
-
     parser.add_argument('-gcn_layers', type=int, default=2)
+    parser.add_argument('-g1_relu_bn', action='store_true', default=False)
     parser.add_argument('-A_saliency', action='store_true')
     parser.add_argument('-adj_type', type=str,
         choices=['constant', 'hic', 'both', 'random', 'none', ''], 
@@ -90,12 +90,12 @@ def get_args(parser):
         help='How to construct the node representation '
              'from the nucleotide representations.'
     )
-    parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
-        default='adam')
+    parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
+        default='sgd')
+    parser.add_argument('-gcn_lr', type=float, default=0.025)
     
 
     # Training args applicable to both -pretrain and -finetune
-    parser.add_argument('-lr', type=float, default=0.001)
     #parser.add_argument('-lr_step_size', type=int, default=1)
     parser.add_argument(
         '-vi', '--validation_interval', type=int, default=32,
@@ -157,11 +157,23 @@ def config_args(opt, config):
     else:
         opt.workflow = "finetune"
 
+    # CNN args:
+    kernel_size, dilation_rate, batch_size = get_architecture(
+        opt.context_length)
+
+    opt.kernel_size = kernel_size
+    opt.dilation_rate = dilation_rate
+    opt.batch_size = batch_size
+
+    opt.window_size = config['DATA_PIPELINE']['window_size']
+
     opt.dec_dropout = opt.dropout
 
     opt.model_name = f'{opt.model_id}_graph.splice_ai'
-    opt.model_name += '.' + str(opt.optim)
-    opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
+    #opt.model_name += '.' + str(opt.optim)
+    opt.model_name += '.adam'
+    #opt.model_name += '.cl_' + str(opt.context_length)
+    opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
 
     #if opt.lr_decay > 0:
     #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(
@@ -179,10 +191,12 @@ def config_args(opt, config):
 
     if opt.finetune:
         opt.model_name += '/finetune'
-        opt.model_name += '.lr2_' + str(opt.lr2).split('.')[1]
+        opt.model_name += '.lr_' + str(opt.gcn_lr).split('.')[1]
+        if opt.g1_relu_bn:
+            opt.model_name += '.g1_relu_bn'
         opt.model_name += '.gcndrop_' + (
                 "%.2f" % opt.gcn_dropout).split('.')[1]
-        opt.model_name += '.' + str(opt.optim2)
+        opt.model_name += '.' + str(opt.gcn_optim)
         opt.model_name += '.layers_' + str(opt.gcn_layers)
         if opt.gate:
             opt.model_name += '.gate'
@@ -217,15 +231,7 @@ def config_args(opt, config):
     #     elif 'y' not in overwrite_status.lower():
     #         exit(0)
 
-    # CNN args:
-    kernel_size, dilation_rate, batch_size = get_architecture(
-        opt.context_length)
 
-    opt.kernel_size = kernel_size
-    opt.dilation_rate = dilation_rate
-    opt.batch_size = batch_size
-
-    opt.window_size = config['DATA_PIPELINE']['window_size']
 
     if not opt.pretrain:
         opt.batch_size = 512
