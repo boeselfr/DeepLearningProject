@@ -79,7 +79,7 @@ def get_combined_optimizer(graph_model, full_model, opt):
     elif opt.gcn_optim == 'sgd':
         optimizer = torch.optim.SGD(
             list(graph_model.parameters()) + list(full_model.parameters()),
-            lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9, verbose=True)
+            lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
     return optimizer
 
 
