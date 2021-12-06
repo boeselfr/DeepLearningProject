@@ -299,7 +299,7 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
 
 
 def build_node_representations(xs, mode, opt):
-    assert mode in ['average', 'max', 'min', 'min-max', 'Conv1d', 'PCA'], \
+    assert mode in ['average', 'max', 'min', 'min-max', 'conv1d', 'pca'], \
         'The specified node representation not supported'
     # xs[loc] is of shape : [1, 32, 5000]
     if mode == 'average':
@@ -313,23 +313,25 @@ def build_node_representations(xs, mode, opt):
         x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
         x = torch.cat((x_min, x_max), 1)
         # we need to set the hidden dimension to double size here:
-        opt.n_channels = opt.n_channels * 2
-    elif mode == 'Conv1d':
+        #opt.n_channels = opt.n_channels * 2
+    elif mode == 'conv1d':
         device = 'cuda'
-        n_elements = list(xs.values())[0].numel() / opt.n_channels
+        n_elements = int(list(xs.values())[0].numel() / opt.n_channels)
         conv1 = torch.nn.Conv1d(
             in_channels=n_elements,
             out_channels=1,
             kernel_size=1).to(device)
         x_all = torch.stack([(xs[loc][0]) for loc in xs])
-        x_all = torch.moveaxis(x_all,1,2)
+        x_all = torch.moveaxis(x_all,1,2).to(device)
+        #x_all.requires_grad = True
+
         x = conv1(x_all)
         # of shape:  n_windows x 1 x 32
         x = torch.squeeze(x)
-    elif mode == 'PCA':
-        #apply pca to get 32
+    elif mode == 'pca':
+        # apply pca to reduce each 5000 block to principal dimension
         pca = PCA(n_components=1)
-        x = torch.stack([torch.tensor(pca.fit_transform(xs[loc][0])).squeeze() for loc in xs])
+        x = torch.stack([torch.tensor(pca.fit_transform(xs[loc][0]), dtype=torch.float).squeeze() for loc in xs])
 
     return x
 

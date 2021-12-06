@@ -178,6 +178,7 @@ def config_args(opt, config):
         if opt.lr_decay2 > 0:
             opt.model_name += '.decay_' + str(opt.lr_decay2).replace(
                 '.', '') + '_' + str(opt.lr_step_size2)
+        opt.model_name += '.rep_' + str(opt.node_representation)
 
     opt.model_name = path.join(opt.results_dir, opt.cell_type, opt.model_name)
 

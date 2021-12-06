@@ -22,7 +22,6 @@ class FullModel(nn.Module):
         x = torch.cat(
             (x, torch.ones(size=(bs, n_h, sl)).cuda() * node_rep.unsqueeze(2)),
             axis=1)
-
         x = self.out(x)
 
         x = self.out_act(x)

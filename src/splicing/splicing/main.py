@@ -163,8 +163,13 @@ def main(opt):
         # Creating GNNModel
         # graph_model = SpliceGraph(
         #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
-        graph_model = SpliceGraph(
-            config.n_channels, config.hidden_size, config.gcn_dropout)
+        # need to change n channels here:
+        if opt.node_representation == 'min-max':
+            graph_model = SpliceGraph(
+                config.n_channels*2, config.hidden_size, config.gcn_dropout)
+        else:
+            graph_model = SpliceGraph(
+                config.n_channels, config.hidden_size, config.gcn_dropout)
         full_model = FullModel(config.n_channels, config.hidden_size)
 
         if opt.cuda:
@@ -189,7 +194,7 @@ def main(opt):
     if opt.save_feats or opt.finetune:
         
         if opt.save_feats:
-            assert opt.load_pretrained == True, "Have to load pretrained model"
+            assert opt.load_pretrained == True, " pretrained model"
 
         logging.info(f"==> Turning off base model params for {opt.workflow}")
 
