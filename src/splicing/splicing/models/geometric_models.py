@@ -9,7 +9,7 @@ class FullModel(nn.Module):
         super(FullModel, self).__init__()
         # TODO: if concat ...
         self.out = nn.Conv1d(
-            in_channels=opt.n_channels + opt.n_hidden,
+            in_channels=opt.n_channels + opt.hidden_size,
             out_channels=3,
             kernel_size=1
         ).to(device)
