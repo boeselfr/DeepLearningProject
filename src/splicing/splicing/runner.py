@@ -71,7 +71,6 @@ def run_model(base_model, graph_model, full_model, datasets,
 
         if scheduler and (opt.pretrain or opt.lr_decay > 0):
             scheduler.step()
-            scheduler.print_lr()
 
         train_loss, valid_loss = 0, 0
         if not opt.load_gcn and not opt.test_only:
