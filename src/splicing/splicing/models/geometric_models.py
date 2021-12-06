@@ -11,7 +11,8 @@ class FullModel(nn.Module):
         self.out = nn.Conv1d(
             in_channels=opt.n_channels + opt.n_hidden,
             out_channels=3,
-            kernel_size=1).to(device)
+            kernel_size=1
+        ).to(device)
         # self.linear = nn.Linear(2 * n_channels, 3).to(device)
         self.out_act = nn.Softmax(dim=1)
 
@@ -34,8 +35,14 @@ class FullModel(nn.Module):
 class SpliceGraph(torch.nn.Module):
     def __init__(self, opt):
         super().__init__()
-        self.lin = Linear(opt.n_channels, opt.hidden_size)
-        self.conv1 = GCNConv(opt.n_channels, opt.hidden_size)
+        
+        if opt.node_representation == 'min-max':
+            n_channels = opt.n_channels * 2
+        else:
+            n_channels = opt.n_channels    
+
+        self.lin = Linear(n_channels, opt.hidden_size)
+        self.conv1 = GCNConv(n_channels, opt.hidden_size)
         self.gate1 = Linear(opt.hidden_size, opt.hidden_size)
         self.bn1 = BatchNorm(opt.hidden_size)
         self.conv2 = GCNConv(opt.hidden_size, opt.hidden_size)

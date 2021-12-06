@@ -231,15 +231,9 @@ def config_args(opt, config):
     #     elif 'y' not in overwrite_status.lower():
     #         exit(0)
 
-
-
     if not opt.pretrain:
         opt.batch_size = 512
         opt.test_batch_size = 512
-
-    # Graph args:
-    if opt.node_representation == "min-max":
-        opt.n_channels = opt.n_channels * 2
 
     # Directory handling
     assert not (os.path.exists(opt.model_name) and opt.pretrain), \

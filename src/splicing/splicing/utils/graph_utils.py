@@ -314,8 +314,11 @@ def build_node_representations(xs, mode, opt):
         x = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
     elif mode == 'min-max':
         x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
+        print(x_min.shape)
         x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
+        print(x_max.shape)
         x = torch.cat((x_min, x_max), 1)
+        print(x.shape)
     elif mode == 'Conv1d':
         device = 'cuda'
         n_elements = list(xs.values())[0].numel() / opt.n_channels
