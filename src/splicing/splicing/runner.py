@@ -45,7 +45,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
             base_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
 
-    elif not opt.save_feats:
+    elif opt.finetune:
         # logging.info('Fine-tuning the graph-based model')
         predictions, targets, loss = finetune(
             graph_model, full_model, datasets[split], criterion, optimizer,
@@ -67,8 +67,11 @@ def run_model(base_model, graph_model, full_model, datasets,
 
     for epoch in trange(1, opt.epochs + 1):
 
-        if scheduler and opt.lr_decay2 > 0:
+        print(f"Starting epoch {epoch}")
+
+        if scheduler and (opt.pretrain or opt.lr_decay > 0):
             scheduler.step()
+            scheduler.print_lr()
 
         train_loss, valid_loss = 0, 0
         if not opt.load_gcn and not opt.test_only:

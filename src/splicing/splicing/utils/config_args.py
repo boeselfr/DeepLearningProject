@@ -57,8 +57,6 @@ def get_args(parser):
     parser.add_argument(
         '-li', '--log_interval', type=int, default=32,
         dest='log_interval', help='Per how many updates to log to WandB.')
-    parser.add_argument('-lr', type=float, default=0.001)
-    #parser.add_argument('-lr_step_size', type=int, default=1)
     
     # Finetuning / Graph Training Args
     parser.add_argument('-gcn_layers', type=int, default=2)
@@ -88,19 +86,19 @@ def get_args(parser):
         dest='node_representation',
         help='How to construct the node representation '
              'from the nucleotide representations.')
+    parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
+        default='adam')
+    
+
+    # Training args applicable to both -pretrain and -finetune
+    parser.add_argument('-lr', type=float, default=0.001)
+    #parser.add_argument('-lr_step_size', type=int, default=1)
 
     # Logging Args
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
 
     # need to assign these:
-    parser.add_argument('-cell_type', type=str, default='GM12878')
     parser.add_argument('-test_batch_size', type=int, default=512)
-    parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
-                        default='adam')
-    parser.add_argument('-optim2', type=str, choices=['adam', 'sgd'],
-                        default='adam')
-    
-    parser.add_argument('-lr2', type=float, default=0.002)
     parser.add_argument('-weight_decay', type=float, default=5e-5,
                         help='weight decay')
     parser.add_argument('-lr_decay', type=float, default=0)
@@ -121,6 +119,10 @@ def get_args(parser):
     parser.add_argument('-overwrite', action='store_true')
     parser.add_argument('-test_only', action='store_true')
     parser.add_argument('-seq_length', type=int, default=2000)
+
+    # would remove these and hard code default values:
+    parser.add_argument('-cell_type', type=str, default='GM12878')
+    parser.add_argument('-lr2', type=float, default=0.002)
     
     opt = parser.parse_args()
     return opt
@@ -151,9 +153,9 @@ def config_args(opt, config):
     opt.model_name += '.' + str(opt.optim)
     opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
 
-    if opt.lr_decay > 0:
-        opt.model_name += '.decay_' + str(opt.lr_decay).replace(
-            '.', '') + '_' + str(opt.lr_step_size)
+    #if opt.lr_decay > 0:
+    #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(
+    #        '.', '') + '_' + str(opt.lr_step_size)
 
     opt.model_name += '.drop_' + ("%.2f" % opt.dropout).split('.')[1] + '_' + \
                       ("%.2f" % opt.dec_dropout).split('.')[1]
@@ -177,9 +179,9 @@ def config_args(opt, config):
         opt.model_name += '.adj_' + opt.adj_type
         if opt.adj_type == 'hic' or opt.adj_type == 'both':
             opt.model_name += '.norm_' + opt.hicnorm
-        if opt.lr_decay2 > 0:
-            opt.model_name += '.decay_' + str(opt.lr_decay2).replace(
-                '.', '') + '_' + str(opt.lr_step_size2)
+        if opt.lr_decay > 0:
+            opt.model_name += '.decay_' + str(opt.lr_decay).replace(
+                '.', '') + '_' + str(opt.lr_step_size)
 
     opt.model_name = path.join(opt.results_dir, opt.cell_type, opt.model_name)
 
@@ -205,6 +207,7 @@ def config_args(opt, config):
     #     elif 'y' not in overwrite_status.lower():
     #         exit(0)
 
+    # CNN args:
     kernel_size, dilation_rate, batch_size = get_architecture(
         opt.context_length)
 
@@ -218,6 +221,7 @@ def config_args(opt, config):
         opt.batch_size = 512
         opt.test_batch_size = 512
 
+    # Directory handling
     assert not (os.path.exists(opt.model_name) and opt.pretrain), \
         "Model directory already exists, please specify another -modelid"
 

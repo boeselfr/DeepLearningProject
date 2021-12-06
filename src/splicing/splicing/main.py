@@ -213,9 +213,8 @@ def main(opt):
         optimizer = torch.optim.Adam(
             base_model.parameters(), lr=opt.lr
         )
-        #TODO check that this makes sense w epoch numbers
         step_size_milestones = [train_data_file.attrs['n_datasets'] * x \
-            for x in [6, 7, 8, 9, 10]]
+            for x in [7, 8, 9, 10]]
         scheduler = torch.torch.optim.lr_scheduler.StepLR(
             optimizer, milestones=step_size_milestones, 
             gamma=0.5, verbose=True
