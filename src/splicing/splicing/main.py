@@ -154,8 +154,6 @@ def main(opt):
     #         input_size=(4, opt.context_length + opt.window_size),
     #         device='cuda')
 
-    optimizer = graph_utils.get_optimizer(base_model, opt)
-
     graph_model, full_model = None, None
 
     # if fine_tuning, create the SpliceGraph and Full Model
@@ -207,9 +205,30 @@ def main(opt):
             combined_params[1][1].data[:] = \
                 combined_params[1][0].data[:]
 
-    if opt.finetune:
+    # Optimizer and Scheduler
+    optimizer, scheduler = None
+
+    if opt.pretrain or opt.save_feats:
+        # default schedule: 6 epochs at 0.001, then halve lr every epoch
+        optimizer = torch.optim.Adam(
+            base_model.parameters(), lr=opt.lr
+        )
+        #TODO check that this makes sense w epoch numbers
+        step_size_milestones = [train_data_file.attrs['n_datasets'] * x \
+            for x in [6, 7, 8, 9, 10]]
+        scheduler = torch.torch.optim.lr_scheduler.StepLR(
+            optimizer, milestones=step_size_milestones, 
+            gamma=0.5, verbose=True
+        )
+    elif opt.finetune:
         optimizer = graph_utils.get_combined_optimizer(
             graph_model, full_model, opt)
+    else: 
+        optimizer = graph_utils.get_optimizer(base_model, opt)
+        scheduler = torch.torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=opt.lr_step_size, gamma=0.5)
+    
+    logging.info(f"==> Optimizer: {optimizer}")
 
         # graph_model.out.weight.data = \
         #     base_model.module.model.classifier.weight.data
@@ -221,20 +240,6 @@ def main(opt):
         #     base_model.module.model.batch_norm.bias.data
 
     # optimizer = graph_utils.get_optimizer(graph_model, opt)
-    if opt.pretrain:
-        spliceai_step_size = (
-            train_data_file.attrs['n_datasets'] * opt.lr_step_size
-        )
-        logging.info("==> Pretraining step size: every "
-                     f"{spliceai_step_size} epochs out of "
-                     f"{opt.epochs}")
-        scheduler = torch.torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=spliceai_step_size, gamma=0.5
-        )
-    else: 
-        scheduler = torch.torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=opt.lr_step_size, gamma=0.5)
-    logging.info(optimizer)
 
     criterion = graph_utils.get_criterion(opt)
 

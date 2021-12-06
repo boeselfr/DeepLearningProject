@@ -57,6 +57,8 @@ def get_args(parser):
     parser.add_argument(
         '-li', '--log_interval', type=int, default=32,
         dest='log_interval', help='Per how many updates to log to WandB.')
+    parser.add_argument('-lr', type=float, default=0.001)
+    #parser.add_argument('-lr_step_size', type=int, default=1)
     
     # Finetuning / Graph Training Args
     parser.add_argument('-gcn_layers', type=int, default=2)
@@ -97,13 +99,13 @@ def get_args(parser):
                         default='adam')
     parser.add_argument('-optim2', type=str, choices=['adam', 'sgd'],
                         default='adam')
-    parser.add_argument('-lr', type=float, default=0.001)
+    
     parser.add_argument('-lr2', type=float, default=0.002)
     parser.add_argument('-weight_decay', type=float, default=5e-5,
                         help='weight decay')
     parser.add_argument('-lr_decay', type=float, default=0)
-    parser.add_argument('-lr_step_size', type=int, default=1)
-    parser.add_argument('-lr_decay2', type=float, default=0)
+    
+    parser.add_argument('-lr_decay2', type=float, default=0) # triggers update of scheduler at every epoch if > 1
     parser.add_argument('-lr_step_size2', type=int, default=100)
     parser.add_argument('-dropout', type=float, default=0.1)
     
@@ -147,7 +149,7 @@ def config_args(opt, config):
 
     opt.model_name = f'{opt.model_id}_graph.splice_ai'
     opt.model_name += '.' + str(opt.optim)
-    opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
+    opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
 
     if opt.lr_decay > 0:
         opt.model_name += '.decay_' + str(opt.lr_decay).replace(
