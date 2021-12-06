@@ -206,7 +206,7 @@ def main(opt):
                 combined_params[1][0].data[:]
 
     # Optimizer and Scheduler
-    optimizer, scheduler = None
+    optimizer, scheduler = None, None
 
     if opt.pretrain or opt.save_feats:
         # default schedule: 6 epochs at 0.001, then halve lr every epoch
