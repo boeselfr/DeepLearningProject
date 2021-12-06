@@ -10,7 +10,7 @@ from splicing.utils.utils import clip_datapoints
 class SpliceDataset(Dataset):
 
     def __init__(self, X, Y, locations, context_length, device='cuda'):
-        X, Y = clip_datapoints(X, Y, context_length, N_GPUS=1)
+        X, Y = clip_datapoints(X, Y, cl=context_length, cl_max=context_length, N_GPUS=1)
         self.X = np.array([np.transpose(x) for x in X])
         self.Y = np.array([np.transpose(y) for y in Y[0]])
         self.locations = np.array(locations)
