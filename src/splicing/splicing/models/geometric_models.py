@@ -49,7 +49,7 @@ class SpliceGraph(torch.nn.Module):
         self.gate2 = Linear(opt.hidden_size, opt.hidden_size)
         self.bn2 = BatchNorm(opt.hidden_size)
         self.dropout = nn.Dropout(opt.gcn_dropout)
-        self.post_g1_relu_bn = opt.g1_relu_bn
+        self.g1_relu_bn = opt.g1_relu_bn
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
@@ -60,7 +60,7 @@ class SpliceGraph(torch.nn.Module):
         x = self.lin(x)  # change dimension
         x = (1 - g) * x + g * z
         
-        if self.post_g1_relu_bn:
+        if self.g1_relu_bn:
             x = F.relu(x)  # todo: ?
             x = self.bn1(x)  # todo: ?
 
