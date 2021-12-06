@@ -215,7 +215,7 @@ def main(opt):
         )
         step_size_milestones = [train_data_file.attrs['n_datasets'] * x \
             for x in [7, 8, 9, 10]]
-        scheduler = torch.torch.optim.lr_scheduler.StepLR(
+        scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=step_size_milestones, 
             gamma=0.5, verbose=True
         )
@@ -225,7 +225,9 @@ def main(opt):
     else: 
         optimizer = graph_utils.get_optimizer(base_model, opt)
         scheduler = torch.torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=opt.lr_step_size, gamma=0.5)
+            optimizer, step_size=opt.lr_step_size, 
+            gamma=0.5, verbose=True
+        )
     
     logging.info(f"==> Optimizer: {optimizer}")
 
