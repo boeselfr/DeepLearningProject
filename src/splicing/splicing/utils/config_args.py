@@ -46,9 +46,6 @@ def get_args(parser):
         '-w', '--class_weights', type=int, nargs=3, default=(1, 1, 1),
         dest='class_weights', help='Class weights to use.')
     parser.add_argument(
-        '-trat', '--train_ratio', type=float, default=0.9,
-        dest='train_ratio', help='The proportion of the train data to use.')
-    parser.add_argument(
         '-npass', '--passes', type=int, default=10,
         dest='passes', help='Number of passes over the train dataset to do.')
     parser.add_argument(
@@ -57,6 +54,14 @@ def get_args(parser):
     parser.add_argument(
         '-li', '--log_interval', type=int, default=32,
         dest='log_interval', help='Per how many updates to log to WandB.')
+    parser.add_argument('-lr', type=float, default=0.001,
+                        help='Learning rate for pretraining.')
+    parser.add_argument(
+        '-lr_decay', dest='lr_decay', type=float, default=0.5,
+        help='The factor by which to decrease the learning rate')
+    parser.add_argument(
+        '-lr_step_size', dest='lr_step_size', type=int, default=1,
+        help='After how many passes to decrease learning rate')
     
     # Finetuning / Graph Training Args
     parser.add_argument('-gcn_layers', type=int, default=2)
@@ -75,6 +80,10 @@ def get_args(parser):
         '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
         help='The dimensionality of the hidden layer in the graph network.')
     parser.add_argument(
+        '-nhidd_f', '--hidden_size_full', type=int, default=32,
+        dest='hidden_size_full',
+        help='The dimensionality of the hidden layer in the final network.')
+    parser.add_argument(
         '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
         default=1024, help='Batch size for finetuning.')
     parser.add_argument(
@@ -92,34 +101,23 @@ def get_args(parser):
 
     # need to assign these:
     parser.add_argument('-cell_type', type=str, default='GM12878')
-    parser.add_argument('-test_batch_size', type=int, default=512)
     parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
                         default='adam')
     parser.add_argument('-optim2', type=str, choices=['adam', 'sgd'],
                         default='adam')
-    parser.add_argument('-lr', type=float, default=0.001)
     parser.add_argument('-lr2', type=float, default=0.002)
-    parser.add_argument('-weight_decay', type=float, default=5e-5,
-                        help='weight decay')
-    parser.add_argument('-lr_decay', type=float, default=0)
-    parser.add_argument('-lr_step_size', type=int, default=1)
-    parser.add_argument('-lr_decay2', type=float, default=0)
+    parser.add_argument('-lr_decay2', type=float, default=0.5)
     parser.add_argument('-lr_step_size2', type=int, default=100)
-    parser.add_argument('-dropout', type=float, default=0.1)
-    
+
     parser.add_argument('-save_mode', type=str, choices=['all', 'best'],
                         default='best')
     parser.add_argument('-br_threshold', type=float, default=0.5)
     parser.add_argument('-no_cuda', action='store_true')
-    parser.add_argument('-shuffle_train', action='store_true')
     parser.add_argument('-viz', action='store_true')
-    parser.add_argument('-gpu_id', type=int, default=-1)
-    parser.add_argument('-small', action='store_true')
     parser.add_argument('-summarize_data', action='store_true')
     parser.add_argument('-overwrite', action='store_true')
     parser.add_argument('-test_only', action='store_true')
-    parser.add_argument('-seq_length', type=int, default=2000)
-    
+
     opt = parser.parse_args()
     return opt
 
@@ -143,8 +141,6 @@ def config_args(opt, config):
     else:
         opt.workflow = "finetune"
 
-    opt.dec_dropout = opt.dropout
-
     opt.model_name = f'{opt.model_id}_graph.splice_ai'
     opt.model_name += '.' + str(opt.optim)
     opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
@@ -153,13 +149,9 @@ def config_args(opt, config):
         opt.model_name += '.decay_' + str(opt.lr_decay).replace(
             '.', '') + '_' + str(opt.lr_step_size)
 
-    opt.model_name += '.drop_' + ("%.2f" % opt.dropout).split('.')[1] + '_' + \
-                      ("%.2f" % opt.dec_dropout).split('.')[1]
-
     if opt.save_feats:
         #opt.model_name += '.save_feats'
         opt.pretrain = False
-        opt.shuffle_train = False
         opt.train_ratio = 1.0
         # opt.epochs = 1
 
@@ -214,7 +206,6 @@ def config_args(opt, config):
 
     if not opt.pretrain:
         opt.batch_size = 512
-        opt.test_batch_size = 512
 
     assert not (os.path.exists(opt.model_name) and opt.pretrain), \
         "Model directory already exists, please specify another -modelid"

@@ -35,7 +35,7 @@ args = parser.parse_args()
 group = args.group
 paralog = args.paralog
 
-assert group in ['train', 'test', 'all']
+assert group in ['train', 'test', 'valid']
 assert paralog in ['0', '1', 'all']
 
 ###############################################################################

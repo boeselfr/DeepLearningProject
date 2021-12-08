@@ -72,11 +72,13 @@ def main(opt):
 
         train_data_file = h5py.File(path.join(
             opt.splice_data_root,
-            f'dataset_train_all_{opt.window_size}_{opt.context_length}.h5'), 'r')
+            f'dataset_train_all_{opt.window_size}_{opt.context_length}.h5'),
+            'r')
 
         valid_data_file = h5py.File(path.join(
             opt.splice_data_root,
-            f'dataset_valid_all_{opt.window_size}_{opt.context_length}.h5'), 'r')
+            f'dataset_valid_all_{opt.window_size}_{opt.context_length}.h5'),
+            'r')
 
         test_data_file = h5py.File(path.join(
             opt.splice_data_root, 
@@ -125,11 +127,11 @@ def main(opt):
         )
 
         logging.info(f'==> Loading saved base_model {checkpoint_path}')
-        
+
         checkpoint = torch.load(checkpoint_path)
 
         base_model = nn.DataParallel(base_model)
-        
+
         try:
             base_model.load_state_dict(checkpoint['model'])
         except RuntimeError:
@@ -143,7 +145,7 @@ def main(opt):
 
     # TODO: I think using non-strand specific is not necessary
     opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
-    
+
     logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
     logging.info('Total number of parameters in the base model: '
                  f'{opt.total_num_parameters}.')
@@ -162,7 +164,8 @@ def main(opt):
         #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
         graph_model = SpliceGraph(
             config.n_channels, config.hidden_size, config.gcn_dropout)
-        full_model = FullModel(config.n_channels, config.hidden_size)
+        full_model = FullModel(
+            config.n_channels, config.hidden_size, config.hidden_size_full)
 
         if opt.cuda:
             graph_model = graph_model.cuda()
@@ -170,9 +173,9 @@ def main(opt):
 
         logging.info(graph_model)
         logging.info(full_model)
-        # summary(full_model,
-        #         input_size=(2 * opt.n_channels,
-        #                     opt.context_length + opt.window_size))
+        # summary(
+        #     full_model,
+        #     input_size=(opt.n_channels + opt.hidden_size, opt.window_size))
 
     # if finetune and load_gcn
     if opt.finetune and opt.load_gcn:
@@ -192,17 +195,17 @@ def main(opt):
         for param in base_model.parameters():
             param.requires_grad = False
 
-        if opt.finetune:
-            # Initialize the final layer of the full model
-            # with pretrained weights
-            combined_params = list(zip(
-                list(base_model.parameters())[-2:],
-                list(full_model.parameters())[-2:]
-            ))
-            combined_params[0][1].data[:, :32, :] = \
-                combined_params[0][0].data[:, :, :]
-            combined_params[1][1].data[:] = \
-                combined_params[1][0].data[:]
+        # if opt.finetune:
+        #     # Initialize the final layer of the full model
+        #     # with pretrained weights
+        #     combined_params = list(zip(
+        #         list(base_model.parameters())[-2:],
+        #         list(full_model.parameters())[-2:]
+        #     ))
+        #     combined_params[0][1].data[:, :32, :] = \
+        #         combined_params[0][0].data[:, :, :]
+        #     combined_params[1][1].data[:] = \
+        #         combined_params[1][0].data[:]
 
     if opt.finetune:
         optimizer = graph_utils.get_combined_optimizer(
@@ -226,11 +229,11 @@ def main(opt):
                      f"{spliceai_step_size} epochs out of "
                      f"{opt.epochs}")
         scheduler = torch.torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=spliceai_step_size, gamma=0.5
+            optimizer, step_size=spliceai_step_size, gamma=opt.lr_decay
         )
     else: 
         scheduler = torch.torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=opt.lr_step_size, gamma=0.5)
+            optimizer, step_size=opt.lr_step_size, gamma=opt.lr_decay)
     logging.info(optimizer)
 
     criterion = graph_utils.get_criterion(opt)
@@ -244,8 +247,6 @@ def main(opt):
         base_model = base_model.cuda()
         if graph_model is not None:
             graph_model = graph_model.cuda()
-        if opt.gpu_id != -1:
-            torch.cuda.set_device(opt.gpu_id)
 
     logging.info(f'Model name: {opt.model_name}')
     # logger = Logger(opt)

@@ -5,7 +5,9 @@ import logging
 import numpy as np
 import torch
 from scipy import sparse
+from sklearn.metrics import average_precision_score
 import wandb
+
 from splicing.models.losses import CategoricalCrossEntropy2d
 from splicing.utils.utils import IX2CHR
 
@@ -35,6 +37,7 @@ def get_wandb_config(opt):
 
     config.n_channels = opt.n_channels
     config.hidden_size = opt.hidden_size
+    config.hidden_size_full = opt.hidden_size_full
     config.gcn_dropout = opt.gcn_dropout
     config.context_length = opt.context_length
     config.kernel_size = opt.kernel_size
@@ -43,13 +46,43 @@ def get_wandb_config(opt):
     # config.epochs = opt.epochs
     config.context_length = opt.context_length
     config.lr = opt.lr
-    config.train_ratio = opt.train_ratio
     config.class_weights = opt.class_weights
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate
     config.batch_size = opt.batch_size
 
     return config
+
+
+def report_wandb(predictions, targets, loss, opt, split):
+
+    # sums_true = y.sum(axis=(0, 2))
+    # sums_pred = predictions.sum(axis=(0, 2))
+    #
+    # total = sums_true.sum()
+
+    is_expr = targets.sum(axis=(1, 2)) >= 1
+    auprcs = {}
+    for ix, prediction_type in enumerate(['Acceptor', 'Donor']):
+        targets_ix = targets[
+                     is_expr, ix + 1, :].flatten().detach().cpu().numpy()
+        predictions_ix = predictions[
+                         is_expr, ix + 1, :].flatten().detach().cpu().numpy()
+        auprcs[prediction_type] = average_precision_score(
+            targets_ix, predictions_ix)
+
+    wandb.log({
+        f'{split}/loss': loss.item() / opt.batch_size,
+        f'{split}/Acceptor AUPRC': auprcs['Acceptor'],
+        f'{split}/Donor AUPRC': auprcs['Donor'],
+        # f'{split}/true inactive': sums_true[0] / total,
+        # f'{split}/true acceptors': sums_true[1] / total,
+        # f'{split}/true donors': sums_true[2] / total,
+        # f'{split}/predicted inactive': sums_pred[0] / sums_true[0],
+        # f'{split}/predicted acceptors': sums_pred[1] / sums_true[1],
+        # f'{split}/predicted donors': sums_pred[2] / sums_true[2],
+        # f'{split}/proportion of epoch done': batch / (size // batch_size),
+    })
 
 
 def get_criterion(opt):

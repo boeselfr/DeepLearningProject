@@ -5,14 +5,24 @@ from torch_geometric.nn import GCNConv, BatchNorm, Linear
 
 
 class FullModel(nn.Module):
-    def __init__(self, n_channels, n_hidden, device='cuda'):
+    def __init__(self, n_channels, hidden_size, hidden_size_full,
+                 device='cuda'):
         super(FullModel, self).__init__()
-        # TODO: if concat ...
+        self.batch_norm0 = nn.BatchNorm1d(n_channels + hidden_size)
+        self.conv1 = nn.Conv1d(
+            in_channels=n_channels + hidden_size,
+            out_channels=hidden_size_full,
+            kernel_size=1).to(device)
+        self.batch_norm1 = nn.BatchNorm1d(hidden_size_full)
+        self.conv2 = nn.Conv1d(
+            in_channels=hidden_size_full,
+            out_channels=hidden_size_full,
+            kernel_size=1).to(device)
+        self.batch_norm2 = nn.BatchNorm1d(hidden_size_full)
         self.out = nn.Conv1d(
-            in_channels=n_channels + n_hidden,
+            in_channels=hidden_size_full,
             out_channels=3,
             kernel_size=1).to(device)
-        # self.linear = nn.Linear(2 * n_channels, 3).to(device)
         self.out_act = nn.Softmax(dim=1)
 
     def forward(self, x, node_rep):
@@ -22,6 +32,14 @@ class FullModel(nn.Module):
         x = torch.cat(
             (x, torch.ones(size=(bs, n_h, sl)).cuda() * node_rep.unsqueeze(2)),
             axis=1)
+
+        # x = self.batch_norm0(x)
+
+        x = self.conv1(x)
+        x = self.batch_norm1(x)
+
+        # x = self.conv2(x)
+        # x = self.batch_norm2(x)
 
         x = self.out(x)
 

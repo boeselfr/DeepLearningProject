@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 
 from splicing.utils.graph_utils import process_graph, split2desc, \
-    build_node_representations, save_node_representations
+    build_node_representations, save_node_representations, report_wandb
 from splicing.data_models.splice_dataset import ChromosomeDataset
 from splicing.utils.utils import IX2CHR
 
@@ -76,7 +76,6 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     for batch, (_x, _y) in tqdm(enumerate(dataloader), leave=False,
                                 total=len(dataloader), desc=desc_i):
 
-        # TODO: should this be outside or inside the loop?
         node_representation = graph_model(graph_data)
 
         if split == 'train':
@@ -90,13 +89,14 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         loss = criterion(_y_hat, _y)
 
         if split == 'train':
-            # loss.backward(retain_graph=True)
             loss.backward()
             optimizer.step()
 
         total_loss += loss.sum().item()
         all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
         all_targets = torch.cat((all_targets, _y.cpu().data), 0)
+
+        report_wandb(_y_hat, _y, loss, opt, split)
 
     # save_node_representations(node_representation, chromosome, opt)
 
