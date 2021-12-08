@@ -33,7 +33,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     # we need it also for the constant case, thus always has to be loaded
     bin_dict_file = path.join(
         opt.graph_data_root,
-        f'test_vail_train_bin_dict_{opt.hicsize}_{opt.hicnorm}norm.pkl')
+        f'test_vail_train_bin_dict_{opt.hicsize}_{opt.hicnorm}norm.pkl'
+    )
     bin_dict = pickle.load(open(bin_dict_file, "rb"))
 
     if opt.adj_type in ['hic', 'both']:
@@ -48,26 +49,34 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
     # tqdm.write(f'Reading in chromosome {chromosome} data.')
     chromosome_data = torch.load(
-        path.join(opt.model_name.split('.finetune')[0],
-                  f'chrom_feature_dict_{split}_chr{chromosome}.pt'))
+        path.join(
+            opt.model_name.split('/finetune')[0],
+            f'chrom_feature_dict_{split}_chr{chromosome}.pt'
+        )
+    )
 
     xs = chromosome_data['x']
     ys = chromosome_data['y']
 
     chromosome_dataset = ChromosomeDataset(xs, ys)
     dataloader = DataLoader(
-        chromosome_dataset, batch_size=opt.graph_batch_size)
+        chromosome_dataset, batch_size=opt.graph_batch_size
+    )
 
     node_representation = build_node_representations(
-        xs, opt.node_representation, opt)
+        xs, opt.node_representation, opt
+    )
     # node_representation.requires_grad = True
     # logging.info(f'node_representation.shape = {node_representation.shape}')
 
     graph = process_graph(
         opt.adj_type, split_adj_dict, len(node_representation),
-        IX2CHR(chromosome), bin_dict, opt.window_size).cuda()
+        IX2CHR(chromosome), bin_dict, opt.window_size
+    ).cuda() #TODO: is this .cuda() doing anything?
     graph_data = Data(
-        x=node_representation, edge_index=graph.coalesce().indices()).cuda()
+        x=node_representation, 
+        edge_index=graph.coalesce().indices()
+    ).cuda()
 
     desc_i = f'({split2desc[split]} on chromosome {chromosome})'
     logging.info(f'Number of batches of size {opt.graph_batch_size}:'

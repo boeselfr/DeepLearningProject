@@ -45,7 +45,12 @@ def get_wandb_config(opt):
     config.batch_size = opt.batch_size
     # config.epochs = opt.epochs
     config.context_length = opt.context_length
-    config.lr = opt.lr
+    if opt.pretrain:
+        config.lr = opt.cnn_lr
+    elif opt.finetune:
+        config.lr = opt.gcn_lr
+    else:
+        config.lr = 0
     config.class_weights = opt.class_weights
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate
@@ -90,24 +95,24 @@ def get_criterion(opt):
 
 
 def get_optimizer(model, opt):
-    if opt.optim == 'adam':
+    if opt.gcn_optim == 'adam':
         optimizer = torch.optim.Adam(
-            model.parameters(), betas=(0.9, 0.98), lr=opt.lr)
-    elif opt.optim == 'sgd':
+            model.parameters(), betas=(0.9, 0.98), lr=opt.gcn_lr)
+    elif opt.gcn_optim == 'sgd':
         optimizer = torch.optim.SGD(
-            model.parameters(), lr=opt.lr, weight_decay=1e-6, momentum=0.9)
+            model.parameters(), lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
     return optimizer
 
 
 def get_combined_optimizer(graph_model, full_model, opt):
-    if opt.optim == 'adam':
+    if opt.gcn_optim == 'adam':
         optimizer = torch.optim.Adam(
             list(graph_model.parameters()) + list(full_model.parameters()),
-            betas=(0.9, 0.98), lr=opt.lr)
-    elif opt.optim == 'sgd':
+            betas=(0.9, 0.98), lr=opt.gcn_lr, verbose = True)
+    elif opt.gcn_optim == 'sgd':
         optimizer = torch.optim.SGD(
             list(graph_model.parameters()) + list(full_model.parameters()),
-            lr=opt.lr, weight_decay=1e-6, momentum=0.9)
+            lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
     return optimizer
 
 
@@ -342,8 +347,11 @@ def build_node_representations(xs, mode, opt):
         x = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
     elif mode == 'min-max':
         x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
+        print(x_min.shape)
         x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
+        print(x_max.shape)
         x = torch.cat((x_min, x_max), 1)
+        print(x.shape)
     elif mode == 'Conv1d':
         device = 'cuda'
         n_elements = list(xs.values())[0].numel() / opt.n_channels
@@ -369,7 +377,7 @@ def save_node_representations(node_representation, chromosome, opt):
 def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
     # logging.info(f'Saving features for model {model_name}.')
 
-    features_dir = model_name.split('.finetune')[0]
+    features_dir = model_name.split('/finetune')[0]
     directory_setup(features_dir)
     data_fname = path.join(
         features_dir, f'chrom_feature_dict_{split}_chr{chromosome}.pt')
@@ -400,7 +408,7 @@ def save_feats_per_chromosome(
         model_name, split, Y, locations, X, chromosomes, epoch):
     # logging.info(f'Saving features for model {model_name}.')
 
-    features_dir = model_name.split('.finetune')[0]
+    features_dir = model_name.split('/finetune')[0]
     directory_setup(features_dir)
     all_chromosomes = set(chromosomes)
     data_fnames = {
