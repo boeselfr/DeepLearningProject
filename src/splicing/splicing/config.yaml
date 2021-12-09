@@ -1,5 +1,5 @@
 
-DATA_DIRECTORY: /cluster/scratch/cguerner/dl_data/splicing
+DATA_DIRECTORY: /cluster/scratch/asvete/deep-learning-project/data
 
 RAW_DATA:  
   splice_table: raw_data/gtex_dataset.txt
@@ -72,3 +72,4 @@ DATA_PIPELINE:
 
 TRAINING:
   results_dir: results
+  test_models_dir: test_models

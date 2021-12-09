@@ -44,6 +44,9 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
 
         y_hat, x, _ = base_model(X)
 
+        if opt.test_baseline:
+            y = y.cpu()
+
         loss = criterion(y_hat, y)
 
         if opt.pretrain and split == 'train':
@@ -62,12 +65,14 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
             all_locs.extend(loc)
 
         if split == 'train' and batch % opt.log_interval == 0 \
-                and opt.wandb:
-            report_wandb(y_hat, y, loss, opt, split)
+                and batch % opt.full_validation_interval and opt.wandb:
+            report_wandb(y_hat, y, loss, opt, split,
+                         step=batch // opt.log_interval)
 
         if split == 'valid' and batch % opt.validation_interval == 0 \
-                and opt.wandb:
-            report_wandb(y_hat, y, loss, opt, split)
+                and batch % opt.full_validation_interval and opt.wandb:
+            report_wandb(y_hat, y, loss, opt, split,
+                         step=batch // opt.validation_interval)
 
     if opt.save_feats:
         graph_utils.save_feats(

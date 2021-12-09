@@ -60,7 +60,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
     chromosome_dataset = ChromosomeDataset(xs, ys)
     dataloader = DataLoader(
-        chromosome_dataset, batch_size=opt.graph_batch_size
+        chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=True
     )
 
     node_representation = build_node_representations(
@@ -105,7 +105,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
         all_targets = torch.cat((all_targets, _y.cpu().data), 0)
 
-        report_wandb(_y_hat, _y, loss, opt, split)
+        report_wandb(_y_hat, _y, loss, opt, split,
+                     step=batch)
 
     # save_node_representations(node_representation, chromosome, opt)
 

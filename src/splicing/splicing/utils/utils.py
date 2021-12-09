@@ -196,74 +196,24 @@ def one_hot_encode(Xd, Yd):
            [OUT_MAP[Yd[t].astype('int8')] for t in range(1)]
 
 
-def validate(model, h5f, idxs, context_length, batch_size,
-             class_weights=(1, 1, 1), n_gpus=1, test=False):
-
-    from splicing.models.splice_ai import categorical_crossentropy_2d
-    from splicing.data_models.splice_dataset import SpliceDataset
-    import torch
-    from torch.utils.data import DataLoader
-
-    y_true_1, y_true_2, y_pred_1, y_pred_2 = [], [], [], []
-
-    total_loss, total_len = 0, 0
-    for idx in tqdm(idxs):
-        X = h5f['X' + str(idx)][:]
-        Y = np.asarray((h5f['Y' + str(idx)][:]), np.float32)
-
-        splice_dataset = SpliceDataset(X, Y, context_length, n_gpus)
-        dataloader = DataLoader(splice_dataset, batch_size=batch_size)
-
-        yp = np.zeros(shape=splice_dataset.Y.shape)
-        m = 0
-        partial_loss = 0
-        with torch.no_grad():
-            for batch, (X, y) in tqdm(enumerate(dataloader), leave=False):
-                pred, _, _ = model(X)
-                yp[m: m + len(X)] = pred.cpu().numpy()
-                m += len(X)
-
-                partial_loss += categorical_crossentropy_2d(
-                    y, pred, weights=class_weights).item()
-        total_loss += partial_loss
-        total_len += len(dataloader.dataset)
-
-        is_expr = splice_dataset.get_expr()
-
-        y_true_1.extend(splice_dataset.get_true(1, is_expr))
-        y_true_2.extend(splice_dataset.get_true(2, is_expr))
-        y_pred_1.extend(yp[is_expr, 1, :].flatten())
-        y_pred_2.extend(yp[is_expr, 2, :].flatten())
-
-    logging.info(f'Total loss: {total_loss / total_len:>12f}')
-    logging.info("\nAcceptor:")
-    print_topl_statistics(
-        np.asarray(y_true_1), np.asarray(y_pred_1), loss=total_loss,
-        prediction_type='Acceptor', test=test)
-
-    logging.info("\nDonor:")
-    print_topl_statistics(
-        np.asarray(y_true_2), np.asarray(y_pred_2), loss=total_loss,
-        prediction_type='Donor', test=test)
-
-
-def print_topl_statistics(y_true, y_pred, loss, prediction_type, log_wandb):
+def print_topl_statistics(
+        y_true, y_pred, loss, prediction_type, log_wandb, step, split):
     # Prints the following information: top-kL statistics for k=0.5,1,2,4,
     # auprc, thresholds for k=0.5,1,2,4, number of true splice sites.
 
     idx_true = np.nonzero(y_true == 1)[0]
     argsorted_y_pred = np.argsort(y_pred)
-    sorted_y_pred = np.sort(y_pred)
+    # sorted_y_pred = np.sort(y_pred)
 
     topkl_accuracy = []
-    threshold = []
+    # threshold = []
 
     for top_length in [0.5, 1, 2, 4]:
         idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
 
         topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred))
                            / (float(min(len(idx_pred), len(idx_true))) + 1e-6)]
-        threshold += [sorted_y_pred[-int(top_length * len(idx_true))]]
+        # threshold += [sorted_y_pred[-int(top_length * len(idx_true))]]
 
     auprc = average_precision_score(y_true, y_pred)
 
@@ -273,22 +223,22 @@ def print_topl_statistics(y_true, y_pred, loss, prediction_type, log_wandb):
     logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
         topkl_accuracy[0], topkl_accuracy[1],
         topkl_accuracy[2], topkl_accuracy[3]))
-    logging.info('Thresholds for K')
-    logging.info('|0.5\t|1\t|2\t|4\t|')
-    logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
-        threshold[0], threshold[1], threshold[2], threshold[3]))
+    # logging.info('Thresholds for K')
+    # logging.info('|0.5\t|1\t|2\t|4\t|')
+    # logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
+    #     threshold[0], threshold[1], threshold[2], threshold[3]))
     logging.info(f'AUPRC: {auprc:.6f}')
     logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
     logging.info('# Predicted Splice Sites: '
                  f'{no_positive_predictions} / {len(y_pred)}')
     if log_wandb:
         wandb.log({
-            f'full_valid/Test Loss: {prediction_type}': loss,
-            f'full_valid/AUPRC: {prediction_type}': auprc,
-            f'full_valid/Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
-            f'full_valid/Thresholds for K: {prediction_type}': threshold[1],
-            f'full_valid/Proportion of True Splice Sites Predicted'
-            f': {prediction_type}': no_positive_predictions / len(idx_true),
+            f'{split}/Test Loss: {prediction_type}': loss,
+            f'{split}/AUPRC: {prediction_type}': auprc,
+            f'{split}/Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
+            # f'{split}/Thresholds for K: {prediction_type}': threshold[1],
+            # f'{split}/Proportion of True Splice Sites Predicted'
+            # f': {prediction_type}': no_positive_predictions / len(idx_true),
         })
 
 

@@ -10,7 +10,7 @@ class CategoricalCrossEntropy2d(nn.Module):
 
     def forward(self, predictions, targets):
         # TODO: try sum
-        return -torch.mean(
+        return -torch.sum(
             self.weights[0] * targets[:, 0, :] * torch.log(
                 predictions[:, 0, :] + 1e-10)
             + self.weights[1] * targets[:, 1, :] * torch.log(

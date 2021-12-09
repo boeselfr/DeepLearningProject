@@ -1,5 +1,6 @@
 import os
 import os.path as path
+import random
 
 from splicing.utils.utils import get_architecture
 
@@ -16,6 +17,8 @@ def get_args(parser):
     parser.add_argument('-pretrain', action='store_true')
     parser.add_argument('-save_feats', action='store_true')
     parser.add_argument('-finetune', action='store_true')
+    parser.add_argument('-test_baseline', action='store_true')
+    parser.add_argument('-test_graph', action='store_true')
 
     # Directory
     parser.add_argument('-modelid', type=str, default="0", dest='model_id',
@@ -53,9 +56,6 @@ def get_args(parser):
         '-nc', '--n_channels', type=int, default=32, dest='n_channels',
         help='Number of convolution channels to use.'
     )
-    parser.add_argument(
-        '-li', '--log_interval', type=int, default=32,
-        dest='log_interval', help='Per how many updates to log to WandB.')
     parser.add_argument('-lr', type=float, default=0.001,
                         help='Learning rate for pretraining.')
     parser.add_argument(
@@ -107,25 +107,22 @@ def get_args(parser):
         default='sgd')
     parser.add_argument('-gcn_lr', type=float, default=0.025)
     
-
     # Training args applicable to both -pretrain and -finetune
-    #parser.add_argument('-lr_step_size', type=int, default=1)
     parser.add_argument(
         '-vi', '--validation_interval', type=int, default=32,
         dest='validation_interval', help='Per how many epochs to validate.')
     parser.add_argument(
         '-li', '--log_interval', type=int, default=32,
         dest='log_interval', help='Per how many updates to log to WandB.')
+    parser.add_argument('-dropout', type=float, default=0.1)
 
     # Logging Args
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
 
     # need to assign these:
-    parser.add_argument('-test_batch_size', type=int, default=512)
     parser.add_argument('-weight_decay', type=float, default=5e-5,
                         help='weight decay')
-    parser.add_argument('-lr_decay', type=float, default=0)
-    
+
     parser.add_argument('-lr_decay2', type=float, default=0) # triggers update of scheduler at every epoch if > 1
     parser.add_argument('-lr_step_size2', type=int, default=100)
 
@@ -134,20 +131,15 @@ def get_args(parser):
     parser.add_argument('-br_threshold', type=float, default=0.5)
     parser.add_argument('-no_cuda', action='store_true')
     parser.add_argument('-viz', action='store_true')
-    parser.add_argument('-summarize_data', action='store_true')
     parser.add_argument('-overwrite', action='store_true')
-    parser.add_argument('-test_only', action='store_true')
-    parser.add_argument('-seq_length', type=int, default=2000)
 
-    # would remove these and hard code default values:
-    parser.add_argument('-cell_type', type=str, default='GM12878')
-    parser.add_argument('-lr2', type=float, default=0.002)
-    
     opt = parser.parse_args()
     return opt
 
 
 def config_args(opt, config):
+
+    random_id = str(random.randint(1, 1000000))
 
     # OUR DATA DIRECTORIES
     opt.splice_data_root = path.join(
@@ -163,8 +155,19 @@ def config_args(opt, config):
         opt.workflow = "pretrain"
     elif opt.save_feats:
         opt.workflow = "save_feats"
-    else:
+    elif opt.finetune:
         opt.workflow = "finetune"
+    elif opt.test_baseline:
+        assert opt.load_pretrained, 'Have to load pretrained model'
+        opt.workflow = 'test_baseline'
+    elif opt.test_graph:
+        assert opt.load_pretrained, 'Have to load pretrained model'
+        opt.workflow = 'test_graph'
+
+    opt.test_models_dir = path.join(
+        config['DATA_DIRECTORY'], config['TRAINING']['test_models_dir'])
+
+    opt.cell_type = 'GM12878'
 
     # CNN args:
     kernel_size, dilation_rate, batch_size = get_architecture(
@@ -177,6 +180,8 @@ def config_args(opt, config):
     opt.window_size = config['DATA_PIPELINE']['window_size']
 
     opt.dec_dropout = opt.dropout
+
+    # opt.model_id += random_id
 
     opt.model_name = f'{opt.model_id}_graph.splice_ai'
     #opt.model_name += '.' + str(opt.optim)
@@ -195,7 +200,7 @@ def config_args(opt, config):
         # opt.epochs = 1
 
     if opt.finetune:
-        opt.model_name += '/finetune'
+        opt.model_name += '/finetune' + '_' + random_id
         opt.model_name += '.lr_' + str(opt.gcn_lr).split('.')[1]
         if opt.g1_relu_bn:
             opt.model_name += '.g1_relu_bn'
@@ -236,7 +241,9 @@ def config_args(opt, config):
     #     elif 'y' not in overwrite_status.lower():
     #         exit(0)
 
-    if not opt.pretrain:
+    if not opt.pretrain and not opt.save_feats:
+        opt.batch_size = 16
+    elif not opt.pretrain:
         opt.batch_size = 512
 
     # Directory handling

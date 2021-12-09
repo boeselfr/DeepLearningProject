@@ -49,6 +49,8 @@ def get_wandb_config(opt):
         config.lr = opt.cnn_lr
     elif opt.finetune:
         config.lr = opt.gcn_lr
+        config.gcn_lr = opt.gcn_lr
+        config.cnn_lr = opt.cnn_lr
     else:
         config.lr = 0
     config.class_weights = opt.class_weights
@@ -56,10 +58,12 @@ def get_wandb_config(opt):
     config.dilation_rate = opt.dilation_rate
     config.batch_size = opt.batch_size
 
+    config.node_representation = opt.node_representation
+
     return config
 
 
-def report_wandb(predictions, targets, loss, opt, split):
+def report_wandb(predictions, targets, loss, opt, split, step):
 
     # sums_true = y.sum(axis=(0, 2))
     # sums_pred = predictions.sum(axis=(0, 2))
@@ -94,6 +98,14 @@ def get_criterion(opt):
     return CategoricalCrossEntropy2d(opt.class_weights)
 
 
+def shuffle_chromosomes(datasets):
+    for key in ['train', 'test', 'valid']:
+        datasets[key] = datasets[key][
+            np.random.permutation(len(datasets[key]))]
+
+    return datasets
+
+
 def get_optimizer(model, opt):
     if opt.gcn_optim == 'adam':
         optimizer = torch.optim.Adam(
@@ -107,74 +119,21 @@ def get_optimizer(model, opt):
 def get_combined_optimizer(graph_model, full_model, opt):
     if opt.gcn_optim == 'adam':
         optimizer = torch.optim.Adam(
-            list(graph_model.parameters()) + list(full_model.parameters()),
-            betas=(0.9, 0.98), lr=opt.gcn_lr, verbose = True)
+            [
+                {'params': list(graph_model.parameters()), 'lr': opt.gcn_lr},
+                {'params': list(full_model.parameters()), 'lr': opt.cnn_lr}
+            ], betas=(0.9, 0.98), lr=opt.gcn_lr)
     elif opt.gcn_optim == 'sgd':
         optimizer = torch.optim.SGD(
-            list(graph_model.parameters()) + list(full_model.parameters()),
-            lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
+            [
+                {'params': list(graph_model.parameters()), 'lr': opt.gcn_lr},
+                {'params': list(full_model.parameters()), 'lr': opt.cnn_lr}
+            ], lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
     return optimizer
 
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-def summarize_data(data):
-    num_train = len(data['train']['tgt'])
-    num_valid = len(data['valid']['tgt'])
-    num_test = len(data['test']['tgt'])
-
-    print('Train set size: ' + str(num_train))
-    print('Validation set size: ' + str(num_valid))
-    print('Test set size: ' + str(num_test))
-
-    # unconditional_probs = torch.zeros(
-    #   len(data['dict']['tgt']),len(data['dict']['tgt']))
-    train_label_vals = torch.zeros(
-        len(data['train']['tgt']), len(data['dict']['tgt']))
-    for i in range(len(data['train']['tgt'])):
-        indices = torch.from_numpy(np.array(data['train']['tgt'][i]))
-        x = torch.zeros(len(data['dict']['tgt']))
-        x.index_fill_(0, indices, 1)
-        train_label_vals[i] = x
-
-        # for idx1 in indices:
-        #     for idx2 in indices:
-        #         unconditional_probs[idx1,idx2] += 1
-
-    # unconditional_probs = unconditional_probs[4:,4:]
-    train_label_vals = train_label_vals[:, 4:]
-
-    pearson_matrix = np.corrcoef(
-        train_label_vals.transpose(0, 1).cpu().numpy())
-
-    valid_label_vals = torch.zeros(len(data['valid']['tgt']),
-                                   len(data['dict']['tgt']))
-    for i in range(len(data['valid']['tgt'])):
-        indices = torch.from_numpy(np.array(data['valid']['tgt'][i]))
-        x = torch.zeros(len(data['dict']['tgt']))
-        x.index_fill_(0, indices, 1)
-        valid_label_vals[i] = x
-    valid_label_vals = valid_label_vals[:, 4:]
-
-    train_valid_labels = torch.cat((train_label_vals, valid_label_vals), 0)
-
-    mean_pos_labels = torch.mean(train_valid_labels.sum(1))
-    median_pos_labels = torch.median(train_valid_labels.sum(1))
-    max_pos_labels = torch.max(train_valid_labels.sum(1))
-
-    print('Mean Labels Per Sample: ' + str(mean_pos_labels))
-    print('Median Labels Per Sample: ' + str(median_pos_labels))
-    print('Max Labels Per Sample: ' + str(max_pos_labels))
-
-    mean_samples_per_label = torch.mean(train_valid_labels.sum(0))
-    median_samples_per_label = torch.median(train_valid_labels.sum(0))
-    max_samples_per_label = torch.max(train_valid_labels.sum(0))
-
-    print('Mean Samples Per Label: ' + str(mean_samples_per_label))
-    print('Median Samples Per Label: ' + str(median_samples_per_label))
-    print('Max Samples Per Label: ' + str(max_samples_per_label))
 
 
 def pad_batch(batch_size, src, tgt):
