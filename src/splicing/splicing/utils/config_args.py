@@ -56,8 +56,6 @@ def get_args(parser):
         '-nc', '--n_channels', type=int, default=32, dest='n_channels',
         help='Number of convolution channels to use.'
     )
-    parser.add_argument('-lr', type=float, default=0.001,
-                        help='Learning rate for pretraining.')
     parser.add_argument(
         '-lr_decay', dest='lr_decay', type=float, default=0.5,
         help='The factor by which to decrease the learning rate')
@@ -106,7 +104,8 @@ def get_args(parser):
     parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
         default='sgd')
     parser.add_argument('-gcn_lr', type=float, default=0.025)
-    
+    parser.add_argument('-full_lr', type=float, default=0.0001)
+
     # Training args applicable to both -pretrain and -finetune
     parser.add_argument(
         '-vi', '--validation_interval', type=int, default=32,

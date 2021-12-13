@@ -196,7 +196,6 @@ def main(opt):
             config.dilation_rate
         )
 
-    # TODO: I think using non-strand specific is not necessary
     opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
 
     # logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
@@ -238,27 +237,6 @@ def main(opt):
         for param in base_model.parameters():
             param.requires_grad = False
 
-        if opt.finetune:
-            # Initialize the final layer of the full model
-            # with pretrained weights
-            # combined_params = list(zip(
-            #     list(base_model.parameters())[-2:],
-            #     list(full_model.parameters())[-2:]
-            # ))
-            # combined_params[0][1].data[:, :opt.n_channels, :] = \
-            #     combined_params[0][0].data[:, :, :]
-            # combined_params[1][1].data[:] = \
-            #     combined_params[1][0].data[:]
-
-            combined_params = list(zip(
-                list(base_model.parameters())[-2:],
-                list(full_model.parameters())[:2]
-            ))
-            combined_params[0][1].data[:, :, :] = \
-                combined_params[0][0].data[:, :, :]
-            combined_params[1][1].data[:] = \
-                combined_params[1][0].data[:]
-
     # Optimizer and Scheduler
     optimizer, scheduler = None, None
 
@@ -278,7 +256,7 @@ def main(opt):
             graph_model, full_model, opt
         )
         step_size_milestones = [(len(datasets['train']) * x) + 1
-                                for x in list(range(4, opt.epochs))]
+                                for x in list(range(8, opt.epochs))]
         scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=step_size_milestones,
             gamma=0.5, verbose=False
@@ -291,15 +269,6 @@ def main(opt):
         )
     
     logging.info(f"==> Optimizer: {optimizer}")
-
-        # graph_model.out.weight.data = \
-        #     base_model.module.model.classifier.weight.data
-        # graph_model.out.bias.data = \
-        #     base_model.module.model.classifier.bias.data
-        # graph_model.batch_norm.weight.data = \
-        #     base_model.module.model.batch_norm.weight.data
-        # graph_model.batch_norm.bias.data = \
-        #     base_model.module.model.batch_norm.bias.data
 
     # optimizer = graph_utils.get_optimizer(graph_model, opt)
 
@@ -318,7 +287,6 @@ def main(opt):
             full_model = full_model.cuda()
 
     logging.info(f'Model name: {opt.model_name}')
-    # logger = Logger(opt)
 
     try:
         run_model(base_model, graph_model, full_model, datasets, criterion,

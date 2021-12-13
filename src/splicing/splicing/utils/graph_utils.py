@@ -42,17 +42,16 @@ def get_wandb_config(opt):
     config.context_length = opt.context_length
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate
-    config.batch_size = opt.batch_size
     # config.epochs = opt.epochs
-    config.context_length = opt.context_length
+
     if opt.pretrain:
-        config.lr = opt.cnn_lr
+        config.cnn_lr = opt.cnn_lr
     elif opt.finetune:
         config.lr = opt.gcn_lr
         config.gcn_lr = opt.gcn_lr
         config.cnn_lr = opt.cnn_lr
-    else:
-        config.lr = 0
+        config.full_lr = opt.full_lr
+
     config.class_weights = opt.class_weights
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate
@@ -121,13 +120,13 @@ def get_combined_optimizer(graph_model, full_model, opt):
         optimizer = torch.optim.Adam(
             [
                 {'params': list(graph_model.parameters()), 'lr': opt.gcn_lr},
-                {'params': list(full_model.parameters()), 'lr': opt.cnn_lr}
+                {'params': list(full_model.parameters()), 'lr': opt.full_lr}
             ], betas=(0.9, 0.98), lr=opt.gcn_lr)
     elif opt.gcn_optim == 'sgd':
         optimizer = torch.optim.SGD(
             [
                 {'params': list(graph_model.parameters()), 'lr': opt.gcn_lr},
-                {'params': list(full_model.parameters()), 'lr': opt.cnn_lr}
+                {'params': list(full_model.parameters()), 'lr': opt.full_lr}
             ], lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
     return optimizer
 
@@ -294,9 +293,16 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
     return split_adj
 
 
-def build_node_representations(xs, mode, opt):
+def build_node_representations(xs, mode, opt, chromosome=''):
     assert mode in ['average', 'max', 'min', 'min-max', 'Conv1d'], \
         'The specified node representation not supported'
+
+    node_features_fname = path.join(
+        opt.results_dir,
+        f'node_features_{chromosome}_{opt.node_representation}.pt')
+    if path.exists(node_features_fname):
+        return torch.load(node_features_fname)
+
     # xs[loc] is of shape : [1, 32, 5000]
     if mode == 'average':
         x = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
@@ -306,11 +312,11 @@ def build_node_representations(xs, mode, opt):
         x = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
     elif mode == 'min-max':
         x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
-        print(x_min.shape)
+        # print(x_min.shape)
         x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
-        print(x_max.shape)
+        # print(x_max.shape)
         x = torch.cat((x_min, x_max), 1)
-        print(x.shape)
+        # print(x.shape)
     elif mode == 'Conv1d':
         device = 'cuda'
         n_elements = list(xs.values())[0].numel() / opt.n_channels
@@ -407,3 +413,51 @@ def save_feats_per_chromosome(
 
     for chromosome in all_chromosomes:
         torch.save(location_feature_dict[chromosome], data_fnames[chromosome])
+
+
+def analyze_gradients(graph_model, full_model, _x, nodes, opt):
+
+    nucleotide_grad = list(
+        full_model.conv1.parameters())[0].grad[:opt.n_channels, ...].data
+    node_grad = list(
+        full_model.conv1.parameters())[0].grad[opt.n_channels:, ...].data
+
+    nucleotide_weight = list(
+        full_model.conv1.parameters())[0][:opt.n_channels, ...].data
+    node_weight = list(
+        full_model.conv1.parameters())[0][opt.n_channels:, ...].data
+
+    log_message = {
+        'full_grad/full_nucleotide': np.linalg.norm(
+            nucleotide_grad.detach().cpu().numpy()) / opt.n_channels,
+        'full_grad/full_node': np.linalg.norm(
+            node_grad.detach().cpu().numpy()) / opt.hidden_size,
+        'full_weight/full_nucleotide': np.linalg.norm(
+            nucleotide_weight.detach().cpu().numpy()) / opt.n_channels,
+        'full_weight/full_node': np.linalg.norm(
+            node_weight.detach().cpu().numpy()) / opt.hidden_size,
+        'node_gradients/node_grad': np.linalg.norm(
+            nodes.grad.detach().cpu().numpy()) / len(nodes),
+        'node_representations/node_weights': np.linalg.norm(
+            nodes.detach().cpu().numpy()) / len(nodes),
+        'nucleotide_gradients/nucleotide_grad': np.linalg.norm(
+            _x.grad.detach().cpu().numpy()) / len(_x),
+    }
+
+    for jj, parameter in enumerate(full_model.parameters()):
+        if jj == 2:
+            continue
+        m = parameter.data.shape[1] if len(parameter.data.shape) > 1 else 1
+
+        log_message[f'full_grad/full{str(jj)}'] = np.linalg.norm(
+            parameter.grad.data.detach().cpu().numpy()) / m
+        log_message[f'full_weight/full{str(jj)}'] = np.linalg.norm(
+            parameter.data.detach().cpu().numpy()) / m
+
+    for jj, parameter in enumerate(graph_model.parameters()):
+        log_message[f'graph_grad/graph{str(jj)}'] = np.linalg.norm(
+            parameter.grad.data.detach().cpu().numpy()) / m
+        log_message[f'graph_weight/graph{str(jj)}'] = np.linalg.norm(
+            parameter.data.detach().cpu().numpy()) / m
+
+    wandb.log(log_message)

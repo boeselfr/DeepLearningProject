@@ -11,7 +11,8 @@ from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 
 from splicing.utils.graph_utils import process_graph, split2desc, \
-    build_node_representations, save_node_representations, report_wandb
+    build_node_representations, save_node_representations, report_wandb, \
+    analyze_gradients
 from splicing.data_models.splice_dataset import ChromosomeDataset
 from splicing.utils.utils import IX2CHR
 
@@ -60,39 +61,41 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
     chromosome_dataset = ChromosomeDataset(xs, ys)
     dataloader = DataLoader(
-        chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=True
-    )
+        chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=False)
 
-    node_representation = build_node_representations(
+    nodes = build_node_representations(
         xs, opt.node_representation, opt
     )
-    # node_representation.requires_grad = True
-    # logging.info(f'node_representation.shape = {node_representation.shape}')
+    # nodes.requires_grad = True
 
     graph = process_graph(
-        opt.adj_type, split_adj_dict, len(node_representation),
+        opt.adj_type, split_adj_dict, len(nodes),
         IX2CHR(chromosome), bin_dict, opt.window_size
     ).cuda() #TODO: is this .cuda() doing anything?
     graph_data = Data(
-        x=node_representation, 
+        x=nodes,
         edge_index=graph.coalesce().indices()
     ).cuda()
+    if split == 'train':
+        graph_data.x.requires_grad = True
 
     desc_i = f'({split2desc[split]} on chromosome {chromosome})'
     logging.info(f'Number of batches of size {opt.graph_batch_size}:'
                  f' {len(dataloader)}')
 
+    rep_optimizer = torch.optim.Adam(
+        [graph_data.x], betas=(0.9, 0.98), lr=opt.gcn_lr)
+
     for batch, (_x, _y) in tqdm(enumerate(dataloader), leave=False,
                                 total=len(dataloader), desc=desc_i):
 
+        _x.requires_grad = True
         node_representation = graph_model(graph_data)
 
-        if split == 'train':
-            optimizer.zero_grad()
+        l_ix = opt.graph_batch_size * batch
+        u_ix = opt.graph_batch_size * (batch + 1)
 
-        batch_node_representation = node_representation[
-            opt.graph_batch_size * batch:
-            opt.graph_batch_size * (batch + 1), :]
+        batch_node_representation = node_representation[l_ix: u_ix, :]
         _y_hat = full_model(_x, batch_node_representation)
 
         loss = criterion(_y_hat, _y)
@@ -100,25 +103,23 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         if split == 'train':
             loss.backward()
             optimizer.step()
+            rep_optimizer.step()
+
+            if batch % 8 == 0:
+                analyze_gradients(
+                    graph_model, full_model, _x, graph_data.x, opt)
 
         total_loss += loss.sum().item()
         all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
         all_targets = torch.cat((all_targets, _y.cpu().data), 0)
 
-        report_wandb(_y_hat, _y, loss, opt, split,
-                     step=batch)
+        report_wandb(_y_hat, _y, loss, opt, split, step=batch)
 
-    # save_node_representations(node_representation, chromosome, opt)
+        if split == 'train':
 
-    # A Saliency or TF-TF Relationships
-    # Compare to CNN Preds
-    # cnn_pred_f = WindowModel.module.model.relu(x_f)
-    # cnn_pred_f = WindowModel.module.model.batch_norm(cnn_pred_f.cuda())
-    # cnn_pred_f = WindowModel.module.model.classifier(cnn_pred_f)
-    # cnn_pred_r = WindowModel.module.model.relu(x_r)
-    # cnn_pred_r = WindowModel.module.model.batch_norm(cnn_pred_r.cuda())
-    # cnn_pred_r = WindowModel.module.model.classifier(cnn_pred_r)
-    # cnn_pred = (cnn_pred_f+cnn_pred_r)/2
-    # if chrom == 'chr8' and opt.A_saliency: stop()
+            optimizer.zero_grad()
+            rep_optimizer.zero_grad()
+
+    save_node_representations(graph_data.x, chromosome, opt)
 
     return all_preds, all_targets, total_loss
