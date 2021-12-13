@@ -298,7 +298,7 @@ def build_node_representations(xs, mode, opt, chromosome=''):
         'The specified node representation not supported'
 
     node_features_fname = path.join(
-        opt.results_dir,
+        opt.model_name,
         f'node_features_{chromosome}_{opt.node_representation}.pt')
     if path.exists(node_features_fname):
         return torch.load(node_features_fname)
