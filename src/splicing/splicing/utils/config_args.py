@@ -40,9 +40,6 @@ def get_args(parser):
         '-cl', '--context_length', dest='context_length',
         type=int, default=400, help='The context length to use.')
     parser.add_argument(
-        '-nc', '--n_channels', type=int, default=32, dest='n_channels',
-        help='Number of convolution channels to use.')
-    parser.add_argument(
         '-w', '--class_weights', type=int, nargs=3, default=(1, 1, 1),
         dest='class_weights', help='Class weights to use.')
     parser.add_argument(
@@ -51,15 +48,21 @@ def get_args(parser):
     parser.add_argument(
         '-npass', '--passes', type=int, default=10,
         dest='passes', help='Number of passes over the train dataset to do.')
-    parser.add_argument(
-        '-vi', '--validation_interval', type=int, default=32,
-        dest='validation_interval', help='Per how many epochs to validate.')
-    parser.add_argument(
-        '-li', '--log_interval', type=int, default=32,
-        dest='log_interval', help='Per how many updates to log to WandB.')
+    parser.add_argument('-cnn_lr', type=float, default=0.001)
     
-    # Finetuning / Graph Training Args
+    ### Finetuning / Graph Training Args
+    # Graph initialization
+    parser.add_argument(
+        '-nc', '--n_channels', type=int, default=32, dest='n_channels',
+        help='Number of convolution channels to use.'
+    )
+    parser.add_argument(
+        '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
+        help='The dimensionality of the hidden layer in the graph network.'
+    )
+    parser.add_argument('-gcn_dropout', type=float, default=0.2)
     parser.add_argument('-gcn_layers', type=int, default=2)
+    parser.add_argument('-g1_relu_bn', action='store_true', default=False)
     parser.add_argument('-A_saliency', action='store_true')
     parser.add_argument('-adj_type', type=str,
         choices=['constant', 'hic', 'both', 'random', 'none', ''], 
@@ -72,38 +75,45 @@ def get_args(parser):
                         default='500000')
     parser.add_argument('-gate', action='store_true')
     parser.add_argument(
-        '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
-        help='The dimensionality of the hidden layer in the graph network.')
-    parser.add_argument(
         '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
         default=1024, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
         default=4, help='Number of epochs for graph training.')
-    parser.add_argument('-gcn_dropout', type=float, default=0.2)
+    
     parser.add_argument(
-        '-rep', '--node_representation', type=str, default='average',
+        '-rep', '--node_representation', 
+        type=str, 
+        default='average',
         dest='node_representation',
+        choices = ['average', 'max', 'min', 'min-max', 'Conv1d'],
         help='How to construct the node representation '
-             'from the nucleotide representations.')
+             'from the nucleotide representations.'
+    )
+    parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
+        default='sgd')
+    parser.add_argument('-gcn_lr', type=float, default=0.025)
+    
+
+    # Training args applicable to both -pretrain and -finetune
+    #parser.add_argument('-lr_step_size', type=int, default=1)
+    parser.add_argument(
+        '-vi', '--validation_interval', type=int, default=32,
+        dest='validation_interval', help='Per how many epochs to validate.')
+    parser.add_argument(
+        '-li', '--log_interval', type=int, default=32,
+        dest='log_interval', help='Per how many updates to log to WandB.')
 
     # Logging Args
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
 
     # need to assign these:
-    parser.add_argument('-cell_type', type=str, default='GM12878')
     parser.add_argument('-test_batch_size', type=int, default=512)
-    parser.add_argument('-optim', type=str, choices=['adam', 'sgd'],
-                        default='adam')
-    parser.add_argument('-optim2', type=str, choices=['adam', 'sgd'],
-                        default='adam')
-    parser.add_argument('-lr', type=float, default=0.001)
-    parser.add_argument('-lr2', type=float, default=0.002)
     parser.add_argument('-weight_decay', type=float, default=5e-5,
                         help='weight decay')
     parser.add_argument('-lr_decay', type=float, default=0)
-    parser.add_argument('-lr_step_size', type=int, default=1)
-    parser.add_argument('-lr_decay2', type=float, default=0)
+    
+    parser.add_argument('-lr_decay2', type=float, default=0) # triggers update of scheduler at every epoch if > 1
     parser.add_argument('-lr_step_size2', type=int, default=100)
     parser.add_argument('-dropout', type=float, default=0.1)
     
@@ -119,6 +129,10 @@ def get_args(parser):
     parser.add_argument('-overwrite', action='store_true')
     parser.add_argument('-test_only', action='store_true')
     parser.add_argument('-seq_length', type=int, default=2000)
+
+    # would remove these and hard code default values:
+    parser.add_argument('-cell_type', type=str, default='GM12878')
+    parser.add_argument('-lr2', type=float, default=0.002)
     
     opt = parser.parse_args()
     return opt
@@ -143,15 +157,27 @@ def config_args(opt, config):
     else:
         opt.workflow = "finetune"
 
+    # CNN args:
+    kernel_size, dilation_rate, batch_size = get_architecture(
+        opt.context_length)
+
+    opt.kernel_size = kernel_size
+    opt.dilation_rate = dilation_rate
+    opt.batch_size = batch_size
+
+    opt.window_size = config['DATA_PIPELINE']['window_size']
+
     opt.dec_dropout = opt.dropout
 
     opt.model_name = f'{opt.model_id}_graph.splice_ai'
-    opt.model_name += '.' + str(opt.optim)
-    opt.model_name += '.lr_' + str(opt.lr).split('.')[1]
+    #opt.model_name += '.' + str(opt.optim)
+    opt.model_name += '.adam'
+    #opt.model_name += '.cl_' + str(opt.context_length)
+    opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
 
-    if opt.lr_decay > 0:
-        opt.model_name += '.decay_' + str(opt.lr_decay).replace(
-            '.', '') + '_' + str(opt.lr_step_size)
+    #if opt.lr_decay > 0:
+    #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(
+    #        '.', '') + '_' + str(opt.lr_step_size)
 
     opt.model_name += '.drop_' + ("%.2f" % opt.dropout).split('.')[1] + '_' + \
                       ("%.2f" % opt.dec_dropout).split('.')[1]
@@ -165,19 +191,21 @@ def config_args(opt, config):
 
     if opt.finetune:
         opt.model_name += '/finetune'
-        opt.model_name += '.lr2_' + str(opt.lr2).split('.')[1]
+        opt.model_name += '.lr_' + str(opt.gcn_lr).split('.')[1]
+        if opt.g1_relu_bn:
+            opt.model_name += '.g1_relu_bn'
         opt.model_name += '.gcndrop_' + (
                 "%.2f" % opt.gcn_dropout).split('.')[1]
-        opt.model_name += '.' + str(opt.optim2)
+        opt.model_name += '.' + str(opt.gcn_optim)
         opt.model_name += '.layers_' + str(opt.gcn_layers)
         if opt.gate:
             opt.model_name += '.gate'
         opt.model_name += '.adj_' + opt.adj_type
         if opt.adj_type == 'hic' or opt.adj_type == 'both':
             opt.model_name += '.norm_' + opt.hicnorm
-        if opt.lr_decay2 > 0:
-            opt.model_name += '.decay_' + str(opt.lr_decay2).replace(
-                '.', '') + '_' + str(opt.lr_step_size2)
+        if opt.lr_decay > 0:
+            opt.model_name += '.decay_' + str(opt.lr_decay).replace(
+                '.', '') + '_' + str(opt.lr_step_size)
         opt.model_name += '.rep_' + str(opt.node_representation)
 
     opt.model_name = path.join(opt.results_dir, opt.cell_type, opt.model_name)
@@ -204,19 +232,11 @@ def config_args(opt, config):
     #     elif 'y' not in overwrite_status.lower():
     #         exit(0)
 
-    kernel_size, dilation_rate, batch_size = get_architecture(
-        opt.context_length)
-
-    opt.kernel_size = kernel_size
-    opt.dilation_rate = dilation_rate
-    opt.batch_size = batch_size
-
-    opt.window_size = config['DATA_PIPELINE']['window_size']
-
     if not opt.pretrain:
         opt.batch_size = 512
         opt.test_batch_size = 512
 
+    # Directory handling
     assert not (os.path.exists(opt.model_name) and opt.pretrain), \
         "Model directory already exists, please specify another -modelid"
 

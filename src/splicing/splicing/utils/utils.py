@@ -23,10 +23,10 @@ with open("config.yaml", "r") as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
-CL_max = config['DATA_PIPELINE']['context_length']
+CL = config['DATA_PIPELINE']['context_length']
 SL = config['DATA_PIPELINE']['window_size']
 
-assert CL_max % 2 == 0
+assert CL % 2 == 0
 
 # One-hot encoding of the inputs: 0 is for padding, and 1, 2, 3, 4 correspond
 # to A, C, G, T respectively.
@@ -143,7 +143,7 @@ def reformat_data(X0, Y0, tx_start):
     locs = np.zeros(num_points)
 
     # create matrix of shape [# of sequences of length SL, SL + context window]
-    Xd = np.zeros((num_points, SL + CL_max))
+    Xd = np.zeros((num_points, SL + CL))
     Yd = [-np.ones((num_points, SL)) for t in range(1)]
 
     # add padding of size SL (e.g. 5000) to the end of the Xs and Ys
@@ -153,10 +153,10 @@ def reformat_data(X0, Y0, tx_start):
 
     # populate rows with incremented sequence values
     for i in range(num_points):
-        Xd[i] = X0[SL * i:CL_max + SL * (i + 1)]
+        Xd[i] = X0[SL * i:CL + SL * (i + 1)]
         # for debugging purposes
-        x_start = (tx_start - (CL_max // 2 + 1)) + SL * i
-        x_end = (tx_start - (CL_max // 2 + 1)) + CL_max + SL * (i + 1)
+        x_start = (tx_start - (CL // 2 + 1)) + SL * i
+        x_end = (tx_start - (CL // 2 + 1)) + CL + SL * (i + 1)
 
 
     # populate labels for all nucleotides in each incremental sequence
@@ -169,7 +169,7 @@ def reformat_data(X0, Y0, tx_start):
     return Xd, Yd, locs
 
 
-def clip_datapoints(X, Y, CL, N_GPUS):
+def clip_datapoints(X, Y, cl, cl_max, N_GPUS):
     # This function is necessary to make sure of the following:
     # (i) Each time model.fit is called, the number of datapoints is a
     # multiple of N_GPUS. Failure to ensure this often results in crashes.
@@ -179,7 +179,7 @@ def clip_datapoints(X, Y, CL, N_GPUS):
     # them as an array).
 
     rem = X.shape[0] % N_GPUS
-    clip = (CL_max - CL) // 2
+    clip = (cl_max - cl) // 2
 
     if rem != 0 and clip != 0:
         return X[:-rem, clip:-clip], [Y[t][:-rem] for t in range(1)]

@@ -69,10 +69,12 @@ def main(opt):
         opt.epochs = opt.finetune_epochs * len(datasets['train'])
 
     else:
-
-        train_data_file = h5py.File(path.join(
+        train_data_path = path.join(
             opt.splice_data_root,
-            f'dataset_train_all_{opt.window_size}_{opt.context_length}.h5'), 'r')
+            f'dataset_train_all_{opt.window_size}_{opt.context_length}.h5'
+        )
+        logging.info(f"Importing train data file: {train_data_path}")
+        train_data_file = h5py.File(train_data_path, 'r')
 
         valid_data_file = h5py.File(path.join(
             opt.splice_data_root,
@@ -154,27 +156,12 @@ def main(opt):
     #         input_size=(4, opt.context_length + opt.window_size),
     #         device='cuda')
 
-    optimizer = graph_utils.get_optimizer(base_model, opt)
-
     graph_model, full_model = None, None
 
     # if fine_tuning, create the SpliceGraph and Full Model
     if opt.finetune:
-        # Creating GNNModel
-        # graph_model = SpliceGraph(
-        #     32, opt.hidden_size, opt.gcn_dropout, opt.gate, opt.gcn_layers)
-        # need to change n channels here:
-        if opt.node_representation == 'min-max':
-            graph_model = SpliceGraph(
-                config.n_channels*2, config.hidden_size, config.gcn_dropout)
-        else:
-            graph_model = SpliceGraph(
-                config.n_channels, config.hidden_size, config.gcn_dropout)
-        full_model = FullModel(config.n_channels, config.hidden_size)
-
-        if opt.cuda:
-            graph_model = graph_model.cuda()
-            full_model = full_model.cuda()
+        graph_model = SpliceGraph(opt) #config.n_channels, config.hidden_size, config.gcn_dropout
+        full_model = FullModel(opt) # config.n_channels, config.hidden_size
 
         logging.info(graph_model)
         logging.info(full_model)
@@ -212,9 +199,32 @@ def main(opt):
             combined_params[1][1].data[:] = \
                 combined_params[1][0].data[:]
 
-    if opt.finetune:
+    # Optimizer and Scheduler
+    optimizer, scheduler = None, None
+
+    if opt.pretrain or opt.save_feats:
+        # default schedule: 6 epochs at 0.001, then halve lr every epoch
+        optimizer = torch.optim.Adam(
+            base_model.parameters(), lr=opt.cnn_lr
+        )
+        step_size_milestones = [(train_data_file.attrs['n_datasets'] * x) + 1 \
+            for x in [6, 7, 8, 9, 10]]
+        scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=step_size_milestones, 
+            gamma=0.5, verbose=True
+        )
+    elif opt.finetune:
         optimizer = graph_utils.get_combined_optimizer(
-            graph_model, full_model, opt)
+            graph_model, full_model, opt
+        )
+    else: 
+        optimizer = graph_utils.get_optimizer(base_model, opt)
+        scheduler = torch.torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=opt.lr_step_size, 
+            gamma=0.5, verbose=True
+        )
+    
+    logging.info(f"==> Optimizer: {optimizer}")
 
         # graph_model.out.weight.data = \
         #     base_model.module.model.classifier.weight.data
@@ -226,20 +236,6 @@ def main(opt):
         #     base_model.module.model.batch_norm.bias.data
 
     # optimizer = graph_utils.get_optimizer(graph_model, opt)
-    if opt.pretrain:
-        spliceai_step_size = (
-            train_data_file.attrs['n_datasets'] * opt.lr_step_size
-        )
-        logging.info("==> Pretraining step size: every "
-                     f"{spliceai_step_size} epochs out of "
-                     f"{opt.epochs}")
-        scheduler = torch.torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=spliceai_step_size, gamma=0.5
-        )
-    else: 
-        scheduler = torch.torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=opt.lr_step_size, gamma=0.5)
-    logging.info(optimizer)
 
     criterion = graph_utils.get_criterion(opt)
 
@@ -252,6 +248,8 @@ def main(opt):
         base_model = base_model.cuda()
         if graph_model is not None:
             graph_model = graph_model.cuda()
+        if full_model is not None:
+            full_model = full_model.cuda()
         if opt.gpu_id != -1:
             torch.cuda.set_device(opt.gpu_id)
 

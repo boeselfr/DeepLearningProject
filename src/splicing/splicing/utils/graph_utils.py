@@ -43,7 +43,12 @@ def get_wandb_config(opt):
     config.batch_size = opt.batch_size
     # config.epochs = opt.epochs
     config.context_length = opt.context_length
-    config.lr = opt.lr
+    if opt.pretrain:
+        config.lr = opt.cnn_lr
+    elif opt.finetune:
+        config.lr = opt.gcn_lr
+    else:
+        config.lr = 0
     config.train_ratio = opt.train_ratio
     config.class_weights = opt.class_weights
     config.kernel_size = opt.kernel_size
@@ -58,24 +63,24 @@ def get_criterion(opt):
 
 
 def get_optimizer(model, opt):
-    if opt.optim == 'adam':
+    if opt.gcn_optim == 'adam':
         optimizer = torch.optim.Adam(
-            model.parameters(), betas=(0.9, 0.98), lr=opt.lr)
-    elif opt.optim == 'sgd':
+            model.parameters(), betas=(0.9, 0.98), lr=opt.gcn_lr)
+    elif opt.gcn_optim == 'sgd':
         optimizer = torch.optim.SGD(
-            model.parameters(), lr=opt.lr, weight_decay=1e-6, momentum=0.9)
+            model.parameters(), lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
     return optimizer
 
 
 def get_combined_optimizer(graph_model, full_model, opt):
-    if opt.optim == 'adam':
+    if opt.gcn_optim == 'adam':
         optimizer = torch.optim.Adam(
             list(graph_model.parameters()) + list(full_model.parameters()),
-            betas=(0.9, 0.98), lr=opt.lr)
-    elif opt.optim == 'sgd':
+            betas=(0.9, 0.98), lr=opt.gcn_lr, verbose = True)
+    elif opt.gcn_optim == 'sgd':
         optimizer = torch.optim.SGD(
             list(graph_model.parameters()) + list(full_model.parameters()),
-            lr=opt.lr, weight_decay=1e-6, momentum=0.9)
+            lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
     return optimizer
 
 
