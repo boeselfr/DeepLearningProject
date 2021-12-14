@@ -83,8 +83,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     logging.info(f'Number of batches of size {opt.graph_batch_size}:'
                  f' {len(dataloader)}')
 
-    rep_optimizer = torch.optim.Adam(
-        [graph_data.x], betas=(0.9, 0.98), lr=opt.gcn_lr)
+    # rep_optimizer = torch.optim.Adam(
+    #     [graph_data.x], betas=(0.9, 0.98), lr=opt.gcn_lr)
 
     for batch, (_x, _y) in tqdm(enumerate(dataloader), leave=False,
                                 total=len(dataloader), desc=desc_i):
@@ -103,7 +103,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         if split == 'train':
             loss.backward()
             optimizer.step()
-            rep_optimizer.step()
+            # rep_optimizer.step()
 
             if batch % 8 == 0:
                 analyze_gradients(
@@ -118,7 +118,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         if split == 'train':
 
             optimizer.zero_grad()
-            rep_optimizer.zero_grad()
+            # rep_optimizer.zero_grad()
 
     # save_node_representations(graph_data.x, chromosome, opt)
 
