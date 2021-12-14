@@ -33,17 +33,17 @@ class FullModel(nn.Module):
             kernel_size=1).to(self.device)
         self.batch_norm1 = nn.BatchNorm1d(opt.hidden_size_full)
 
-        self.conv2 = nn.Conv1d(
-            in_channels=opt.hidden_size_full,
-            out_channels=opt.hidden_size_full,
-            kernel_size=1).to(self.device)
-        self.batch_norm2 = nn.BatchNorm1d(opt.hidden_size_full)
-
-        self.conv3 = nn.Conv1d(
-            in_channels=opt.hidden_size_full,
-            out_channels=opt.hidden_size_full,
-            kernel_size=1).to(self.device)
-        self.batch_norm3 = nn.BatchNorm1d(opt.hidden_size_full)
+        # self.conv2 = nn.Conv1d(
+        #     in_channels=opt.hidden_size_full,
+        #     out_channels=opt.hidden_size_full,
+        #     kernel_size=1).to(self.device)
+        # self.batch_norm2 = nn.BatchNorm1d(opt.hidden_size_full)
+        #
+        # self.conv3 = nn.Conv1d(
+        #     in_channels=opt.hidden_size_full,
+        #     out_channels=opt.hidden_size_full,
+        #     kernel_size=1).to(self.device)
+        # self.batch_norm3 = nn.BatchNorm1d(opt.hidden_size_full)
 
         self.out = nn.Conv1d(
             in_channels=opt.hidden_size_full,
@@ -59,12 +59,12 @@ class FullModel(nn.Module):
             in_channels=opt.n_channels,
             out_channels=opt.n_channels,
             kernel_size=1)
-        self.nucleotide_conv_2 = nn.Conv1d(
-            in_channels=opt.n_channels,
-            out_channels=opt.n_channels,
-            kernel_size=1)
+        # self.nucleotide_conv_2 = nn.Conv1d(
+        #     in_channels=opt.n_channels,
+        #     out_channels=opt.n_channels,
+        #     kernel_size=1)
         self.batch_norm_n_1 = nn.BatchNorm1d(opt.n_channels)
-        self.batch_norm_n_2 = nn.BatchNorm1d(opt.n_channels)
+        # self.batch_norm_n_2 = nn.BatchNorm1d(opt.n_channels)
 
     def forward(self, x, node_rep):
 
@@ -76,9 +76,9 @@ class FullModel(nn.Module):
         x = F.relu(x)
         x = self.batch_norm_n_1(x)
 
-        x = self.nucleotide_conv_2(x)
-        x = F.relu(x)
-        x = self.batch_norm_n_2(x)
+        # x = self.nucleotide_conv_2(x)
+        # x = F.relu(x)
+        # x = self.batch_norm_n_2(x)
 
         bs, _, sl = x.shape
         _, n_h = node_rep.shape
@@ -93,25 +93,25 @@ class FullModel(nn.Module):
         x = F.relu(x)
         x = self.batch_norm1(x)
 
-        x = self.dropout(x)
-
-        t = x
-
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.batch_norm2(x)
-
-        x = torch.add(x, t)
-
-        x = self.dropout(x)
-
-        t = x
-
-        x = self.conv3(x)
-        x = F.relu(x)
-        x = self.batch_norm3(x)
-
-        x = torch.add(x, t)
+        # x = self.dropout(x)
+        #
+        # t = x
+        #
+        # x = self.conv2(x)
+        # x = F.relu(x)
+        # x = self.batch_norm2(x)
+        #
+        # x = torch.add(x, t)
+        #
+        # x = self.dropout(x)
+        #
+        # t = x
+        #
+        # x = self.conv3(x)
+        # x = F.relu(x)
+        # x = self.batch_norm3(x)
+        #
+        # x = torch.add(x, t)
 
         out = self.out(x)
 
@@ -141,10 +141,10 @@ class SpliceGraph(torch.nn.Module):
 
         self.lin2 = Linear(opt.hidden_size, opt.hidden_size)
         self.lin3 = Linear(opt.hidden_size, opt.hidden_size)
-        self.lin4 = Linear(opt.hidden_size, opt.hidden_size)
+        # self.lin4 = Linear(opt.hidden_size, opt.hidden_size)
         # self.lin5 = Linear(opt.hidden_size, opt.hidden_size)
         self.bn3 = BatchNorm(opt.hidden_size)
-        self.bn4 = BatchNorm(opt.hidden_size)
+        # self.bn4 = BatchNorm(opt.hidden_size)
         # self.bn5 = BatchNorm(opt.hidden_size)
 
         self.g1_relu_bn = opt.g1_relu_bn
@@ -172,23 +172,23 @@ class SpliceGraph(torch.nn.Module):
         x = F.relu(x)
         x = self.bn2(x)
 
-        t = x
+        # t = x
 
         x = self.lin3(x)
         x = F.relu(x)
         x = self.bn3(x)
 
-        x = torch.add(x, t)
-
-        x = self.dropout(x)
-
-        t = x
-
-        x = self.lin4(x)
-        x = F.relu(x)
-        x = self.bn4(x)
-
-        x = torch.add(x, t)
+        # x = torch.add(x, t)
+        #
+        # x = self.dropout(x)
+        #
+        # t = x
+        #
+        # x = self.lin4(x)
+        # x = F.relu(x)
+        # x = self.bn4(x)
+        #
+        # x = torch.add(x, t)
 
         x = self.dropout(x)
 

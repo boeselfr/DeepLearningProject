@@ -455,6 +455,8 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
             parameter.data.detach().cpu().numpy()) / m
 
     for jj, parameter in enumerate(graph_model.parameters()):
+        m = parameter.data.shape[1] if len(parameter.data.shape) > 1 else 1
+
         log_message[f'graph_grad/graph{str(jj)}'] = np.linalg.norm(
             parameter.grad.data.detach().cpu().numpy()) / m
         log_message[f'graph_weight/graph{str(jj)}'] = np.linalg.norm(

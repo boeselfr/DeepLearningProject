@@ -120,6 +120,6 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             optimizer.zero_grad()
             rep_optimizer.zero_grad()
 
-    save_node_representations(graph_data.x, chromosome, opt)
+    # save_node_representations(graph_data.x, chromosome, opt)
 
     return all_preds, all_targets, total_loss
