@@ -8,10 +8,11 @@ from splicing.finetune import finetune
 from splicing.pretrain import pretrain
 
 from splicing.utils.utils import print_topl_statistics
+from splicing.utils.graph_utils import shuffle_chromosomes
 from splicing.utils.evals import SaveLogger
 
 
-def pass_end(elapsed, predictions, targets, loss, opt):
+def pass_end(elapsed, predictions, targets, loss, opt, step, split):
     start_time = time.time()
     logging.info('\n---------------------------------------------------------')
     logging.info('\nValidation set metrics:')
@@ -28,7 +29,8 @@ def pass_end(elapsed, predictions, targets, loss, opt):
         logging.info("\nAcceptor:")
         print_topl_statistics(
             targets_ix, predictions_ix, loss=loss,
-            prediction_type=prediction_type, log_wandb=opt.wandb)
+            prediction_type=prediction_type, log_wandb=opt.wandb,
+            step=step, split=split)
 
     logging.info('--- %s seconds ---' % (time.time() - start_time + elapsed))
     logging.info('\n---------------------------------------------------------')
@@ -37,7 +39,7 @@ def pass_end(elapsed, predictions, targets, loss, opt):
 def run_epoch(base_model, graph_model, full_model, datasets, criterion,
               optimizer, epoch, opt, split):
     start = time.time()
-    if opt.pretrain or opt.save_feats:
+    if opt.pretrain or opt.save_feats or opt.test_baseline:
 
         # logging.info('Pretraining the base model.')
 
@@ -45,7 +47,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
             base_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
 
-    elif opt.finetune:
+    elif opt.finetune or opt.test_baseline:
         # logging.info('Fine-tuning the graph-based model')
         predictions, targets, loss = finetune(
             graph_model, full_model, datasets[split], criterion, optimizer,
@@ -67,13 +69,16 @@ def run_model(base_model, graph_model, full_model, datasets,
 
     for epoch in trange(1, opt.epochs + 1):
 
-        print(f"Starting epoch {epoch}")
+        # print(f"Starting epoch {epoch}")
+
+        if opt.finetune:
+            datasets = shuffle_chromosomes(datasets)
 
         if scheduler and (opt.pretrain or opt.lr_decay > 0):
             scheduler.step()
 
         train_loss, valid_loss = 0, 0
-        if not opt.load_gcn and not opt.test_only:
+        if not opt.load_gcn and not (opt.test_baseline or opt.test_graph):
             # TRAIN
             train_predictions, train_targets, train_loss, elapsed = run_epoch(
                 base_model, graph_model, full_model, datasets,
@@ -94,7 +99,8 @@ def run_model(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
                 pass_end(
                     elapsed, valid_predictions.numpy(), valid_targets.numpy(),
-                    valid_loss, opt)
+                    valid_loss, opt, split='full_valid',
+                    step=epoch // opt.full_validation_interval)
 
                 if not opt.save_feats:
                     save_logger.save(
@@ -127,5 +133,5 @@ def run_model(base_model, graph_model, full_model, datasets,
             criterion, optimizer, opt.epochs, opt, 'test')
         pass_end(
             elapsed, test_predictions.numpy(), test_targets.numpy(),
-            test_loss, opt)
+            test_loss, opt, step=1, split='test')
         # save_logger.log('test.log', opt.epochs, test_loss, test_metrics)

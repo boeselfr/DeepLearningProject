@@ -1,43 +1,9 @@
 import torch
 from tqdm import tqdm
-import wandb
-
-from sklearn.metrics import average_precision_score
 
 from splicing.utils import graph_utils
-from splicing.utils.graph_utils import split2desc
+from splicing.utils.graph_utils import split2desc, report_wandb
 from splicing.utils.utils import get_data, IX2CHR
-
-
-def report_wandb(predictions, targets, loss, opt, split):
-
-    # sums_true = y.sum(axis=(0, 2))
-    # sums_pred = predictions.sum(axis=(0, 2))
-    #
-    # total = sums_true.sum()
-
-    is_expr = targets.sum(axis=(1, 2)) >= 1
-    auprcs = {}
-    for ix, prediction_type in enumerate(['Acceptor', 'Donor']):
-        targets_ix = targets[
-                     is_expr, ix + 1, :].flatten().detach().cpu().numpy()
-        predictions_ix = predictions[
-                         is_expr, ix + 1, :].flatten().detach().cpu().numpy()
-        auprcs[prediction_type] = average_precision_score(
-            targets_ix, predictions_ix)
-
-    wandb.log({
-        f'{split}/loss': loss.item() / opt.batch_size,
-        f'{split}/Acceptor AUPRC': auprcs['Acceptor'],
-        f'{split}/Donor AUPRC': auprcs['Donor'],
-        # f'{split}/true inactive': sums_true[0] / total,
-        # f'{split}/true acceptors': sums_true[1] / total,
-        # f'{split}/true donors': sums_true[2] / total,
-        # f'{split}/predicted inactive': sums_pred[0] / sums_true[0],
-        # f'{split}/predicted acceptors': sums_pred[1] / sums_true[1],
-        # f'{split}/predicted donors': sums_pred[2] / sums_true[2],
-        # f'{split}/proportion of epoch done': batch / (size // batch_size),
-    })
 
 
 def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
@@ -78,6 +44,9 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
 
         y_hat, x, _ = base_model(X)
 
+        if opt.test_baseline:
+            y = y.cpu()
+
         loss = criterion(y_hat, y)
 
         if opt.pretrain and split == 'train':
@@ -96,12 +65,14 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
             all_locs.extend(loc)
 
         if split == 'train' and batch % opt.log_interval == 0 \
-                and opt.wandb:
-            report_wandb(y_hat, y, loss, opt, split)
+                and batch % opt.full_validation_interval and opt.wandb:
+            report_wandb(y_hat, y, loss, opt, split,
+                         step=batch // opt.log_interval)
 
         if split == 'valid' and batch % opt.validation_interval == 0 \
-                and opt.wandb:
-            report_wandb(y_hat, y, loss, opt, split)
+                and batch % opt.full_validation_interval and opt.wandb:
+            report_wandb(y_hat, y, loss, opt, split,
+                         step=batch // opt.validation_interval)
 
     if opt.save_feats:
         graph_utils.save_feats(

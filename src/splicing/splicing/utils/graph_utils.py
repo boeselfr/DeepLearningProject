@@ -5,7 +5,9 @@ import logging
 import numpy as np
 import torch
 from scipy import sparse
+from sklearn.metrics import average_precision_score
 import wandb
+
 from splicing.models.losses import CategoricalCrossEntropy2d
 from splicing.utils.utils import IX2CHR
 
@@ -35,30 +37,72 @@ def get_wandb_config(opt):
 
     config.n_channels = opt.n_channels
     config.hidden_size = opt.hidden_size
+    config.hidden_size_full = opt.hidden_size_full
     config.gcn_dropout = opt.gcn_dropout
     config.context_length = opt.context_length
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate
-    config.batch_size = opt.batch_size
     # config.epochs = opt.epochs
-    config.context_length = opt.context_length
+
     if opt.pretrain:
-        config.lr = opt.cnn_lr
+        config.cnn_lr = opt.cnn_lr
     elif opt.finetune:
         config.lr = opt.gcn_lr
-    else:
-        config.lr = 0
-    config.train_ratio = opt.train_ratio
+        config.gcn_lr = opt.gcn_lr
+        config.cnn_lr = opt.cnn_lr
+        config.full_lr = opt.full_lr
+
     config.class_weights = opt.class_weights
     config.kernel_size = opt.kernel_size
     config.dilation_rate = opt.dilation_rate
     config.batch_size = opt.batch_size
 
+    config.node_representation = opt.node_representation
+
     return config
+
+
+def report_wandb(predictions, targets, loss, opt, split, step):
+
+    # sums_true = y.sum(axis=(0, 2))
+    # sums_pred = predictions.sum(axis=(0, 2))
+    #
+    # total = sums_true.sum()
+
+    is_expr = targets.sum(axis=(1, 2)) >= 1
+    auprcs = {}
+    for ix, prediction_type in enumerate(['Acceptor', 'Donor']):
+        targets_ix = targets[
+                     is_expr, ix + 1, :].flatten().detach().cpu().numpy()
+        predictions_ix = predictions[
+                         is_expr, ix + 1, :].flatten().detach().cpu().numpy()
+        auprcs[prediction_type] = average_precision_score(
+            targets_ix, predictions_ix)
+
+    wandb.log({
+        f'{split}/loss': loss.item() / opt.batch_size,
+        f'{split}/Acceptor AUPRC': auprcs['Acceptor'],
+        f'{split}/Donor AUPRC': auprcs['Donor'],
+        # f'{split}/true inactive': sums_true[0] / total,
+        # f'{split}/true acceptors': sums_true[1] / total,
+        # f'{split}/true donors': sums_true[2] / total,
+        # f'{split}/predicted inactive': sums_pred[0] / sums_true[0],
+        # f'{split}/predicted acceptors': sums_pred[1] / sums_true[1],
+        # f'{split}/predicted donors': sums_pred[2] / sums_true[2],
+        # f'{split}/proportion of epoch done': batch / (size // batch_size),
+    })
 
 
 def get_criterion(opt):
     return CategoricalCrossEntropy2d(opt.class_weights)
+
+
+def shuffle_chromosomes(datasets):
+    for key in ['train', 'test', 'valid']:
+        datasets[key] = datasets[key][
+            np.random.permutation(len(datasets[key]))]
+
+    return datasets
 
 
 def get_optimizer(model, opt):
@@ -74,74 +118,21 @@ def get_optimizer(model, opt):
 def get_combined_optimizer(graph_model, full_model, opt):
     if opt.gcn_optim == 'adam':
         optimizer = torch.optim.Adam(
-            list(graph_model.parameters()) + list(full_model.parameters()),
-            betas=(0.9, 0.98), lr=opt.gcn_lr, verbose = True)
+            [
+                {'params': list(graph_model.parameters()), 'lr': opt.gcn_lr},
+                {'params': list(full_model.parameters()), 'lr': opt.full_lr}
+            ], betas=(0.9, 0.98), lr=opt.gcn_lr)
     elif opt.gcn_optim == 'sgd':
         optimizer = torch.optim.SGD(
-            list(graph_model.parameters()) + list(full_model.parameters()),
-            lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
+            [
+                {'params': list(graph_model.parameters()), 'lr': opt.gcn_lr},
+                {'params': list(full_model.parameters()), 'lr': opt.full_lr}
+            ], lr=opt.gcn_lr, weight_decay=1e-6, momentum=0.9)
     return optimizer
 
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-def summarize_data(data):
-    num_train = len(data['train']['tgt'])
-    num_valid = len(data['valid']['tgt'])
-    num_test = len(data['test']['tgt'])
-
-    print('Train set size: ' + str(num_train))
-    print('Validation set size: ' + str(num_valid))
-    print('Test set size: ' + str(num_test))
-
-    # unconditional_probs = torch.zeros(
-    #   len(data['dict']['tgt']),len(data['dict']['tgt']))
-    train_label_vals = torch.zeros(
-        len(data['train']['tgt']), len(data['dict']['tgt']))
-    for i in range(len(data['train']['tgt'])):
-        indices = torch.from_numpy(np.array(data['train']['tgt'][i]))
-        x = torch.zeros(len(data['dict']['tgt']))
-        x.index_fill_(0, indices, 1)
-        train_label_vals[i] = x
-
-        # for idx1 in indices:
-        #     for idx2 in indices:
-        #         unconditional_probs[idx1,idx2] += 1
-
-    # unconditional_probs = unconditional_probs[4:,4:]
-    train_label_vals = train_label_vals[:, 4:]
-
-    pearson_matrix = np.corrcoef(
-        train_label_vals.transpose(0, 1).cpu().numpy())
-
-    valid_label_vals = torch.zeros(len(data['valid']['tgt']),
-                                   len(data['dict']['tgt']))
-    for i in range(len(data['valid']['tgt'])):
-        indices = torch.from_numpy(np.array(data['valid']['tgt'][i]))
-        x = torch.zeros(len(data['dict']['tgt']))
-        x.index_fill_(0, indices, 1)
-        valid_label_vals[i] = x
-    valid_label_vals = valid_label_vals[:, 4:]
-
-    train_valid_labels = torch.cat((train_label_vals, valid_label_vals), 0)
-
-    mean_pos_labels = torch.mean(train_valid_labels.sum(1))
-    median_pos_labels = torch.median(train_valid_labels.sum(1))
-    max_pos_labels = torch.max(train_valid_labels.sum(1))
-
-    print('Mean Labels Per Sample: ' + str(mean_pos_labels))
-    print('Median Labels Per Sample: ' + str(median_pos_labels))
-    print('Max Labels Per Sample: ' + str(max_pos_labels))
-
-    mean_samples_per_label = torch.mean(train_valid_labels.sum(0))
-    median_samples_per_label = torch.median(train_valid_labels.sum(0))
-    max_samples_per_label = torch.max(train_valid_labels.sum(0))
-
-    print('Mean Samples Per Label: ' + str(mean_samples_per_label))
-    print('Median Samples Per Label: ' + str(median_samples_per_label))
-    print('Max Samples Per Label: ' + str(max_samples_per_label))
 
 
 def pad_batch(batch_size, src, tgt):
@@ -302,9 +293,16 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
     return split_adj
 
 
-def build_node_representations(xs, mode, opt):
+def build_node_representations(xs, mode, opt, chromosome=''):
     assert mode in ['average', 'max', 'min', 'min-max', 'Conv1d'], \
         'The specified node representation not supported'
+
+    node_features_fname = path.join(
+        opt.model_name,
+        f'node_features_{chromosome}_{opt.node_representation}.pt')
+    if path.exists(node_features_fname):
+        return torch.load(node_features_fname)
+
     # xs[loc] is of shape : [1, 32, 5000]
     if mode == 'average':
         x = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
@@ -314,11 +312,11 @@ def build_node_representations(xs, mode, opt):
         x = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
     elif mode == 'min-max':
         x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
-        print(x_min.shape)
+        # print(x_min.shape)
         x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
-        print(x_max.shape)
+        # print(x_max.shape)
         x = torch.cat((x_min, x_max), 1)
-        print(x.shape)
+        # print(x.shape)
     elif mode == 'Conv1d':
         device = 'cuda'
         n_elements = list(xs.values())[0].numel() / opt.n_channels
@@ -415,3 +413,53 @@ def save_feats_per_chromosome(
 
     for chromosome in all_chromosomes:
         torch.save(location_feature_dict[chromosome], data_fnames[chromosome])
+
+
+def analyze_gradients(graph_model, full_model, _x, nodes, opt):
+
+    nucleotide_grad = list(
+        full_model.conv1.parameters())[0].grad[:opt.n_channels, ...].data
+    node_grad = list(
+        full_model.conv1.parameters())[0].grad[opt.n_channels:, ...].data
+
+    nucleotide_weight = list(
+        full_model.conv1.parameters())[0][:opt.n_channels, ...].data
+    node_weight = list(
+        full_model.conv1.parameters())[0][opt.n_channels:, ...].data
+
+    log_message = {
+        'full_grad/full_nucleotide': np.linalg.norm(
+            nucleotide_grad.detach().cpu().numpy()) / opt.n_channels,
+        'full_grad/full_node': np.linalg.norm(
+            node_grad.detach().cpu().numpy()) / opt.hidden_size,
+        'full_weight/full_nucleotide': np.linalg.norm(
+            nucleotide_weight.detach().cpu().numpy()) / opt.n_channels,
+        'full_weight/full_node': np.linalg.norm(
+            node_weight.detach().cpu().numpy()) / opt.hidden_size,
+        'node_gradients/node_grad': np.linalg.norm(
+            nodes.grad.detach().cpu().numpy()) / len(nodes),
+        'node_representations/node_weights': np.linalg.norm(
+            nodes.detach().cpu().numpy()) / len(nodes),
+        'nucleotide_gradients/nucleotide_grad': np.linalg.norm(
+            _x.grad.detach().cpu().numpy()) / len(_x),
+    }
+
+    for jj, parameter in enumerate(full_model.parameters()):
+        if jj == 2:
+            continue
+        m = parameter.data.shape[1] if len(parameter.data.shape) > 1 else 1
+
+        log_message[f'full_grad/full{str(jj)}'] = np.linalg.norm(
+            parameter.grad.data.detach().cpu().numpy()) / m
+        log_message[f'full_weight/full{str(jj)}'] = np.linalg.norm(
+            parameter.data.detach().cpu().numpy()) / m
+
+    for jj, parameter in enumerate(graph_model.parameters()):
+        m = parameter.data.shape[1] if len(parameter.data.shape) > 1 else 1
+
+        log_message[f'graph_grad/graph{str(jj)}'] = np.linalg.norm(
+            parameter.grad.data.detach().cpu().numpy()) / m
+        log_message[f'graph_weight/graph{str(jj)}'] = np.linalg.norm(
+            parameter.data.detach().cpu().numpy()) / m
+
+    wandb.log(log_message)

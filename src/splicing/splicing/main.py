@@ -3,9 +3,10 @@ from os import path
 import argparse
 import warnings
 import logging
-import yaml
 
 import numpy as np
+import yaml
+
 import h5py
 import torch
 import torch.nn as nn
@@ -15,13 +16,12 @@ import coloredlogs
 from collections import OrderedDict
 
 from splicing.utils.config_args import config_args, get_args
-# from splicing.models.graph_models import SpliceGraph
 from splicing.models.geometric_models import SpliceGraph, FullModel
 from splicing.runner import run_model
 from splicing.utils import graph_utils
 from splicing.utils.utils import CHR2IX
 
-from splicing.models.splice_ai import SpliceAI
+from splicing.models.splice_ai import SpliceAI, SpliceAIEnsemble
 
 coloredlogs.install(level=logging.INFO)
 warnings.filterwarnings("ignore")
@@ -48,6 +48,79 @@ test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
                     project_config['DATA_PIPELINE']['test_chroms']]
 
 
+def load_base_checkpoint(base_model, checkpoint_path):
+
+    logging.info(f'==> Loading saved base_model {checkpoint_path}')
+
+    checkpoint = torch.load(checkpoint_path)
+
+    base_model = nn.DataParallel(base_model)
+
+    try:
+        base_model.load_state_dict(checkpoint['model'])
+    except RuntimeError:
+        logging.info(f'==> Applying DataParrallel Fix')
+
+        new_state_dict = OrderedDict()
+        for k, v in checkpoint["model"].items():
+            name = k[7:] # remove `module.`
+            new_state_dict[name] = v
+        base_model.load_state_dict(new_state_dict)
+
+
+def load_pretrained_base_model(opt, config):
+
+    if opt.test_baseline:
+
+        base_models = []
+
+        model_fnames = [
+            fname for fname in os.listdir(opt.test_models_dir)
+            if fname[-3:] == '.h5']
+
+        for model_fname in model_fnames:
+
+            base_model = SpliceAI(
+                config.n_channels,
+                config.kernel_size,
+                config.dilation_rate
+            )
+
+            checkpoint_path = path.join(opt.test_models_dir, model_fname)
+
+            load_base_checkpoint(base_model, checkpoint_path)
+
+            base_model.eval()
+
+            base_models.append(base_model)
+
+        base_model = SpliceAIEnsemble(base_models, opt.window_size)
+
+    else:
+
+        base_model = SpliceAI(
+            config.n_channels,
+            config.kernel_size,
+            config.dilation_rate
+        )
+
+        model_fname = f'SpliceAI' \
+            f'_e{opt.model_iteration}' \
+            f'_cl{opt.context_length}' \
+            f'_g{opt.model_index}.h5'
+
+        # in case you're loading a pretrained model in a finetune
+        # workflow, the main folder name is obtained by
+        # cutting before finetune bit.
+        checkpoint_path = path.join(
+            opt.model_name.split('/finetune')[0],
+            model_fname
+        )
+        load_base_checkpoint(base_model, checkpoint_path)
+
+    return base_model
+
+
 def main(opt):
 
     # Workflow
@@ -59,9 +132,9 @@ def main(opt):
         # features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
-            'train': train_chromosomes,
-            'valid': valid_chromosomes,
-            'test': test_chromosomes,
+            'train': np.asarray(train_chromosomes, dtype=int),
+            'valid': np.asarray(valid_chromosomes, dtype=int),
+            'test': np.asarray(test_chromosomes, dtype=int),
         }
 
         opt.full_validation_interval = len(datasets['train'])
@@ -78,7 +151,8 @@ def main(opt):
 
         valid_data_file = h5py.File(path.join(
             opt.splice_data_root,
-            f'dataset_valid_all_{opt.window_size}_{opt.context_length}.h5'), 'r')
+            f'dataset_valid_all_{opt.window_size}_{opt.context_length}.h5'),
+            'r')
 
         test_data_file = h5py.File(path.join(
             opt.splice_data_root, 
@@ -98,60 +172,35 @@ def main(opt):
         }
 
     opt.chromosomes = {
-        'train': train_chromosomes,
-        'valid': valid_chromosomes,
-        'test': test_chromosomes,
+        'train': np.asarray(train_chromosomes, dtype=int),
+        'valid': np.asarray(valid_chromosomes, dtype=int),
+        'test': np.asarray(test_chromosomes, dtype=int),
     }
 
     config = graph_utils.get_wandb_config(opt)
 
     if opt.wandb:
-        wandb.init(project='dl-project', config=config)
+        if opt.pretrain:
+            wandb_project_name = 'dl-project-pretrain'
+        elif opt.finetune:
+            wandb_project_name = 'dl-project-finetune'
+        wandb.init(
+            project=wandb_project_name, config=config, name=opt.model_id)
 
-    base_model = SpliceAI(
-        config.n_channels, 
-        config.kernel_size, 
-        config.dilation_rate
-    )
-
-    if opt.load_pretrained: 
-
-        model_fname = f'SpliceAI' \
-            f'_e{opt.model_iteration}' \
-            f'_cl{opt.context_length}' \
-            f'_g{opt.model_index}.h5'
-
-        # in case you're loading a pretrained model in a finetune
-        # workflow, the main folder name is obtained by
-        # cutting before finetune bit.
-        checkpoint_path = path.join(
-            opt.model_name.split('/finetune')[0], 
-            model_fname
+    if opt.load_pretrained:
+        base_model = load_pretrained_base_model(opt, config)
+    else:
+        base_model = SpliceAI(
+            config.n_channels,
+            config.kernel_size,
+            config.dilation_rate
         )
 
-        logging.info(f'==> Loading saved base_model {checkpoint_path}')
-        
-        checkpoint = torch.load(checkpoint_path)
-
-        base_model = nn.DataParallel(base_model)
-        
-        try:
-            base_model.load_state_dict(checkpoint['model'])
-        except RuntimeError:
-            logging.info(f'==> Applying DataParrallel Fix')
-            
-            new_state_dict = OrderedDict()
-            for k, v in checkpoint["model"].items():
-                name = k[7:] # remove `module.`
-                new_state_dict[name] = v
-            base_model.load_state_dict(new_state_dict)
-
-    # TODO: I think using non-strand specific is not necessary
     opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
-    
-    logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
-    logging.info('Total number of parameters in the base model: '
-                 f'{opt.total_num_parameters}.')
+
+    # logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
+    # logging.info('Total number of parameters in the base model: '
+    #              f'{opt.total_num_parameters}.')
     # summary(base_model,
     #         input_size=(4, opt.context_length + opt.window_size),
     #         device='cuda')
@@ -165,9 +214,9 @@ def main(opt):
 
         logging.info(graph_model)
         logging.info(full_model)
-        # summary(full_model,
-        #         input_size=(2 * opt.n_channels,
-        #                     opt.context_length + opt.window_size))
+        # summary(
+        #     full_model,
+        #     input_size=(opt.n_channels + opt.hidden_size, opt.window_size))
 
     # if finetune and load_gcn
     if opt.finetune and opt.load_gcn:
@@ -188,17 +237,6 @@ def main(opt):
         for param in base_model.parameters():
             param.requires_grad = False
 
-        # Initialize GCN output layer with window_model output layer
-        if opt.finetune and opt.load_pretrained:
-            combined_params = list(zip(
-                list(base_model.parameters())[-2:],
-                list(full_model.parameters())[-2:]
-            ))
-            combined_params[0][1].data[:, :32, :] = \
-                combined_params[0][0].data[:, :, :]
-            combined_params[1][1].data[:] = \
-                combined_params[1][0].data[:]
-
     # Optimizer and Scheduler
     optimizer, scheduler = None, None
 
@@ -211,29 +249,26 @@ def main(opt):
             for x in [6, 7, 8, 9, 10]]
         scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=step_size_milestones, 
-            gamma=0.5, verbose=True
+            gamma=0.5, verbose=False
         )
     elif opt.finetune:
         optimizer = graph_utils.get_combined_optimizer(
             graph_model, full_model, opt
         )
-    else: 
+        step_size_milestones = [(len(datasets['train']) * x) + 1
+                                for x in list(range(8, opt.epochs))]
+        scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=step_size_milestones,
+            gamma=0.5, verbose=False
+        )
+    elif not (opt.test_baseline or opt.test_graph):
         optimizer = graph_utils.get_optimizer(base_model, opt)
         scheduler = torch.torch.optim.lr_scheduler.StepLR(
             optimizer, step_size=opt.lr_step_size, 
-            gamma=0.5, verbose=True
+            gamma=0.5, verbose=False
         )
     
     logging.info(f"==> Optimizer: {optimizer}")
-
-        # graph_model.out.weight.data = \
-        #     base_model.module.model.classifier.weight.data
-        # graph_model.out.bias.data = \
-        #     base_model.module.model.classifier.bias.data
-        # graph_model.batch_norm.weight.data = \
-        #     base_model.module.model.batch_norm.weight.data
-        # graph_model.batch_norm.bias.data = \
-        #     base_model.module.model.batch_norm.bias.data
 
     # optimizer = graph_utils.get_optimizer(graph_model, opt)
 
@@ -250,11 +285,8 @@ def main(opt):
             graph_model = graph_model.cuda()
         if full_model is not None:
             full_model = full_model.cuda()
-        if opt.gpu_id != -1:
-            torch.cuda.set_device(opt.gpu_id)
 
     logging.info(f'Model name: {opt.model_name}')
-    # logger = Logger(opt)
 
     try:
         run_model(base_model, graph_model, full_model, datasets, criterion,

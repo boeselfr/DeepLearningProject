@@ -290,7 +290,8 @@ class SaveLogger:
         #         torch.save(test_targs, os.path.join(
         #             self.epochs_dir, 'best_test_targets_metrics.pt'))
 
-        if 'test' not in self.model_name and not opt.test_only:
+        if 'test' not in self.model_name and \
+                not (opt.test_baseline or opt.test_graph):
             if opt.pretrain:
                 save_model(opt, epoch, base_model)
             else:
