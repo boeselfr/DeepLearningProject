@@ -238,12 +238,22 @@ class Logger:
         return self.best_valid,self.best_test
 
 
-def save_model(opt, epoch, model):
-
-    model_suffix = f'SpliceAI' \
-                   f'_e{epoch // opt.full_validation_interval}' \
-                   f'_cl{opt.context_length}' \
-                   f'_g{opt.model_index}.h5'
+def save_model(opt, epoch, model, modeltype='spliceai'):
+    if modeltype == 'graph':
+        model_suffix = f'SpliceAI_graph' \
+                       f'_e{epoch // opt.full_validation_interval}' \
+                       f'_cl{opt.context_length}' \
+                       f'_g{opt.model_index}.h5'
+    elif modeltype == 'full_model':
+        model_suffix = f'SpliceAI_full_model' \
+                       f'_e{epoch // opt.full_validation_interval}' \
+                       f'_cl{opt.context_length}' \
+                       f'_g{opt.model_index}.h5'
+    else:
+        model_suffix = f'SpliceAI' \
+                       f'_e{epoch // opt.full_validation_interval}' \
+                       f'_cl{opt.context_length}' \
+                       f'_g{opt.model_index}.h5'
 
     checkpoint = {'model': model.state_dict(), 'settings': opt, 'epoch': epoch}
     torch.save(checkpoint, path.join(opt.model_name, model_suffix))
@@ -294,7 +304,10 @@ class SaveLogger:
             if opt.pretrain:
                 save_model(opt, epoch, base_model)
             else:
-                save_model(opt, epoch, graph_model)
+                save_model(opt, epoch, graph_model, modeltype='graph')
+                save_model(opt, epoch, full_model, modeltype='full_model')
+
+
 
     def log(self, file_name, epoch, loss, metrics):
         log_file = open(path.join(self.model_name, file_name), 'a')

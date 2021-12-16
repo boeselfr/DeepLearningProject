@@ -305,10 +305,11 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
 
 def build_node_representations(xs, mode, opt):
     assert mode in ['average', 'max', 'min', 'min-max', 'conv1d', 'pca'], \
-        'The specified node representation not supported'
+        'The specified node representation is not supported'
     # xs[loc] is of shape : [1, 32, 5000]
     if mode == 'average':
         x = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
+
     elif mode == 'max':
         x = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
     elif mode == 'min':
@@ -337,8 +338,31 @@ def build_node_representations(xs, mode, opt):
         # apply pca to reduce each 5000 block to principal dimension
         pca = PCA(n_components=1)
         x = torch.stack([torch.tensor(pca.fit_transform(xs[loc][0]), dtype=torch.float).squeeze() for loc in xs])
-
     return x
+
+
+def inspect_node_representations(xs, opt, chr):
+    print('saving different node representations: ')
+    # xs[loc] is of shape : [1, 32, 5000]
+    x_average = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
+    x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
+    x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
+
+    x_min_max = torch.cat((x_min, x_max), 1)
+
+    # apply pca to reduce each 5000 block to principal dimension
+    pca = PCA(n_components=1)
+    x_pca = torch.stack([torch.tensor(pca.fit_transform(xs[loc][0]), dtype=torch.float).squeeze() for loc in xs])
+
+    rep_dict = dict()
+    rep_dict['x_average'] = x_average
+    rep_dict['x_min'] = x_min
+    rep_dict['x_max'] = x_max
+    rep_dict['x_min_max'] = x_min_max
+    rep_dict['x_pca'] = x_pca
+
+    torch.save(rep_dict, os.path.join(opt.model_name,f'node_representation_dict_chr{chr}.pt'))
+
 
 
 def save_node_representations(node_representation, chromosome, opt):

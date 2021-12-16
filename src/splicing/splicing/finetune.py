@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 
 from splicing.utils.graph_utils import process_graph, split2desc, \
-    build_node_representations, save_node_representations
+    build_node_representations, save_node_representations, inspect_node_representations
 from splicing.data_models.splice_dataset import ChromosomeDataset
 from splicing.utils.utils import IX2CHR
 
@@ -66,6 +66,10 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     node_representation = build_node_representations(
         xs, opt.node_representation, opt
     )
+
+    ####inspect node representation
+    if opt.inspect_node_representations:
+        inspect_node_representations(xs,opt, chromosome)
     # node_representation.requires_grad = True
     # logging.info(f'node_representation.shape = {node_representation.shape}')
 

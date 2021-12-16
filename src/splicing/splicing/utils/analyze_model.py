@@ -4,9 +4,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import os
 
 
-def analyze_graph_importance(model):
+def analyze_graph_importance(model, modelname):
 
     for ix,target in enumerate(['None', 'Acceptor', 'Donor']):
         layer_weights = model['model']['out.weight'].data[ix, :, :]
@@ -25,7 +26,7 @@ def analyze_graph_importance(model):
                     palette=['b' if i < (spliceai_features) else 'r' for i in range(spliceai_features + graph_features)])
         g1.set(xticklabels=[])
         g1.vlines(x=32, ymin=0, ymax=torch.max(layer_weights_abs[:,0]),color='black', linewidth=2)
-        g1.set_title(f'normalized weights for: {target}')
+        g1.set_title(f'normalized weights for: {target} - model: {modelname}', fontsize=5)
         sns.barplot(ax=ax[1],x='information_source', y='conv_weights', data=importance ,palette=['b', 'r'])
         fig.show()
         print(f'normalized graph importance: {graph_importance}')
@@ -44,7 +45,7 @@ def analyze_node_representation_to_graph_representation(model):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Define what to analyze.')
+    """parser = argparse.ArgumentParser(description='Define what to analyze.')
     parser.add_argument('--modelpath','-mpath', type=str, dest='modelpath',
                         default='/Users/fredericboesel/Documents/master/herbst21/deeplearning/data/results/SpliceAI_full_model_e1_cl400_g1.h5',
                         help='path to the model to analyze')
@@ -52,7 +53,11 @@ if __name__ == '__main__':
                         dest='analyze_weigths_final_layer',
                         help='set this if you want to anaylze the final layer weights of the model')
 
-    args = parser.parse_args()
-
-    model = torch.load(args.modelpath, map_location=torch.device('cpu'))
-    analyze_graph_importance(model)
+    args = parser.parse_args()"""
+    base_dir = '/Users/fredericboesel/Documents/master/herbst21/deeplearning/data/results'
+    for modelname in os.listdir(base_dir):
+        print('#############')
+        print(modelname)
+        model_path = os.path.join(base_dir, modelname, 'SpliceAI_full_model_e1_cl400_g1.h5')
+        model = torch.load(model_path, map_location=torch.device('cpu'))
+        analyze_graph_importance(model, modelname)

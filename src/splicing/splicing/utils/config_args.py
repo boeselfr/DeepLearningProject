@@ -86,7 +86,7 @@ def get_args(parser):
         type=str, 
         default='average',
         dest='node_representation',
-        choices = ['average', 'max', 'min', 'min-max', 'Conv1d'],
+        choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca'],
         help='How to construct the node representation '
              'from the nucleotide representations.'
     )
@@ -96,7 +96,7 @@ def get_args(parser):
     
 
     # Training args applicable to both -pretrain and -finetune
-    #parser.add_argument('-lr_step_size', type=int, default=1)
+    parser.add_argument('-lr_step_size', type=int, default=1)
     parser.add_argument(
         '-vi', '--validation_interval', type=int, default=32,
         dest='validation_interval', help='Per how many epochs to validate.')
@@ -133,7 +133,8 @@ def get_args(parser):
     # would remove these and hard code default values:
     parser.add_argument('-cell_type', type=str, default='GM12878')
     parser.add_argument('-lr2', type=float, default=0.002)
-    
+
+    parser.add_argument('-inspect_node_representations', action='store_true')
     opt = parser.parse_args()
     return opt
 
