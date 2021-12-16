@@ -97,9 +97,16 @@ def get_args(parser):
         type=str, 
         default='average',
         dest='node_representation',
-        choices = ['average', 'max', 'min', 'min-max', 'Conv1d'],
+        choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary'],
         help='How to construct the node representation '
              'from the nucleotide representations.'
+    )
+
+    parser.add_argument(
+        '--pca_dims',
+        type=int,
+        default=2,
+        help='compnents that the 5000 features get reduced to for the node representation'
     )
     parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
         default='sgd')
