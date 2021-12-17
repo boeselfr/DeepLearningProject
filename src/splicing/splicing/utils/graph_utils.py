@@ -437,12 +437,12 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
             nucleotide_weight.detach().cpu().numpy()) / opt.n_channels,
         'full_weight/full_node': np.linalg.norm(
             node_weight.detach().cpu().numpy()) / opt.hidden_size,
-        'node_gradients/node_grad': np.linalg.norm(
-            nodes.grad.detach().cpu().numpy()) / len(nodes),
-        'node_representations/node_weights': np.linalg.norm(
-            nodes.detach().cpu().numpy()) / len(nodes),
-        'nucleotide_gradients/nucleotide_grad': np.linalg.norm(
-            _x.grad.detach().cpu().numpy()) / len(_x),
+        #'node_gradients/node_grad': np.linalg.norm(
+        #    nodes.grad.detach().cpu().numpy()) / len(nodes),
+        #'node_representations/node_weights': np.linalg.norm(
+        #    nodes.detach().cpu().numpy()) / len(nodes),
+        #'nucleotide_gradients/nucleotide_grad': np.linalg.norm(
+        #    _x.grad.detach().cpu().numpy()) / len(_x),
     }
 
     for jj, parameter in enumerate(full_model.parameters()):

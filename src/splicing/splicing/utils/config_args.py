@@ -66,7 +66,6 @@ def get_args(parser):
     # Finetuning / Graph Training Args
     parser.add_argument('-gcn_dropout', type=float, default=0.2)
     parser.add_argument('-gcn_layers', type=int, default=2)
-    parser.add_argument('-g1_relu_bn', action='store_true', default=False)
     parser.add_argument('-A_saliency', action='store_true')
     parser.add_argument('-adj_type', type=str,
         choices=['constant', 'hic', 'both', 'random', 'none', ''], 
@@ -87,7 +86,7 @@ def get_args(parser):
         help='The dimensionality of the hidden layer in the final network.')
     parser.add_argument(
         '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
-        default=1024, help='Batch size for finetuning.')
+        default=32, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
         default=4, help='Number of epochs for graph training.')
@@ -205,8 +204,6 @@ def config_args(opt, config):
     if opt.finetune:
         opt.model_name += '/finetune' + '_' + random_id
         opt.model_name += '.lr_' + str(opt.gcn_lr).split('.')[1]
-        if opt.g1_relu_bn:
-            opt.model_name += '.g1_relu_bn'
         opt.model_name += '.gcndrop_' + (
                 "%.2f" % opt.gcn_dropout).split('.')[1]
         opt.model_name += '.' + str(opt.gcn_optim)
