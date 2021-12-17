@@ -54,10 +54,15 @@ if __name__ == '__main__':
                         help='set this if you want to anaylze the final layer weights of the model')
 
     args = parser.parse_args()"""
-    base_dir = '/Users/fredericboesel/Documents/master/herbst21/deeplearning/data/results'
+    base_dir = '/Users/fredericboesel/Documents/master/herbst21/deeplearning/data/results/new'
     for modelname in os.listdir(base_dir):
         print('#############')
         print(modelname)
-        model_path = os.path.join(base_dir, modelname, 'SpliceAI_full_model_e1_cl400_g1.h5')
-        model = torch.load(model_path, map_location=torch.device('cpu'))
+
+        try:
+            model_path = os.path.join(base_dir, modelname, 'SpliceAI_e1_cl400_g1.h5')
+            model = torch.load(model_path, map_location=torch.device('cpu'))
+        except Exception as e:
+            model_path = os.path.join(base_dir, modelname, 'SpliceAI_e10_cl400_g1.h5')
+            model = torch.load(model_path, map_location=torch.device('cpu'))
         analyze_graph_importance(model, modelname)
