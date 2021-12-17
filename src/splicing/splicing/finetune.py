@@ -76,8 +76,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         x=nodes,
         edge_index=graph.coalesce().indices()
     ).cuda()
-    if split == 'train':
-        graph_data.x.requires_grad = True
+    #if split == 'train':
+        #graph_data.x.requires_grad = True
 
     desc_i = f'({split2desc[split]} on chromosome {chromosome})'
     logging.info(f'Number of batches of size {opt.graph_batch_size}:'
@@ -89,7 +89,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     for batch, (_x, _y) in tqdm(enumerate(dataloader), leave=False,
                                 total=len(dataloader), desc=desc_i):
 
-        _x.requires_grad = True
+        #_x.requires_grad = True
         node_representation = graph_model(graph_data)
 
         l_ix = opt.graph_batch_size * batch
@@ -120,6 +120,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             optimizer.zero_grad()
             # rep_optimizer.zero_grad()
 
-    # save_node_representations(graph_data.x, chromosome, opt)
+    if epoch == opt.finetune_epochs:
+        save_node_representations(graph_data.x, chromosome, opt)
 
     return all_preds, all_targets, total_loss

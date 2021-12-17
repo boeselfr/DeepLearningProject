@@ -1,27 +1,12 @@
-import torch
 from torch import nn
 import torch.nn.functional as F
+import torch
 from torch_geometric.nn import GCNConv, BatchNorm, Linear
-
+from torch.nn import Conv1d
 
 class FullModel(nn.Module):
     def __init__(self, opt, device='cuda'):
         super(FullModel, self).__init__()
-
-        # self.out_residual_conv = nn.Conv1d(
-        #     in_channels=opt.n_channels,
-        #     out_channels=3,
-        #     kernel_size=1)
-
-        # self.residual_conv1 = nn.Conv1d(
-        #     in_channels=opt.n_channels,
-        #     out_channels=opt.hidden_size_full,
-        #     kernel_size=1)
-
-        # self.residual_conv2 = nn.Conv1d(
-        #     in_channels=opt.n_channels,
-        #     out_channels=opt.hidden_size_full,
-        #     kernel_size=1)
 
         self.device = device
 
@@ -130,34 +115,55 @@ class SpliceGraph(torch.nn.Module):
         else:
             n_channels = opt.n_channels    
 
-        self.lin = Linear(n_channels, opt.hidden_size)
-        self.conv1 = GCNConv(n_channels, opt.hidden_size)
+        # node matrix processing
+        self.conv1d = Conv1d(
+            in_channels=n_channels,
+            out_channels=1,
+            kernel_size=1
+        )
+        self.lin0 = Linear(opt.window_size, opt.rep_size)
+
+        # single graph conv
+        self.conv1 = GCNConv(opt.rep_size, opt.hidden_size)
+        self.lin1 = Linear(opt.rep_size, opt.hidden_size)
         self.gate1 = Linear(opt.hidden_size, opt.hidden_size)
-        # self.bn1 = BatchNorm(opt.hidden_size)
+        self.bn1 = BatchNorm(opt.hidden_size)
         # self.conv2 = GCNConv(opt.hidden_size, opt.hidden_size)
         # self.gate2 = Linear(opt.hidden_size, opt.hidden_size)
-        self.bn2 = BatchNorm(opt.hidden_size)
+        #self.bn2 = BatchNorm(opt.hidden_size)
         self.dropout = nn.Dropout(opt.gcn_dropout)
 
-        self.lin2 = Linear(opt.hidden_size, opt.hidden_size)
-        self.lin3 = Linear(opt.hidden_size, opt.hidden_size)
+        #self.lin2 = Linear(opt.hidden_size, opt.hidden_size)
+        #self.lin3 = Linear(opt.hidden_size, opt.hidden_size)
         # self.lin4 = Linear(opt.hidden_size, opt.hidden_size)
         # self.lin5 = Linear(opt.hidden_size, opt.hidden_size)
-        self.bn3 = BatchNorm(opt.hidden_size)
+        #self.bn3 = BatchNorm(opt.hidden_size)
         # self.bn4 = BatchNorm(opt.hidden_size)
         # self.bn5 = BatchNorm(opt.hidden_size)
 
-        self.g1_relu_bn = opt.g1_relu_bn
+        #self.g1_relu_bn = opt.g1_relu_bn
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
 
+        # x: all node reps in chrom
+        # node rep: 5000 x 32 matrix
+
+        #x_all = torch.moveaxis(x_all,1,2)
+
+        #todo: check dimension
+        x = self.conv1d(x)
+        x = torch.squeeze(x)
+        #TODO: try a kernel based dimensionality reduction layer
+        x = self.lin0(x)
+
         z = self.conv1(x, edge_index)
         z = F.tanh(z)
         g = F.sigmoid(self.gate1(z))
-        x = self.lin(x)  # change dimension
+        x = self.lin1(x)  # change dimension
         x = (1 - g) * x + g * z
         
+
         # if self.g1_relu_bn:
         #     x = F.relu(x)  # todo: ?
         #     x = self.bn1(x)  # todo: ?
@@ -168,15 +174,15 @@ class SpliceGraph(torch.nn.Module):
         # g = F.sigmoid(self.gate2(z))
         # x = (1 - g) * x + g * z
 
-        x = self.lin2(x)
+        #x = self.lin2(x)
         x = F.relu(x)
-        x = self.bn2(x)
+        x = self.bn1(x)
 
         # t = x
 
-        x = self.lin3(x)
-        x = F.relu(x)
-        x = self.bn3(x)
+        #x = self.lin3(x)
+        #x = F.relu(x)
+        #x = self.bn3(x)
 
         # x = torch.add(x, t)
         #

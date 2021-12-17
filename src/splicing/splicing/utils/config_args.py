@@ -101,6 +101,9 @@ def get_args(parser):
         help='How to construct the node representation '
              'from the nucleotide representations.'
     )
+    parser.add_argument("-rep_size", type=int, default=128, 
+        help="Size of the initial node representation before 1D convolution"
+    )
     parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
         default='sgd')
     parser.add_argument('-gcn_lr', type=float, default=0.025)

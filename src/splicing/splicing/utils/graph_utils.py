@@ -318,17 +318,18 @@ def build_node_representations(xs, mode, opt, chromosome=''):
         x = torch.cat((x_min, x_max), 1)
         # print(x.shape)
     elif mode == 'Conv1d':
-        device = 'cuda'
-        n_elements = list(xs.values())[0].numel() / opt.n_channels
-        conv1 = torch.nn.Conv1d(
-            in_channels=n_elements,
-            out_channels=1,
-            kernel_size=1).to(device)
-        x_all = torch.stack([(xs[loc][0]) for loc in xs])
-        x_all = torch.moveaxis(x_all,1,2)
-        x = conv1(x_all)
+        #device = 'cuda'
+        #n_elements = list(xs.values())[0].numel() / opt.n_channels
+        #conv1 = torch.nn.Conv1d(
+        #    in_channels=n_elements,
+        #    out_channels=1,
+        #    kernel_size=1).to(device)
+        #x_all = torch.stack([(xs[loc][0]) for loc in xs])
+        #x_all = torch.moveaxis(x_all,1,2)
+        #x = conv1(x_all)
         # of shape:  n_windows x 1 x 32
-        x = torch.squeeze(x)
+        #x = torch.squeeze(x)
+        x = torch.stack([(xs[loc][0]) for loc in xs])
     return x
 
 
