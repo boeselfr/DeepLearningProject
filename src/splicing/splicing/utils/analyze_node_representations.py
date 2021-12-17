@@ -12,7 +12,11 @@ def analyze_node_reps(node_rep_dict):
         print(f'std_vector: {std}')
         print(f'normed_std: {normed_std}')
         #ts = torch.linalg.vector_norm(node_rep_dict[key], dim = 1).detach().numpy()
-        plt.plot(node_rep_dict[key])
+        """plt.plot(node_rep_dict[key])
+        plt.title(f'{key}')
+        plt.show()
+        plt.clear()"""
+        plt.boxplot(torch.moveaxis(node_rep_dict[key], 0,-1))
         plt.title(f'{key}')
         plt.show()
     return
