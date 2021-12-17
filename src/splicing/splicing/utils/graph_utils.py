@@ -341,6 +341,9 @@ def build_node_representations(xs, mode, opt, chromosome=''):
         x_median = torch.stack([xs[loc][0].median(axis=1).values for loc in xs])
         x_std = torch.stack([xs[loc][0].std(axis=1) for loc in xs])
         x = torch.cat((x_min, x_max, x_avg, x_median, x_std), 1)
+    elif mode == 'zeros':
+        x = torch.stack([torch.zeros(32) for loc in xs])
+
     return x
 
 

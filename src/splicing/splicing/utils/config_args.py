@@ -97,7 +97,7 @@ def get_args(parser):
         type=str, 
         default='average',
         dest='node_representation',
-        choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary'],
+        choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary', 'zeros'],
         help='How to construct the node representation '
              'from the nucleotide representations.'
     )
