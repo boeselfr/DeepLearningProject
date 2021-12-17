@@ -190,6 +190,7 @@ def config_args(opt, config):
     opt.model_name += '.adam'
     #opt.model_name += '.cl_' + str(opt.context_length)
     opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
+    opt.model_name += '.drop_10_10'
 
     #if opt.lr_decay > 0:
     #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(
