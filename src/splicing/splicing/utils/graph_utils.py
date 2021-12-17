@@ -59,6 +59,7 @@ def get_wandb_config(opt):
     config.batch_size = opt.batch_size
 
     config.node_representation = opt.node_representation
+    config.adj_type = opt.adj_type
 
     return config
 

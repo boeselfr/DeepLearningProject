@@ -69,7 +69,7 @@ def get_args(parser):
     parser.add_argument('-g1_relu_bn', action='store_true', default=False)
     parser.add_argument('-A_saliency', action='store_true')
     parser.add_argument('-adj_type', type=str,
-        choices=['constant', 'hic', 'both', 'random', 'none', ''], 
+        choices=['constant', 'hic', 'both', 'random', 'none', ''],
         default='hic'
     )
     parser.add_argument('-hicnorm', type=str,
