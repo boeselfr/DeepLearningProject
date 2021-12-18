@@ -86,7 +86,7 @@ def get_args(parser):
         help='The dimensionality of the hidden layer in the final network.')
     parser.add_argument(
         '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
-        default=128, help='Batch size for finetuning.')
+        default=64, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
         default=4, help='Number of epochs for graph training.')
@@ -196,7 +196,6 @@ def config_args(opt, config):
     opt.model_name += '.adam'
     #opt.model_name += '.cl_' + str(opt.context_length)
     opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
-    opt.model_name += '.drop_10_10'
 
     #if opt.lr_decay > 0:
     #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(

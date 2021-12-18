@@ -132,12 +132,12 @@ class SpliceGraph(torch.nn.Module):
             out_channels=16,# opt.nr_c1_out, multiple of 4
             kernel_size=1
         )
-        self.maxpool = MaxPool1d(kernel_size=opt.nr_c1_out/4, stride=opt.nr_c1_out/4) 
+        self.maxpool = MaxPool1d(kernel_size=4, stride=4) #opt.nr_c1_out/4
         self.batch1 = BatchNorm1d(4) #opt.nr_c1_out/4
         self.conv1d_2 = Conv1d(
             4, #opt.nr_c1_out/4 
             4, #opt.nr_c1_out/4
-            kernel_size=11, #opt.nr_k
+            kernel_size=11, #opt.nr_c2_k
             dilation=1, #opt.nr_c2_d
             stride=4 #opt.nr_c2_s
         )
@@ -146,7 +146,7 @@ class SpliceGraph(torch.nn.Module):
         self.conv1d_3 = Conv1d(
             4, #opt.nr_c1_out/4 
             1, 
-            kernel_size=11, #opt.nr_k
+            kernel_size=11, #opt.nr_c3_k
             dilation=1, #opt.nr_c3_d
             stride=6 #opt.nr_c3_s
         )
@@ -178,7 +178,7 @@ class SpliceGraph(torch.nn.Module):
         
 
         x = self.conv1d_1(x)
-        x = self.maxpool(x)
+        x = self.maxpool(x.permute(0,2,1)).permute(0,2,1)
         x = self.batch1(x)
         x = self.conv1d_2(x)
         x = self.batch2(x)
