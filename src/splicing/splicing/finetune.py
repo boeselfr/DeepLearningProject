@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data
+from torch_geometric.loader import NeighborLoader
 
 from splicing.utils.graph_utils import process_graph, split2desc, \
     build_node_representations, save_node_representations, report_wandb, \
@@ -16,6 +17,13 @@ from splicing.utils.graph_utils import process_graph, split2desc, \
 from splicing.data_models.splice_dataset import ChromosomeDataset
 from splicing.utils.utils import IX2CHR
 
+
+def get_gpu_stats():
+    t = torch.cuda.get_device_properties(0).total_memory
+    r = torch.cuda.memory_reserved(0)
+    a = torch.cuda.memory_allocated(0)
+    f = r-a  # free inside reserved
+    return a, f
 
 def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
              epoch, opt, split):
@@ -28,6 +36,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     all_targets = torch.Tensor().cpu()
 
     total_loss = 0
+
+    a, f = get_gpu_stats()
 
     # bin dict has information for all chromosomes
     # that's why we can load it here before:
@@ -48,7 +58,6 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
     chromosome = chromosomes[epoch % len(chromosomes)]
 
-    # tqdm.write(f'Reading in chromosome {chromosome} data.')
     chromosome_data = torch.load(
         path.join(
             opt.model_name.split('/finetune')[0],
@@ -56,58 +65,76 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         )
     )
 
+    a, f = get_gpu_stats()
+
     xs = chromosome_data['x']
     ys = chromosome_data['y']
 
     chromosome_dataset = ChromosomeDataset(xs, ys)
-    dataloader = DataLoader(
-        chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=False)
+    #dataloader = DataLoader(
+    #    chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=False)
 
     nodes = build_node_representations(
         xs, opt.node_representation, opt
     )
     # nodes.requires_grad = True
+    ys = torch.stack([(ys[loc][0]) for loc in ys])
+
+    a, f = get_gpu_stats()
 
     graph = process_graph(
         opt.adj_type, split_adj_dict, len(nodes),
         IX2CHR(chromosome), bin_dict, opt.window_size
-    ).cuda() #TODO: is this .cuda() doing anything?
+    )
     graph_data = Data(
         x=nodes,
+        y = ys,
         edge_index=graph.coalesce().indices()
-    ).cuda()
-    #if split == 'train':
-        #graph_data.x.requires_grad = True
+    )
+
+    graph_loader = NeighborLoader(
+        graph_data, 
+        num_neighbors=[-1],
+        batch_size = opt.graph_batch_size
+    )
 
     desc_i = f'({split2desc[split]} on chromosome {chromosome})'
     logging.info(f'Number of batches of size {opt.graph_batch_size}:'
-                 f' {len(dataloader)}')
+                 f' {len(graph_loader)}')
 
-    # rep_optimizer = torch.optim.Adam(
-    #     [graph_data.x], betas=(0.9, 0.98), lr=opt.gcn_lr)
+    #a, f = get_gpu_stats()
 
-    for batch, (_x, _y) in tqdm(enumerate(dataloader), leave=False,
-                                total=len(dataloader), desc=desc_i):
+    for batch, graph_batch in tqdm(enumerate(graph_loader), leave=False,
+                                total=len(graph_loader), desc=desc_i):
+
+        _x = graph_batch['x'].to('cuda')
+        _y = graph_batch['y'].to('cuda')
+        _edge_index = graph_batch['edge_index'].to('cuda')
 
         #_x.requires_grad = True
-        node_representation = graph_model(graph_data)
+        #a, f = get_gpu_stats()
+        node_representation = graph_model(_x, _edge_index)
 
-        l_ix = opt.graph_batch_size * batch
-        u_ix = opt.graph_batch_size * (batch + 1)
+        #l_ix = opt.graph_batch_size * batch
+        #u_ix = opt.graph_batch_size * (batch + 1)
 
-        batch_node_representation = node_representation[l_ix: u_ix, :]
-        _y_hat = full_model(_x, batch_node_representation)
+        #batch_node_representation = node_representation[l_ix: u_ix, :]
+        #_y_hat = full_model(_x, batch_node_representation)
+        _y_hat = full_model(_x, node_representation)
 
         loss = criterion(_y_hat, _y)
+
+        #a, f = get_gpu_stats()
 
         if split == 'train':
             loss.backward()
             optimizer.step()
             # rep_optimizer.step()
 
-            if batch % 8 == 0:
+            if batch % 3 == 0:
                 analyze_gradients(
-                    graph_model, full_model, _x, graph_data.x, opt)
+                    graph_model, full_model, _x, node_representation, opt
+                )
 
         total_loss += loss.sum().item()
         all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)

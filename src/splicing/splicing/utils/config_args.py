@@ -86,7 +86,7 @@ def get_args(parser):
         help='The dimensionality of the hidden layer in the final network.')
     parser.add_argument(
         '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
-        default=32, help='Batch size for finetuning.')
+        default=128, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
         default=4, help='Number of epochs for graph training.')
@@ -111,8 +111,8 @@ def get_args(parser):
         help='compnents that the 5000 features get reduced to for the node representation')
 
     parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
-        default='sgd')
-    parser.add_argument('-gcn_lr', type=float, default=0.025)
+        default='adam')
+    parser.add_argument('-gcn_lr', type=float, default=0.0001)
     parser.add_argument('-full_lr', type=float, default=0.0001)
 
     # Training args applicable to both -pretrain and -finetune
