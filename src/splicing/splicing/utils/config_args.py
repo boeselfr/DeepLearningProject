@@ -68,7 +68,7 @@ def get_args(parser):
     parser.add_argument('-gcn_layers', type=int, default=2)
     parser.add_argument('-A_saliency', action='store_true')
     parser.add_argument('-adj_type', type=str,
-        choices=['constant', 'hic', 'both', 'random', 'none', ''], 
+        choices=['constant', 'hic', 'both', 'random', 'none', ''],
         default='hic'
     )
     parser.add_argument('-hicnorm', type=str,
@@ -96,13 +96,20 @@ def get_args(parser):
         type=str, 
         default='average',
         dest='node_representation',
-        choices = ['average', 'max', 'min', 'min-max', 'Conv1d'],
+        choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary', 'zeros'],
         help='How to construct the node representation '
              'from the nucleotide representations.'
     )
+
     parser.add_argument("-rep_size", type=int, default=128, 
-        help="Size of the initial node representation before 1D convolution"
-    )
+        help="Size of the initial node representation before 1D convolution")
+
+    parser.add_argument(
+        '--pca_dims',
+        type=int,
+        default=2,
+        help='compnents that the 5000 features get reduced to for the node representation')
+
     parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
         default='sgd')
     parser.add_argument('-gcn_lr', type=float, default=0.025)

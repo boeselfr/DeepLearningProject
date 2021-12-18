@@ -238,9 +238,9 @@ class Logger:
         return self.best_valid,self.best_test
 
 
-def save_model(opt, epoch, model):
+def save_model(opt, epoch, model, modeltype='base'):
 
-    model_suffix = f'SpliceAI' \
+    model_suffix = f'SpliceAI_{modeltype}' \
                    f'_e{epoch // opt.full_validation_interval}' \
                    f'_cl{opt.context_length}' \
                    f'_g{opt.model_index}.h5'
@@ -293,9 +293,11 @@ class SaveLogger:
         if 'test' not in self.model_name and \
                 not (opt.test_baseline or opt.test_graph):
             if opt.pretrain:
-                save_model(opt, epoch, base_model)
+                save_model(opt, epoch, base_model, modeltype='base')
             else:
-                save_model(opt, epoch, graph_model)
+                save_model(opt, epoch, graph_model, modeltype='graph')
+                save_model(opt, epoch, full_model, modeltype='full')
+
 
     def log(self, file_name, epoch, loss, metrics):
         log_file = open(path.join(self.model_name, file_name), 'a')

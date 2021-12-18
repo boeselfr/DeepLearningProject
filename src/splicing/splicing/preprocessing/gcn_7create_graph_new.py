@@ -136,17 +136,20 @@ def print_bin_sizes(args,bin_dict):
 def create_graph(args):
 
 	output_root = args.output_root
+	window_length = args.window_length
+	context_length = args.context_length
 
 	if args.use_all_windows:
 		all_peaks_file_name = os.path.join(args.output_root,'windows.bed')
 	else:
-		all_peaks_file_name = os.path.join(args.output_root,'chipseq_windows.bed')
+		all_peaks_file_name = os.path.join(args.output_root,f'graph_windows_{window_length}_{context_length}.bed')
 
 	hic_root = os.path.join(args.hic_root,args.cell_type+'_combined',args.resolution+'kb_resolution_intrachromosomal/')
 	
-	train_dict = os.path.join(output_root,'hic/train_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
-	valid_dict = os.path.join(output_root,'hic/valid_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
-	test_dict = os.path.join(output_root,'hic/test_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
+	train_dict = os.path.join(output_root,'train_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
+	valid_dict = os.path.join(output_root,'valid_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
+	test_dict = os.path.join(output_root,'test_graphs'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
+	bin_dict_file = os.path.join(output_root,'test_val_train_bin_dict'+'_'+str(args.hic_edges)+'_'+args.norm+'norm.pkl')
 
 	print('\nInputs')
 	print('| '+all_peaks_file_name)
@@ -200,6 +203,9 @@ def create_graph(args):
 		pickle.dump(valid_idx_dict, fp)
 	with open(test_dict, "wb") as fp: 
 		pickle.dump(test_idx_dict, fp)
+	with open(bin_dict_file, "wb") as fp:
+		pickle.dump(bin_dict, fp)
+
 
 
 

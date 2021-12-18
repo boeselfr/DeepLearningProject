@@ -50,6 +50,8 @@ OUTPUT_ROOT = os.path.join(
 
 INTERVAL = config['DATA_PIPELINE']['window_size']
 
+CONTEXT_LENGTH = config['DATA_PIPELINE']['context_length']
+
 ###############################################################################
 # Parsing Args
 ###############################################################################
@@ -65,18 +67,25 @@ parser.add_argument('--input_root', type=str,  default=INPUT_ROOT)
 parser.add_argument('--hic_root', type=str,    default=HIC_ROOT)
 parser.add_argument('--expr_root', type=str,   default=EXPR_ROOT)
 parser.add_argument('--output_root', type=str, default=OUTPUT_ROOT)
-parser.add_argument('--use_all_windows', action='store_true',help='use all windows, otherwise use only the windows containint a peak')
+parser.add_argument('--use_all_windows', action='store_true',help='use all windows, otherwise use only the windows that contain genes')
 parser.add_argument('--norm', type=str, choices=['','KR','VC','SQRTVC'], default='SQRTVC')
-parser.add_argument('--resolution', type=str, default='1')
+parser.add_argument('--resolution', type=str, default='5')
 parser.add_argument('--hic_edges', type=int, default=500000)
 parser.add_argument('--min_distance_threshold', type=int, default=1000)
+parser.add_argument('--context_length', type=int, default=CONTEXT_LENGTH, help='context length the window.bed file got created with')
 args = parser.parse_args()
+
+# make sure that window size and resolution match up:
+try:
+    args.resolution = str(int(args.window_length / 1000))
+except Exception as e:
+    print(f'the specified window size {args.window_length} is not valid!')
 
 args.stride_length=args.window_length
 args.chrom_sizes = os.path.join(args.genome_root,args.genome,args.genome+'.chrom_sizes')
 args.genome_fasta = os.path.join(args.genome_root,args.genome,args.genome+'.fa')
 args.tad_file = os.path.join(args.genome_root,args.genome,args.genome+'.TADs',args.cell_type+'_Lieberman-raw_TADs.txt')
-args.output_root = os.path.join(args.output_root,args.cell_type,str(args.window_length))
+#args.output_root = os.path.join(args.output_root ,args.cell_type,str(args.window_length))
 
 if not os.path.exists(args.output_root):
     os.makedirs(args.output_root)
@@ -95,10 +104,6 @@ if args.cell_type == 'GM12878':
 else:
     args.residuals = [0,1000,2000,3000,4000]
 
-if args.cell_type == 'GM12878':
-		args.resolution='1'
-else:
-    args.resolution = '5'
     # args.min_distance_threshold=5000
 
 if args.run_file in ['1','all']:
