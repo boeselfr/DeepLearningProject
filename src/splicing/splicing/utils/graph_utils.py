@@ -10,6 +10,7 @@ import wandb
 
 from splicing.models.losses import CategoricalCrossEntropy2d
 from splicing.utils.utils import IX2CHR
+from sklearn.decomposition import PCA
 
 
 split2desc = {
@@ -58,6 +59,7 @@ def get_wandb_config(opt):
     config.batch_size = opt.batch_size
 
     config.node_representation = opt.node_representation
+    config.adj_type = opt.adj_type
 
     return config
 
@@ -294,8 +296,6 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
 
 
 def build_node_representations(xs, mode, opt, chromosome=''):
-    assert mode in ['average', 'max', 'min', 'min-max', 'Conv1d'], \
-        'The specified node representation not supported'
 
     node_features_fname = path.join(
         opt.model_name,
@@ -317,7 +317,7 @@ def build_node_representations(xs, mode, opt, chromosome=''):
         # print(x_max.shape)
         x = torch.cat((x_min, x_max), 1)
         # print(x.shape)
-    elif mode == 'Conv1d':
+    elif mode == 'conv1d':
         device = 'cuda'
         n_elements = list(xs.values())[0].numel() / opt.n_channels
         conv1 = torch.nn.Conv1d(
@@ -329,6 +329,21 @@ def build_node_representations(xs, mode, opt, chromosome=''):
         x = conv1(x_all)
         # of shape:  n_windows x 1 x 32
         x = torch.squeeze(x)
+    elif mode == 'pca':
+        pca = PCA(n_components=opt.pca_dims)
+        x = torch.stack([torch.flatten(torch.tensor(pca.fit_transform(xs[loc][0]),
+                                                    dtype=torch.float).squeeze()) for loc in xs])
+    elif mode == 'summary':
+        x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
+        # print(x_min.shape)
+        x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
+        x_avg = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
+        x_median = torch.stack([xs[loc][0].median(axis=1).values for loc in xs])
+        x_std = torch.stack([xs[loc][0].std(axis=1) for loc in xs])
+        x = torch.cat((x_min, x_max, x_avg, x_median, x_std), 1)
+    elif mode == 'zeros':
+        x = torch.stack([torch.zeros(32) for loc in xs])
+
     return x
 
 

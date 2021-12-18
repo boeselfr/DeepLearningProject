@@ -127,6 +127,10 @@ class SpliceGraph(torch.nn.Module):
         
         if opt.node_representation == 'min-max':
             n_channels = opt.n_channels * 2
+        elif opt.node_representation == 'pca':
+            n_channels = opt.n_channels * opt.pca_dims # might be changed
+        elif opt.node_representation == 'summary':
+            n_channels = opt.n_channels * 5
         else:
             n_channels = opt.n_channels    
 
