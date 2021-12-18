@@ -121,7 +121,8 @@ class SpliceGraph(torch.nn.Module):
             out_channels=1,
             kernel_size=1
         )
-        self.lin0 = Linear(opt.window_size, opt.rep_size)
+        #self.lin0 = Linear(opt.window_size, opt.rep_size)
+        
 
         # single graph conv
         self.conv1 = GCNConv(opt.rep_size, opt.hidden_size)
