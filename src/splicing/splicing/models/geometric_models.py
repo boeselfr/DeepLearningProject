@@ -2,7 +2,7 @@ from torch import nn
 import torch.nn.functional as F
 import torch
 from torch_geometric.nn import GCNConv, BatchNorm, Linear
-from torch.nn import Conv1d
+from torch.nn import Conv1d, MaxPool1d, BatchNorm1d, ReLU
 
 class FullModel(nn.Module):
     def __init__(self, opt, device='cuda'):
@@ -116,17 +116,32 @@ class SpliceGraph(torch.nn.Module):
             n_channels = opt.n_channels * opt.pca_dims # might be changed
         elif opt.node_representation == 'summary':
             n_channels = opt.n_channels * 5
+        elif opt.node_representation == 'conv1d':
+            opt.rep_size = 207
         else:
             n_channels = opt.n_channels    
 
         # node matrix processing
-        self.conv1d = Conv1d(
+        self.conv1d_1 = Conv1d(
             in_channels=n_channels,
-            out_channels=1,
+            out_channels=16,
             kernel_size=1
         )
+
+        self.maxpool = MaxPool1d(kernel_size=4, stride=4)
+
+        self.batch1 = BatchNorm1d(4)
+
+        self.conv1d_2 = Conv1d(4,4,kernel_size=11, dilation=1, stride=4)
+
+        self.batch2 = BatchNorm1d(4)
+
+        self.relu1 = ReLU()
+
+        self.conv1d_3 = Conv1d(4, 1, kernel_size=11, dilation=1, stride=6)
         #self.lin0 = Linear(opt.window_size, opt.rep_size)
-        
+        self.batch3 = BatchNorm1d(1)
+
 
         # single graph conv
         self.conv1 = GCNConv(opt.rep_size, opt.hidden_size)
@@ -151,16 +166,18 @@ class SpliceGraph(torch.nn.Module):
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
 
-        # x: all node reps in chrom
-        # node rep: 5000 x 32 matrix
+        x = self.conv1d_1(x)
+        x = self.maxpool(x)
+        x = self.batch1(x)
+        x = self.conv1d_2(x)
+        x = self.batch2(x)
+        x = self.relu1(x)
+        x = self.conv1d_3(x)
+        x = self.batch3(x)
 
-        #x_all = torch.moveaxis(x_all,1,2)
-
-        #todo: check dimension
-        x = self.conv1d(x)
         x = torch.squeeze(x)
         #TODO: try a kernel based dimensionality reduction layer
-        x = self.lin0(x)
+        #x = self.lin0(x)
 
         z = self.conv1(x, edge_index)
         z = F.tanh(z)
