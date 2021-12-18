@@ -34,7 +34,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     # we need it also for the constant case, thus always has to be loaded
     bin_dict_file = path.join(
         opt.graph_data_root,
-        f'test_vail_train_bin_dict_{opt.hicsize}_{opt.hicnorm}norm.pkl'
+        f'test_val_train_bin_dict_{opt.hicsize}_{opt.hicnorm}norm.pkl'
     )
     bin_dict = pickle.load(open(bin_dict_file, "rb"))
 
