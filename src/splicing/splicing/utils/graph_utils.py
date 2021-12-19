@@ -7,6 +7,7 @@ import torch
 from scipy import sparse
 from sklearn.metrics import average_precision_score
 import wandb
+import math
 
 from splicing.models.losses import CategoricalCrossEntropy2d
 from splicing.utils.utils import IX2CHR
@@ -31,68 +32,6 @@ def directory_setup(dir_name: str) -> None:
     else:
         # print(f'Directory {dir_name} already exists.')
         pass
-
-
-def get_wandb_config(opt):
-    config = wandb.config
-
-    config.n_channels = opt.n_channels
-    config.hidden_size = opt.hidden_size
-    config.hidden_size_full = opt.hidden_size_full
-    config.gcn_dropout = opt.gcn_dropout
-    config.context_length = opt.context_length
-    config.kernel_size = opt.kernel_size
-    config.dilation_rate = opt.dilation_rate
-    # config.epochs = opt.epochs
-
-    if opt.pretrain:
-        config.cnn_lr = opt.cnn_lr
-    elif opt.finetune:
-        config.lr = opt.gcn_lr
-        config.gcn_lr = opt.gcn_lr
-        config.cnn_lr = opt.cnn_lr
-        config.full_lr = opt.full_lr
-
-    config.class_weights = opt.class_weights
-    config.kernel_size = opt.kernel_size
-    config.dilation_rate = opt.dilation_rate
-    config.batch_size = opt.batch_size
-
-    config.node_representation = opt.node_representation
-    config.adj_type = opt.adj_type
-
-    return config
-
-
-def report_wandb(predictions, targets, loss, opt, split, step):
-
-    # sums_true = y.sum(axis=(0, 2))
-    # sums_pred = predictions.sum(axis=(0, 2))
-    #
-    # total = sums_true.sum()
-
-    is_expr = targets.sum(axis=(1, 2)) >= 1
-    auprcs = {}
-    for ix, prediction_type in enumerate(['Acceptor', 'Donor']):
-        targets_ix = targets[
-                     is_expr, ix + 1, :].flatten().detach().cpu().numpy()
-        predictions_ix = predictions[
-                         is_expr, ix + 1, :].flatten().detach().cpu().numpy()
-        auprcs[prediction_type] = average_precision_score(
-            targets_ix, predictions_ix)
-
-    wandb.log({
-        f'{split}/loss': loss.item() / opt.batch_size,
-        f'{split}/Acceptor AUPRC': auprcs['Acceptor'],
-        f'{split}/Donor AUPRC': auprcs['Donor'],
-        # f'{split}/true inactive': sums_true[0] / total,
-        # f'{split}/true acceptors': sums_true[1] / total,
-        # f'{split}/true donors': sums_true[2] / total,
-        # f'{split}/predicted inactive': sums_pred[0] / sums_true[0],
-        # f'{split}/predicted acceptors': sums_pred[1] / sums_true[1],
-        # f'{split}/predicted donors': sums_pred[2] / sums_true[2],
-        # f'{split}/proportion of epoch done': batch / (size // batch_size),
-    })
 
 
 def get_criterion(opt):
@@ -312,30 +251,16 @@ def build_node_representations(xs, mode, opt, chromosome=''):
         x = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
     elif mode == 'min-max':
         x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
-        # print(x_min.shape)
         x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
-        # print(x_max.shape)
         x = torch.cat((x_min, x_max), 1)
-        # print(x.shape)
     elif mode == 'conv1d':
-        device = 'cuda'
-        n_elements = list(xs.values())[0].numel() / opt.n_channels
-        conv1 = torch.nn.Conv1d(
-            in_channels=n_elements,
-            out_channels=1,
-            kernel_size=1).to(device)
-        x_all = torch.stack([(xs[loc][0]) for loc in xs])
-        x_all = torch.moveaxis(x_all,1,2)
-        x = conv1(x_all)
-        # of shape:  n_windows x 1 x 32
-        x = torch.squeeze(x)
+        x = torch.stack([(xs[loc][0]) for loc in xs])
     elif mode == 'pca':
         pca = PCA(n_components=opt.pca_dims)
         x = torch.stack([torch.flatten(torch.tensor(pca.fit_transform(xs[loc][0]),
                                                     dtype=torch.float).squeeze()) for loc in xs])
     elif mode == 'summary':
         x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
-        # print(x_min.shape)
         x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
         x_avg = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
         x_median = torch.stack([xs[loc][0].median(axis=1).values for loc in xs])
@@ -430,51 +355,5 @@ def save_feats_per_chromosome(
         torch.save(location_feature_dict[chromosome], data_fnames[chromosome])
 
 
-def analyze_gradients(graph_model, full_model, _x, nodes, opt):
-
-    nucleotide_grad = list(
-        full_model.conv1.parameters())[0].grad[:opt.n_channels, ...].data
-    node_grad = list(
-        full_model.conv1.parameters())[0].grad[opt.n_channels:, ...].data
-
-    nucleotide_weight = list(
-        full_model.conv1.parameters())[0][:opt.n_channels, ...].data
-    node_weight = list(
-        full_model.conv1.parameters())[0][opt.n_channels:, ...].data
-
-    log_message = {
-        'full_grad/full_nucleotide': np.linalg.norm(
-            nucleotide_grad.detach().cpu().numpy()) / opt.n_channels,
-        'full_grad/full_node': np.linalg.norm(
-            node_grad.detach().cpu().numpy()) / opt.hidden_size,
-        'full_weight/full_nucleotide': np.linalg.norm(
-            nucleotide_weight.detach().cpu().numpy()) / opt.n_channels,
-        'full_weight/full_node': np.linalg.norm(
-            node_weight.detach().cpu().numpy()) / opt.hidden_size,
-        'node_gradients/node_grad': np.linalg.norm(
-            nodes.grad.detach().cpu().numpy()) / len(nodes),
-        'node_representations/node_weights': np.linalg.norm(
-            nodes.detach().cpu().numpy()) / len(nodes),
-        'nucleotide_gradients/nucleotide_grad': np.linalg.norm(
-            _x.grad.detach().cpu().numpy()) / len(_x),
-    }
-
-    for jj, parameter in enumerate(full_model.parameters()):
-        if jj == 2:
-            continue
-        m = parameter.data.shape[1] if len(parameter.data.shape) > 1 else 1
-
-        log_message[f'full_grad/full{str(jj)}'] = np.linalg.norm(
-            parameter.grad.data.detach().cpu().numpy()) / m
-        log_message[f'full_weight/full{str(jj)}'] = np.linalg.norm(
-            parameter.data.detach().cpu().numpy()) / m
-
-    for jj, parameter in enumerate(graph_model.parameters()):
-        m = parameter.data.shape[1] if len(parameter.data.shape) > 1 else 1
-
-        log_message[f'graph_grad/graph{str(jj)}'] = np.linalg.norm(
-            parameter.grad.data.detach().cpu().numpy()) / m
-        log_message[f'graph_weight/graph{str(jj)}'] = np.linalg.norm(
-            parameter.data.detach().cpu().numpy()) / m
-
-    wandb.log(log_message)
+def compute_conv1d_lout(l_in, dilation=1, kernel_size=1, stride=1):
+    return math.floor((l_in - dilation * (kernel_size - 1) - 1) / stride + 1)

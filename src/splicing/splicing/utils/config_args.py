@@ -33,7 +33,7 @@ def get_args(parser):
         '-midx', '--model_index', type=int, default=1, dest='model_index',
         help='The index of the SpliceAI model to load.')
     parser.add_argument(
-        '-mit', '--model_iteration', type=int, required=False,
+        '-mit', '--model_iteration', type=int, default=10, required=False,
         dest='model_iteration',
         help='The iteration (pass) of the SpliceAI model to load.')
     parser.add_argument('-load_gcn', action='store_true')
@@ -66,7 +66,6 @@ def get_args(parser):
     # Finetuning / Graph Training Args
     parser.add_argument('-gcn_dropout', type=float, default=0.2)
     parser.add_argument('-gcn_layers', type=int, default=2)
-    parser.add_argument('-g1_relu_bn', action='store_true', default=False)
     parser.add_argument('-A_saliency', action='store_true')
     parser.add_argument('-adj_type', type=str,
         choices=['constant', 'hic', 'both', 'random', 'none', ''],
@@ -79,38 +78,41 @@ def get_args(parser):
                         default='500000')
     parser.add_argument('-gate', action='store_true')
     parser.add_argument(
-        '-nhidd', '--hidden_size', type=int, default=128, dest='hidden_size',
+        '-nhidd', '--hidden_size', type=int, default=64, dest='hidden_size',
         help='The dimensionality of the hidden layer in the graph network.')
     parser.add_argument(
-        '-nhidd_f', '--hidden_size_full', type=int, default=32,
+        '-nhidd_f', '--hidden_size_full', type=int, default=128,
         dest='hidden_size_full',
         help='The dimensionality of the hidden layer in the final network.')
     parser.add_argument(
         '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
-        default=1024, help='Batch size for finetuning.')
+        default=32, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
-        default=4, help='Number of epochs for graph training.')
+        default=16, help='Number of epochs for graph training.')
     
     parser.add_argument(
         '-rep', '--node_representation', 
         type=str, 
-        default='average',
+        default='conv1d',
         dest='node_representation',
         choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary', 'zeros'],
         help='How to construct the node representation '
              'from the nucleotide representations.'
     )
 
+    parser.add_argument("-rep_size", type=int, default=128, 
+        help="Size of the initial node representation before 1D convolution")
+
     parser.add_argument(
         '--pca_dims',
         type=int,
         default=2,
-        help='compnents that the 5000 features get reduced to for the node representation'
-    )
+        help='compnents that the 5000 features get reduced to for the node representation')
+
     parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
-        default='sgd')
-    parser.add_argument('-gcn_lr', type=float, default=0.025)
+        default='adam')
+    parser.add_argument('-gcn_lr', type=float, default=0.0001)
     parser.add_argument('-full_lr', type=float, default=0.0001)
 
     # Training args applicable to both -pretrain and -finetune
@@ -124,6 +126,8 @@ def get_args(parser):
 
     # Logging Args
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
+    parser.add_argument('-wbn', dest='wandb_name', default="", type=str, 
+        help="Name of wandb run.")
 
     # need to assign these:
     parser.add_argument('-weight_decay', type=float, default=5e-5,
@@ -208,8 +212,6 @@ def config_args(opt, config):
     if opt.finetune:
         opt.model_name += '/finetune' + '_' + random_id
         opt.model_name += '.lr_' + str(opt.gcn_lr).split('.')[1]
-        if opt.g1_relu_bn:
-            opt.model_name += '.g1_relu_bn'
         opt.model_name += '.gcndrop_' + (
                 "%.2f" % opt.gcn_dropout).split('.')[1]
         opt.model_name += '.' + str(opt.gcn_optim)
