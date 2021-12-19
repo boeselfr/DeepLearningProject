@@ -129,7 +129,7 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
         try:
             param_data = param[1].data
             param_grad = param[1].grad.data
-        except NoneTypeError:
+        except AttributeError:
             continue
         else:
             m = param_data.shape[1] if len(param_data.shape) > 1 else 1

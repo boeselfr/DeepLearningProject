@@ -144,9 +144,6 @@ class SpliceGraph(torch.nn.Module):
                 self.nr_maxpool = nn.MaxPool1d(kernel_size=4, stride=4)
                 self.nr_bn_1 = nn.BatchNorm1d(4)
                 self.nr_conv1d_2 = nn.Conv1d(
-                    
-                )
-                self.nr_conv1d_2 = nn.Conv1d(
                     4, 
                     4,
                     kernel_size=11,
