@@ -7,6 +7,7 @@ import torch
 from scipy import sparse
 from sklearn.metrics import average_precision_score
 import wandb
+import math
 
 from splicing.models.losses import CategoricalCrossEntropy2d
 from splicing.utils.utils import IX2CHR
@@ -479,3 +480,7 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
             parameter.data.detach().cpu().numpy()) / m
 
     wandb.log(log_message)
+
+
+def compute_conv1d_lout(l_in, dilation=1, kernel_size=1, stride=1):
+    return math.floor((l_in - dilation * (kernel_size - 1) - 1) / stride + 1)

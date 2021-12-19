@@ -2,11 +2,7 @@ from torch import nn
 import torch.nn.functional as F
 import torch
 from torch_geometric.nn import GCNConv, BatchNorm, Linear
-from torch.nn import Conv1d, MaxPool1d, BatchNorm1d, ReLU
-
-def compute_conv1d_lout(l_in, dilation, kernel_size, stride):
-    return (l_in - dilation * (kernel_size - 1) - 1) / stride + 1
-
+from splicing.utils.graph_utils import compute_conv1d_lout
 
 class FullModel(nn.Module):
     def __init__(self, opt, device='cuda'):
@@ -120,115 +116,79 @@ class SpliceGraph(torch.nn.Module):
             n_channels = opt.n_channels * opt.pca_dims # might be changed
         elif opt.node_representation == 'summary':
             n_channels = opt.n_channels * 5
-        elif opt.node_representation == 'conv1d':
-            opt.rep_size = 207
-            n_channels = opt.n_channels
         else:
             n_channels = opt.n_channels    
 
-        # node matrix processing
-        self.conv1d_1 = Conv1d(
-            in_channels=n_channels,
-            out_channels=16,# opt.nr_c1_out, multiple of 4
-            kernel_size=1
-        )
-        self.maxpool = MaxPool1d(kernel_size=4, stride=4) #opt.nr_c1_out/4
-        self.batch1 = BatchNorm1d(4) #opt.nr_c1_out/4
-        self.conv1d_2 = Conv1d(
-            4, #opt.nr_c1_out/4 
-            4, #opt.nr_c1_out/4
-            kernel_size=11, #opt.nr_c2_k
-            dilation=1, #opt.nr_c2_d
-            stride=4 #opt.nr_c2_s
-        )
-        self.batch2 = BatchNorm1d(4) #opt.nr_c1_out/4
-        self.relu1 = ReLU()
-        self.conv1d_3 = Conv1d(
-            4, #opt.nr_c1_out/4 
-            1, 
-            kernel_size=11, #opt.nr_c3_k
-            dilation=1, #opt.nr_c3_d
-            stride=6 #opt.nr_c3_s
-        )
-        #self.lin0 = Linear(opt.window_size, opt.rep_size)
-        self.batch3 = BatchNorm1d(1)
+        # learned node matrix
+        if opt.node_representation == 'conv1d':
+            
+            self.conv1d_1 = nn.Conv1d(
+                in_channels=n_channels,
+                out_channels=16,
+                kernel_size=1
+            )
+            self.relu1 = nn.ReLU()
+            self.maxpool = nn.MaxPool1d(kernel_size=4, stride=4)
+            #self.batch1 = BatchNorm1d(4)
+            self.dropout1 = nn.Dropout(p = 0.2)
+            self.conv1d_2 = nn.Conv1d(
+                4, 
+                4,
+                kernel_size=11,
+                dilation=1,
+                stride=4
+            )
+            # compute resulting dim
+            l_out_1 = compute_conv1d_lout(5000, 1, 11, 4) 
+            self.relu2 = nn.ReLU()
+            self.dropout2 = nn.Dropout(p = 0.2)
+            #self.batch2 = nn.BatchNorm1d(4)
+            self.conv1d_3 = nn.Conv1d(
+                4, 
+                1, 
+                kernel_size=11,
+                dilation=1,
+                stride=6
+            )
+            l_out_2 = compute_conv1d_lout(l_out_1, 1, 11, 6)
+            self.relu3 = nn.ReLU()
+            self.dropout3 = nn.dropout(p = 0.3)
+            #self.batch3 = nn.BatchNorm1d(1)
 
+            opt.rep_size = l_out_2
 
         # single graph conv
         self.conv1 = GCNConv(opt.rep_size, opt.hidden_size)
         self.lin1 = Linear(opt.rep_size, opt.hidden_size)
         self.gate1 = Linear(opt.hidden_size, opt.hidden_size)
         self.bn1 = BatchNorm(opt.hidden_size)
-        # self.conv2 = GCNConv(opt.hidden_size, opt.hidden_size)
-        # self.gate2 = Linear(opt.hidden_size, opt.hidden_size)
-        #self.bn2 = BatchNorm(opt.hidden_size)
         self.dropout = nn.Dropout(opt.gcn_dropout)
 
-        #self.lin2 = Linear(opt.hidden_size, opt.hidden_size)
-        #self.lin3 = Linear(opt.hidden_size, opt.hidden_size)
-        # self.lin4 = Linear(opt.hidden_size, opt.hidden_size)
-        # self.lin5 = Linear(opt.hidden_size, opt.hidden_size)
-        #self.bn3 = BatchNorm(opt.hidden_size)
-        # self.bn4 = BatchNorm(opt.hidden_size)
-        # self.bn5 = BatchNorm(opt.hidden_size)
-
-        #self.g1_relu_bn = opt.g1_relu_bn
+        #nn.BatchNorm(opt.hidden_size)
 
     def forward(self, x, edge_index):
         
-
+        # node rep convolution
         x = self.conv1d_1(x)
-        x = self.maxpool(x.permute(0,2,1)).permute(0,2,1)
-        x = self.batch1(x)
-        x = self.conv1d_2(x)
-        x = self.batch2(x)
         x = self.relu1(x)
+        x = self.maxpool(x.permute(0,2,1)).permute(0,2,1)
+        x = self.dropout1(x)
+        x = self.conv1d_2(x)
+        x = self.relu2(x)
+        x = self.dropout2(x)
         x = self.conv1d_3(x)
-        x = self.batch3(x)
+        x = self.relu3(x)
+        x = self.dropout3(x)
 
         x = torch.squeeze(x)
-        #TODO: try a kernel based dimensionality reduction layer
-        #x = self.lin0(x)
 
         z = self.conv1(x, edge_index)
         z = F.tanh(z)
         g = F.sigmoid(self.gate1(z))
         x = self.lin1(x)  # change dimension
         x = (1 - g) * x + g * z
-        
-
-        # if self.g1_relu_bn:
-        #     x = F.relu(x)  # todo: ?
-        #     x = self.bn1(x)  # todo: ?
-
-        # x = self.dropout(x)
-        # z = self.conv2(x, edge_index)
-        # z = F.tanh(z)
-        # g = F.sigmoid(self.gate2(z))
-        # x = (1 - g) * x + g * z
-
-        #x = self.lin2(x)
         x = F.relu(x)
         x = self.bn1(x)
-
-        # t = x
-
-        #x = self.lin3(x)
-        #x = F.relu(x)
-        #x = self.bn3(x)
-
-        # x = torch.add(x, t)
-        #
-        # x = self.dropout(x)
-        #
-        # t = x
-        #
-        # x = self.lin4(x)
-        # x = F.relu(x)
-        # x = self.bn4(x)
-        #
-        # x = torch.add(x, t)
-
         x = self.dropout(x)
 
         return x
