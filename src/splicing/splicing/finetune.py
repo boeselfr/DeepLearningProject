@@ -3,6 +3,7 @@ import pickle
 import logging
 
 import numpy as np
+import math
 from tqdm import tqdm
 
 import torch
@@ -99,6 +100,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
     #a, f = get_gpu_stats()
 
+    analyze_grad_interval = math.ceil(len(graph_loader) / 100)
+
     for batch, graph_batch in tqdm(enumerate(graph_loader), leave=False,
                                 total=len(graph_loader), desc=desc_i):
 
@@ -125,7 +128,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             loss.backward()
             optimizer.step()
 
-            if (batch == len(graph_loader) - 1):
+            if batch % 50 == 0 and opt.wandb:
                 analyze_gradients(
                     graph_model, full_model, _x, node_representation, opt
                 )
@@ -134,11 +137,13 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
         all_targets = torch.cat((all_targets, _y.cpu().data), 0)
 
-        report_wandb(_y_hat, _y, loss, opt, split, step=batch)
-
+        # wandb reporting
         if split == 'train':
-
             optimizer.zero_grad()
+            if batch % 5 == 0 and opt.wandb:
+                report_wandb(_y_hat, _y, loss, opt, split, step=batch)
+        else:
+            report_wandb(_y_hat, _y, loss, opt, split, step=batch)
 
     if epoch == opt.finetune_epochs:
         save_node_representations(graph_data.x, chromosome, opt)

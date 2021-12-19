@@ -156,7 +156,7 @@ class SpliceGraph(torch.nn.Module):
             )
             l_out_2 = compute_conv1d_lout(l_out_1, 1, 11, 6)
             self.relu3 = nn.ReLU()
-            self.dropout3 = nn.dropout(p = 0.3)
+            self.dropout3 = nn.Dropout(p = 0.3)
             #self.batch3 = nn.BatchNorm1d(1)
 
             # setting n_channels to the dimension after last conv
@@ -174,7 +174,7 @@ class SpliceGraph(torch.nn.Module):
     def forward(self, x, edge_index):
         
         # node rep convolution
-        if self.nr_conv1d == 'conv1d':
+        if self.nr_conv1d:
             x = self.conv1d_1(x)
             x = self.relu1(x)
             x = self.maxpool(x.permute(0,2,1)).permute(0,2,1)
