@@ -110,6 +110,7 @@ class SpliceGraph(torch.nn.Module):
     def __init__(self, opt):
         super().__init__()
         
+        
         if opt.node_representation == 'min-max':
             n_channels = opt.n_channels * 2
         elif opt.node_representation == 'pca':
@@ -120,7 +121,10 @@ class SpliceGraph(torch.nn.Module):
             n_channels = opt.n_channels    
 
         # learned node matrix
+        self.nr_conv1d = False
         if opt.node_representation == 'conv1d':
+
+            self.nr_conv1d = True
             
             self.conv1d_1 = nn.Conv1d(
                 in_channels=n_channels,
@@ -155,11 +159,12 @@ class SpliceGraph(torch.nn.Module):
             self.dropout3 = nn.dropout(p = 0.3)
             #self.batch3 = nn.BatchNorm1d(1)
 
-            opt.rep_size = l_out_2
+            # setting n_channels to the dimension after last conv
+            n_channels = l_out_2
 
         # single graph conv
-        self.conv1 = GCNConv(opt.rep_size, opt.hidden_size)
-        self.lin1 = Linear(opt.rep_size, opt.hidden_size)
+        self.conv1 = GCNConv(n_channels, opt.hidden_size)
+        self.lin1 = Linear(n_channels, opt.hidden_size)
         self.gate1 = Linear(opt.hidden_size, opt.hidden_size)
         self.bn1 = BatchNorm(opt.hidden_size)
         self.dropout = nn.Dropout(opt.gcn_dropout)
@@ -169,18 +174,19 @@ class SpliceGraph(torch.nn.Module):
     def forward(self, x, edge_index):
         
         # node rep convolution
-        x = self.conv1d_1(x)
-        x = self.relu1(x)
-        x = self.maxpool(x.permute(0,2,1)).permute(0,2,1)
-        x = self.dropout1(x)
-        x = self.conv1d_2(x)
-        x = self.relu2(x)
-        x = self.dropout2(x)
-        x = self.conv1d_3(x)
-        x = self.relu3(x)
-        x = self.dropout3(x)
+        if self.nr_conv1d == 'conv1d':
+            x = self.conv1d_1(x)
+            x = self.relu1(x)
+            x = self.maxpool(x.permute(0,2,1)).permute(0,2,1)
+            x = self.dropout1(x)
+            x = self.conv1d_2(x)
+            x = self.relu2(x)
+            x = self.dropout2(x)
+            x = self.conv1d_3(x)
+            x = self.relu3(x)
+            x = self.dropout3(x)
 
-        x = torch.squeeze(x)
+            x = torch.squeeze(x)
 
         z = self.conv1(x, edge_index)
         z = F.tanh(z)

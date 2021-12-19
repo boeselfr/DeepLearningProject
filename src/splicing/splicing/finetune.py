@@ -25,6 +25,7 @@ def get_gpu_stats():
     f = r-a  # free inside reserved
     return a, f
 
+
 def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
              epoch, opt, split):
     if split == 'train':
@@ -36,8 +37,6 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     all_targets = torch.Tensor().cpu()
 
     total_loss = 0
-
-    a, f = get_gpu_stats()
 
     # bin dict has information for all chromosomes
     # that's why we can load it here before:
@@ -65,12 +64,10 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         )
     )
 
-    a, f = get_gpu_stats()
-
     xs = chromosome_data['x']
     ys = chromosome_data['y']
 
-    chromosome_dataset = ChromosomeDataset(xs, ys)
+    #chromosome_dataset = ChromosomeDataset(xs, ys)
     #dataloader = DataLoader(
     #    chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=False)
 
@@ -79,8 +76,6 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     )
     # nodes.requires_grad = True
     ys = torch.stack([(ys[loc][0]) for loc in ys])
-
-    a, f = get_gpu_stats()
 
     graph = process_graph(
         opt.adj_type, split_adj_dict, len(nodes),
@@ -129,9 +124,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         if split == 'train':
             loss.backward()
             optimizer.step()
-            # rep_optimizer.step()
 
-            if batch % 3 == 0:
+            if (batch == len(graph_loader) - 1):
                 analyze_gradients(
                     graph_model, full_model, _x, node_representation, opt
                 )
@@ -145,7 +139,6 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         if split == 'train':
 
             optimizer.zero_grad()
-            # rep_optimizer.zero_grad()
 
     if epoch == opt.finetune_epochs:
         save_node_representations(graph_data.x, chromosome, opt)
