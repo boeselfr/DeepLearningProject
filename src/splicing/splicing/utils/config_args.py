@@ -126,6 +126,8 @@ def get_args(parser):
 
     # Logging Args
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
+    parser.add_argument('-wbn', dest='wandb_name', default="", type=str, 
+        help="Name of wandb run.")
 
     # need to assign these:
     parser.add_argument('-weight_decay', type=float, default=5e-5,

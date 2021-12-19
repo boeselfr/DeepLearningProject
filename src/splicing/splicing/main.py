@@ -19,6 +19,7 @@ from splicing.utils.config_args import config_args, get_args
 from splicing.models.geometric_models import SpliceGraph, FullModel
 from splicing.runner import run_model
 from splicing.utils import graph_utils
+from splicing.utils import wandb_utils
 from splicing.utils.utils import CHR2IX
 
 from splicing.models.splice_ai import SpliceAI, SpliceAIEnsemble
@@ -177,7 +178,8 @@ def main(opt):
         'test': np.asarray(test_chromosomes, dtype=int),
     }
 
-    config = graph_utils.get_wandb_config(opt)
+    # Initialize wandb
+    config = wandb_utils.get_wandb_config(opt)
 
     if opt.wandb:
         if opt.pretrain:
@@ -185,25 +187,20 @@ def main(opt):
         elif opt.finetune:
             wandb_project_name = 'dl-project-finetune'
         wandb.init(
-            project=wandb_project_name, config=config, name=opt.model_id)
+            project=wandb_project_name, config=config, name=config.name
+        )
 
+    # Initialize Models
     if opt.load_pretrained:
         base_model = load_pretrained_base_model(opt, config)
     else:
         base_model = SpliceAI(
-            config.n_channels,
-            config.kernel_size,
-            config.dilation_rate
+            opt.n_channels,
+            opt.kernel_size,
+            opt.dilation_rate
         )
 
     opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
-
-    # logging.info('>>>>>>>>>> BASE MODEL <<<<<<<<<<<')
-    # logging.info('Total number of parameters in the base model: '
-    #              f'{opt.total_num_parameters}.')
-    # summary(base_model,
-    #         input_size=(4, opt.context_length + opt.window_size),
-    #         device='cuda')
 
     graph_model, full_model = None, None
 
