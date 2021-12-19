@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.loader import NeighborLoader
 
-from splicing.utils.graph_utils import process_graph, split2desc, \
+from splicing.utils.graph_utils import process_graph, SPLIT2DESC, \
     build_node_representations, save_node_representations
 from splicing.utils.wandb_utils import report_wandb, analyze_gradients
 from splicing.data_models.splice_dataset import ChromosomeDataset
@@ -95,7 +95,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         batch_size = opt.graph_batch_size
     )
 
-    desc_i = f'({str.upper(split2desc[split])} on chromosome {chromosome})'
+    desc_i = f'({str.upper(SPLIT2DESC[split])} on chromosome {chromosome})'
     logging.info(f'{desc_i} - batch size {opt.graph_batch_size}, nbatches '
                  f' {len(graph_loader)}')
 
