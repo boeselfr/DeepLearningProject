@@ -179,7 +179,7 @@ def main(opt):
             graph_model, full_model, opt
         )
         scheduler = get_scheduler(
-            opt, optimizer
+            opt, optimizer, len(datasets['train'])
         )
         
     elif not (opt.test_baseline or opt.test_graph):
