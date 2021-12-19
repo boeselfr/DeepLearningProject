@@ -91,7 +91,7 @@ def get_args(parser):
 
     # Scheduler: three types - StepLr, MultiStepLR, ReduceLROnPlateau
     parser.add_argument(
-        '-ft_sched', dest='ft_sched', type=str, default='MultiStepLR',
+        '-ft_sched', dest='ft_sched', type=str, default='multisteplr',
         choices = ['steplr', 'multisteplr', 'reducelr'],
         help='Scheduler to use for finetuning'
     )
