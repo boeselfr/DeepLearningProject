@@ -165,8 +165,8 @@ class SpliceGraph(torch.nn.Module):
                 self.nr_relu3 = nn.ReLU()
                 self.nr_bn_3 = nn.BatchNorm1d(1)
 
-                # setting n_channels to the dimension after last conv
-                n_channels = l_out_2
+                self.nr_linear = nn.Linear(l_out_2, n_channels)
+                
 
             elif opt.nr_model in ["clem_drop", "clem_bn", "clem_bn_end", "clem_bn_start"]:
                 
@@ -210,12 +210,15 @@ class SpliceGraph(torch.nn.Module):
                 x = self.nr_bn_1(x)
                 x = self.nr_conv1d_2(x)
                 x = self.nr_relu2(x)
-                x = self.nr_dropout2(x)
+                x = self.nr_bn_2(x)
                 x = self.nr_conv1d_3(x)
                 x = self.nr_relu3(x)
-                x = self.nr_dropout3(x)
+                x = self.nr_bn_3(x)
+                #x = self.nr_dropout3(x)
 
                 x = torch.squeeze(x)
+
+                x = self.nr_linear(x)
 
             elif self.nr_model == "clem_drop": 
                 x = self.nr_conv1d_1(x)
