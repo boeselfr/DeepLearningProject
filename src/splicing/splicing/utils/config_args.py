@@ -145,6 +145,9 @@ def get_args(parser):
         default=2,
         help='compnents that the 5000 features get reduced to for the node representation')
     parser.add_argument('-gcn_dropout', type=float, default=0.2)
+    parser.add_argument('-nr_model', type=str, default="clem_bn",
+        choices = ["fredclem", "clem_drop", "clem_bn", "clem_bn_end", "clem_bn_start"], 
+        help='Version of the node representation architecture to use.')
 
     #parser.add_argument("-rep_size", type=int, default=128, 
     #    help="Size of the initial node representation before 1D convolution")
@@ -173,7 +176,9 @@ def get_args(parser):
         '-nhidd_f', '--hidden_size_full', type=int, default=128,
         dest='hidden_size_full',
         help='The dimensionality of the hidden layer in the final network.')
-
+    parser.add_argument(
+        '-zero_nuc', action='store_true'
+    )
 
     ###########################################################################
     # Logging Args
@@ -235,10 +240,6 @@ def config_args(opt, config):
 
     opt.window_size = config['DATA_PIPELINE']['window_size']
 
-    opt.dec_dropout = opt.dropout
-
-    
-
     opt.model_name = f'{opt.model_id}_graph.splice_ai'
     #opt.model_name += '.' + str(opt.optim)
     opt.model_name += '.adam'
@@ -261,9 +262,6 @@ def config_args(opt, config):
         opt.model_name += '.gcndrop_' + (
                 "%.2f" % opt.gcn_dropout).split('.')[1]
         opt.model_name += '.' + str(opt.ft_optim)
-        opt.model_name += '.layers_' + str(opt.gcn_layers)
-        if opt.gate:
-            opt.model_name += '.gate'
         opt.model_name += '.adj_' + opt.adj_type
         if opt.adj_type == 'hic' or opt.adj_type == 'both':
             opt.model_name += '.norm_' + opt.hicnorm
@@ -277,7 +275,7 @@ def config_args(opt, config):
     opt.graph_data_root = path.join(
         config['DATA_DIRECTORY'], config['DATA_PIPELINE']['output_dir'])
     opt.dataset = path.join(opt.graph_data_root, opt.cell_type)
-    opt.cuda = not opt.no_cuda
+    opt.cuda = True #opt.no_cuda
 
     if opt.load_gcn:
         opt.model_name += '.load_gcn'

@@ -3,6 +3,7 @@ from os import path
 import logging
 
 from math import floor
+import numpy as np
 import torch
 from splicing.models.losses import CategoricalCrossEntropy2d
 
@@ -150,8 +151,8 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def compute_conv1d_lout(l_in, dilation=1, kernel_size=1, stride=1):
-    return floor((l_in - dilation * (kernel_size - 1) - 1) / stride + 1)
+def compute_conv1d_lout(l_in, padding=0, dilation=1, kernel_size=1, stride=1):
+    return floor((l_in + 2*padding - dilation * (kernel_size - 1) - 1) / stride + 1)
 
 
 def load_base_checkpoint(base_model, checkpoint_path):
