@@ -126,15 +126,18 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
 
     for jj, param in enumerate(graph_model.named_parameters()):
         param_name = param[0]
-        param_data = param[1].data
-        param_grad = param[1].grad.data
+        try:
+            param_data = param[1].data
+            param_grad = param[1].grad.data
+        except NoneTypeError:
+            continue
+        else:
+            m = param_data.shape[1] if len(param_data.shape) > 1 else 1
 
-        m = param_data.shape[1] if len(param_data.shape) > 1 else 1
-
-        log_message[f'graph_grad/{param_name}'] = np.linalg.norm(
-            param_grad.detach().cpu().numpy()) / m
-        log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
-            param_data.detach().cpu().numpy()) / m
+            log_message[f'graph_grad/{param_name}'] = np.linalg.norm(
+                param_grad.detach().cpu().numpy()) / m
+            log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
+                param_data.detach().cpu().numpy()) / m
 
     wandb.log(log_message)
 

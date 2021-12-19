@@ -134,7 +134,7 @@ class SpliceGraph(torch.nn.Module):
             self.nr_conv1d = True
             self.nr_model = opt.nr_model
             
-            if opt.nr_model == 'clem1':
+            if opt.nr_model == 'fredclem':
                 self.nr_conv1d_1 = nn.Conv1d(
                     in_channels=n_channels,
                     out_channels=16,
@@ -142,7 +142,7 @@ class SpliceGraph(torch.nn.Module):
                 )
                 self.nr_relu1 = nn.ReLU()
                 self.nr_maxpool = nn.MaxPool1d(kernel_size=4, stride=4)
-                self.nr_bn_1 = BatchNorm1d(4)
+                self.nr_bn_1 = nn.BatchNorm1d(4)
                 self.nr_conv1d_2 = nn.Conv1d(
                     
                 )
@@ -171,7 +171,7 @@ class SpliceGraph(torch.nn.Module):
                 # setting n_channels to the dimension after last conv
                 n_channels = l_out_2
 
-            elif opt.nr_model in ["fredclem", "clem_drop", "clem_bn", "clem_bn_end", "clem_bn_start"]:
+            elif opt.nr_model in ["clem_drop", "clem_bn", "clem_bn_end", "clem_bn_start"]:
                 
                 self.nr_bn_0 = nn.BatchNorm1d(32)
                 self.nr_conv1d_1 = nn.Conv1d(32, 16, kernel_size=1)
