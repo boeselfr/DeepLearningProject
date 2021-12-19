@@ -183,11 +183,11 @@ def main(opt):
 
     if opt.wandb:
         if opt.pretrain:
-            wandb_project_name = 'dl-project-pretrain'
+            wandb_project_name = 'pretrain'
         elif opt.finetune:
-            wandb_project_name = 'dl-project-finetune'
+            wandb_project_name = 'finetune'
         wandb.init(
-            project=wandb_project_name, config=config, name=config.name
+            entity='splicegraph', project=wandb_project_name, config=config, name=config.name
         )
 
     # Initialize Models
