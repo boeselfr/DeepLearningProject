@@ -206,14 +206,11 @@ def main(opt):
 
     # if fine_tuning, create the SpliceGraph and Full Model
     if opt.finetune:
-        graph_model = SpliceGraph(opt) #config.n_channels, config.hidden_size, config.gcn_dropout
-        full_model = FullModel(opt) # config.n_channels, config.hidden_size
+        graph_model = SpliceGraph(opt)
+        full_model = FullModel(opt)
 
         logging.info(graph_model)
         logging.info(full_model)
-        # summary(
-        #     full_model,
-        #     input_size=(opt.n_channels + opt.hidden_size, opt.window_size))
 
     # if finetune and load_gcn
     if opt.finetune and opt.load_gcn:

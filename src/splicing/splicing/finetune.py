@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import math
 from tqdm import tqdm
+import time
 
 import torch
 import torch.nn.functional as F
@@ -13,8 +14,8 @@ from torch_geometric.data import Data
 from torch_geometric.loader import NeighborLoader
 
 from splicing.utils.graph_utils import process_graph, split2desc, \
-    build_node_representations, save_node_representations, report_wandb, \
-    analyze_gradients
+    build_node_representations, save_node_representations
+from splicing.utils.wandb_utils import report_wandb, analyze_gradients
 from splicing.data_models.splice_dataset import ChromosomeDataset
 from splicing.utils.utils import IX2CHR
 
@@ -94,8 +95,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         batch_size = opt.graph_batch_size
     )
 
-    desc_i = f'({split2desc[split]} on chromosome {chromosome})'
-    logging.info(f'Number of batches of size {opt.graph_batch_size}:'
+    desc_i = f'({str.upper(split2desc[split])} on chromosome {chromosome})'
+    logging.info(f'{desc_i} - batch size {opt.graph_batch_size}, nbatches '
                  f' {len(graph_loader)}')
 
     #a, f = get_gpu_stats()
@@ -128,10 +129,14 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             loss.backward()
             optimizer.step()
 
-            if batch % 50 == 0 and opt.wandb:
+            if batch % 100 == 0 and opt.wandb:
+                #start = time.time()
                 analyze_gradients(
                     graph_model, full_model, _x, node_representation, opt
                 )
+                #end = time.time()
+                #logging.info(f"gradient_reporting: {end-start}")
+        
 
         total_loss += loss.sum().item()
         all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
@@ -140,7 +145,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         # wandb reporting
         if split == 'train':
             optimizer.zero_grad()
-            if batch % 5 == 0 and opt.wandb:
+            if batch % 25 == 0 and opt.wandb:
                 report_wandb(_y_hat, _y, loss, opt, split, step=batch)
         else:
             report_wandb(_y_hat, _y, loss, opt, split, step=batch)
