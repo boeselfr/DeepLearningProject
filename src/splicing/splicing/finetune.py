@@ -13,11 +13,12 @@ from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.loader import NeighborLoader
 
-from splicing.utils.graph_utils import process_graph, SPLIT2DESC, \
+from splicing.utils.general_utils import SPLIT2DESC, IX2CHR
+from splicing.utils.graph_utils import process_graph, \
     build_node_representations, save_node_representations
 from splicing.utils.wandb_utils import report_wandb, analyze_gradients
+
 from splicing.data_models.splice_dataset import ChromosomeDataset
-from splicing.utils.utils import IX2CHR
 
 
 def get_gpu_stats():

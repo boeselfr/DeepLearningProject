@@ -1,10 +1,9 @@
 import torch
 from tqdm import tqdm
 
-from splicing.utils import graph_utils
-from splicing.utils.graph_utils import split2desc
+from splicing.utils.general_utils import SPLIT2DESC, IX2CHR
 from splicing.utils.wandb_utils import report_wandb
-from splicing.utils.utils import get_data, IX2CHR
+from splicing.utils.spliceai_utils import get_data
 
 
 def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):

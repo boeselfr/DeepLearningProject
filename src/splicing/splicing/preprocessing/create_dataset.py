@@ -13,7 +13,7 @@ import time
 import os
 import yaml
 
-from splicing.utils.utils import create_datapoints
+from splicing.utils.spliceai_utils import create_datapoints
 
 start_time = time.time()
 

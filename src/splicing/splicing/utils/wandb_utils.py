@@ -14,35 +14,36 @@ import math
 def get_wandb_config(opt):
     config = wandb.config
 
-    config.n_channels = opt.n_channels
-    config.hidden_size = opt.hidden_size
-    config.hidden_size_full = opt.hidden_size_full
-    config.gcn_dropout = opt.gcn_dropout
-    config.context_length = opt.context_length
-    config.kernel_size = opt.kernel_size
-    config.dilation_rate = opt.dilation_rate
-    # config.epochs = opt.epochs
-
-    if opt.pretrain:
-        config.cnn_lr = opt.cnn_lr
-    elif opt.finetune:
-        config.lr = opt.gcn_lr
-        config.gcn_lr = opt.gcn_lr
-        config.cnn_lr = opt.cnn_lr
-        config.full_lr = opt.full_lr
-
-    config.class_weights = opt.class_weights
-    config.kernel_size = opt.kernel_size
-    config.dilation_rate = opt.dilation_rate
-    config.batch_size = opt.batch_size
-
-    config.node_representation = opt.node_representation
-    config.adj_type = opt.adj_type
-
     if opt.wandb_name:
         config.name = opt.wandb_name
     else:
         config.name = opt.model_id
+    
+    # pretrain args
+    config.context_length = opt.context_length
+    config.kernel_size = opt.kernel_size
+    config.dilation_rate = opt.dilation_rate
+    config.batch_size = opt.batch_size
+    config.class_weights = opt.class_weights
+    config.cnn_lr = opt.cnn_lr
+
+    #finetune args
+    config.graph_batch_size = opt.graph_batch_size
+    config.finetune_epochs = opt.finetune_epochs
+    config.ft_optim = opt.ft_optim
+    config.nr_lr = opt.nr_lr
+    config.gcn_lr = opt.gcn_lr
+    config.full_lr = opt.full_lr
+    config.ft_sched = opt.ft_sched
+    config.rlr_factor = opt.rlr_factor
+
+    config.n_channels = opt.n_channels
+    config.hidden_size = opt.hidden_size
+    config.hidden_size_full = opt.hidden_size_full
+    config.node_representation = opt.node_representation
+    config.adj_type = opt.adj_type
+
+    config.gcn_dropout = opt.gcn_dropout
 
     return config
 

@@ -7,8 +7,7 @@ from tqdm.auto import trange
 from splicing.finetune import finetune
 from splicing.pretrain import pretrain
 
-from splicing.utils.utils import print_topl_statistics
-from splicing.utils.graph_utils import shuffle_chromosomes
+from splicing.utils.general_utils import print_topl_statistics, shuffle_chromosomes
 from splicing.utils.evals import SaveLogger
 
 

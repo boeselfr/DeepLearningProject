@@ -5,7 +5,7 @@ from os import path
 import torch
 
 from splicing.utils import metrics
-from splicing.utils.graph_utils import directory_setup
+from splicing.utils.general_utils import directory_setup
 
 FORMAT = '[%(asctime)s] %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=FORMAT)

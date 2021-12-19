@@ -16,13 +16,15 @@ import coloredlogs
 from collections import OrderedDict
 
 from splicing.utils.config_args import config_args, get_args
-from splicing.models.geometric_models import SpliceGraph, FullModel
-from splicing.runner import run_model
-from splicing.utils import graph_utils
-from splicing.utils import wandb_utils
-from splicing.utils.utils import CHR2IX
+
+from splicing.utils.wandb_utils import get_wandb_config
+from splicing.utils.general_utils import CHR2IX, count_parameters, \
+    get_optimizer, get_scheduler, get_criterion, \
+        load_base_checkpoint, load_pretrained_base_model
 
 from splicing.models.splice_ai import SpliceAI, SpliceAIEnsemble
+from splicing.models.geometric_models import SpliceGraph, FullModel
+from splicing.runner import run_model
 
 coloredlogs.install(level=logging.INFO)
 warnings.filterwarnings("ignore")
@@ -41,85 +43,12 @@ parser = argparse.ArgumentParser()
 args = get_args(parser)
 opt = config_args(args, project_config)
 
-train_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+TRAIN_CHROMOSOMES = [CHR2IX(chrom[3:]) for chrom in
                      project_config['DATA_PIPELINE']['train_chroms']]
-valid_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+VALID_CHROMOSOMES = [CHR2IX(chrom[3:]) for chrom in
                      project_config['DATA_PIPELINE']['valid_chroms']]
-test_chromosomes = [CHR2IX(chrom[3:]) for chrom in
+TEST_CHROMOSOMES = [CHR2IX(chrom[3:]) for chrom in
                     project_config['DATA_PIPELINE']['test_chroms']]
-
-
-def load_base_checkpoint(base_model, checkpoint_path):
-
-    logging.info(f'==> Loading saved base_model {checkpoint_path}')
-
-    checkpoint = torch.load(checkpoint_path)
-
-    base_model = nn.DataParallel(base_model)
-
-    try:
-        base_model.load_state_dict(checkpoint['model'])
-    except RuntimeError:
-        logging.info(f'==> Applying DataParrallel Fix')
-
-        new_state_dict = OrderedDict()
-        for k, v in checkpoint["model"].items():
-            name = k[7:] # remove `module.`
-            new_state_dict[name] = v
-        base_model.load_state_dict(new_state_dict)
-
-
-def load_pretrained_base_model(opt, config):
-
-    if opt.test_baseline:
-
-        base_models = []
-
-        model_fnames = [
-            fname for fname in os.listdir(opt.test_models_dir)
-            if fname[-3:] == '.h5']
-
-        for model_fname in model_fnames:
-
-            base_model = SpliceAI(
-                config.n_channels,
-                config.kernel_size,
-                config.dilation_rate
-            )
-
-            checkpoint_path = path.join(opt.test_models_dir, model_fname)
-
-            load_base_checkpoint(base_model, checkpoint_path)
-
-            base_model.eval()
-
-            base_models.append(base_model)
-
-        base_model = SpliceAIEnsemble(base_models, opt.window_size)
-
-    else:
-
-        base_model = SpliceAI(
-            config.n_channels,
-            config.kernel_size,
-            config.dilation_rate
-        )
-
-        model_fname = f'SpliceAI' \
-            f'_e{opt.model_iteration}' \
-            f'_cl{opt.context_length}' \
-            f'_g{opt.model_index}.h5'
-
-        # in case you're loading a pretrained model in a finetune
-        # workflow, the main folder name is obtained by
-        # cutting before finetune bit.
-        checkpoint_path = path.join(
-            opt.model_name.split('/finetune')[0],
-            model_fname
-        )
-        load_base_checkpoint(base_model, checkpoint_path)
-
-    return base_model
 
 
 def main(opt):
@@ -133,9 +62,9 @@ def main(opt):
         # features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
-            'train': np.asarray(train_chromosomes, dtype=int),
-            'valid': np.asarray(valid_chromosomes, dtype=int),
-            'test': np.asarray(test_chromosomes, dtype=int),
+            'train': np.asarray(TRAIN_CHROMOSOMES, dtype=int),
+            'valid': np.asarray(VALID_CHROMOSOMES, dtype=int),
+            'test': np.asarray(TEST_CHROMOSOMES, dtype=int),
         }
 
         opt.full_validation_interval = len(datasets['train'])
@@ -162,7 +91,7 @@ def main(opt):
         opt.full_validation_interval = train_data_file.attrs['n_datasets']
 
         if opt.save_feats:
-            opt.epochs = len(train_chromosomes)
+            opt.epochs = len(TRAIN_CHROMOSOMES)
         else:
             opt.epochs = train_data_file.attrs['n_datasets'] * opt.passes
 
@@ -173,13 +102,13 @@ def main(opt):
         }
 
     opt.chromosomes = {
-        'train': np.asarray(train_chromosomes, dtype=int),
-        'valid': np.asarray(valid_chromosomes, dtype=int),
-        'test': np.asarray(test_chromosomes, dtype=int),
+        'train': np.asarray(TRAIN_CHROMOSOMES, dtype=int),
+        'valid': np.asarray(VALID_CHROMOSOMES, dtype=int),
+        'test': np.asarray(TEST_CHROMOSOMES, dtype=int),
     }
 
     # Initialize wandb
-    config = wandb_utils.get_wandb_config(opt)
+    config = get_wandb_config(opt)
 
     if opt.wandb:
         if opt.pretrain:
@@ -200,7 +129,7 @@ def main(opt):
             opt.dilation_rate
         )
 
-    opt.total_num_parameters = int(graph_utils.count_parameters(base_model))
+    opt.total_num_parameters = int(count_parameters(base_model))
 
     graph_model, full_model = None, None
 
@@ -246,27 +175,19 @@ def main(opt):
             gamma=0.5, verbose=False
         )
     elif opt.finetune:
-        optimizer = graph_utils.get_combined_optimizer(
+        optimizer = get_optimizer(
             graph_model, full_model, opt
         )
-        step_size_milestones = [(len(datasets['train']) * x) + 1
-                                for x in list(range(8, opt.epochs))]
-        scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=step_size_milestones,
-            gamma=0.5, verbose=False
+        scheduler = get_scheduler(
+            opt, optimizer
         )
+        
     elif not (opt.test_baseline or opt.test_graph):
-        optimizer = graph_utils.get_optimizer(base_model, opt)
-        scheduler = torch.torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=opt.lr_step_size, 
-            gamma=0.5, verbose=False
-        )
+        optimizer = get_optimizer(base_model, opt)
     
     logging.info(f"==> Optimizer: {optimizer}")
 
-    # optimizer = graph_utils.get_optimizer(graph_model, opt)
-
-    criterion = graph_utils.get_criterion(opt)
+    criterion = get_criterion(opt)
 
     if torch.cuda.device_count() > 0 and opt.pretrain:
         logging.info(f'Using {torch.cuda.device_count()} GPUs!')

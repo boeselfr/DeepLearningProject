@@ -6,10 +6,8 @@ import numpy as np
 import torch
 from scipy import sparse
 from sklearn.metrics import average_precision_score
-import math
 
-from splicing.models.losses import CategoricalCrossEntropy2d
-from splicing.utils.utils import IX2CHR
+from splicing.utils.general_utils import IX2CHR
 from sklearn.decomposition import PCA
 
 

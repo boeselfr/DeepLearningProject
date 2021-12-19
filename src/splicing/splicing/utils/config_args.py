@@ -2,29 +2,33 @@ import os
 import os.path as path
 import random
 
-from splicing.utils.utils import get_architecture
+from splicing.utils.spliceai_utils import get_architecture
 
 
 def get_args(parser):
-    # parser.add_argument('-spl_dr', '--splice_data_root',
-    #                     dest='splice_data_root', type=str)
-    # parser.add_argument('-gph_dr', '--graph_data_root',
-    #                     dest='graph_data_root', type=str)
-    # parser.add_argument('-res_d', '--results_dir',
-    #                     dest='results_dir', type=str)
-
+    
+    ###########################################################################
     # Workflow
+    ###########################################################################
     parser.add_argument('-pretrain', action='store_true')
     parser.add_argument('-save_feats', action='store_true')
     parser.add_argument('-finetune', action='store_true')
     parser.add_argument('-test_baseline', action='store_true')
     parser.add_argument('-test_graph', action='store_true')
 
-    # Directory
+
+    ###########################################################################
+    # Directory & model saving
+    ###########################################################################
     parser.add_argument('-modelid', type=str, default="0", dest='model_id',
         help='Model identifier, placed in front of other folder name defining args.')
+    parser.add_argument('-save_mode', type=str, choices=['all', 'best'],
+        default='best')
 
+
+    ###########################################################################
     # Model loading 
+    ###########################################################################
     parser.add_argument('-load_pretrained', action='store_true')
     parser.add_argument(
         '-mpass', '--model_pass', type=int, default=10, dest='model_pass',
@@ -38,7 +42,21 @@ def get_args(parser):
         help='The iteration (pass) of the SpliceAI model to load.')
     parser.add_argument('-load_gcn', action='store_true')
 
+
+    ###########################################################################
+    # General Training Params
+    ###########################################################################
+    parser.add_argument(
+        '-vi', '--validation_interval', type=int, default=32,
+        dest='validation_interval', help='Per how many epochs to validate.')
+    parser.add_argument(
+        '-li', '--log_interval', type=int, default=32,
+        dest='log_interval', help='Per how many updates to log to WandB.')
+
+
+    ###########################################################################
     # SpliceAI / Pretraining args
+    ###########################################################################
     parser.add_argument(
         '-cl', '--context_length', dest='context_length',
         type=int, default=400, help='The context length to use.')
@@ -49,13 +67,36 @@ def get_args(parser):
         '-npass', '--passes', type=int, default=10,
         dest='passes', help='Number of passes over the train dataset to do.')
     parser.add_argument('-cnn_lr', type=float, default=0.001)
-    
-    ### Finetuning / Graph Training Args
-    # Graph initialization
+
+
+    ###########################################################################
+    # General Finetune Training Params
+    ###########################################################################
     parser.add_argument(
-        '-nc', '--n_channels', type=int, default=32, dest='n_channels',
-        help='Number of convolution channels to use.'
+        '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
+        default=32, help='Batch size for finetuning.')
+    parser.add_argument(
+        '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
+        default=16, help='Number of epochs for graph training.')
+
+    # Optimizer and lrs
+    parser.add_argument('-ft_optim', type=str, choices=['adam', 'sgd'],
+        default='adam')
+    parser.add_argument('-weight_decay', type=float, default=1e-6,
+                        help='SGD weight decay')
+    parser.add_argument('-nr_lr', type=float, default=0.0001)
+    parser.add_argument('-gcn_lr', type=float, default=0.0001)
+    parser.add_argument('-full_lr', type=float, default=0.0001)
+    
+
+    # Scheduler: three types - StepLr, MultiStepLR, ReduceLROnPlateau
+    parser.add_argument(
+        '-ft_sched', dest='ft_sched', type=str, default='MultiStepLR',
+        choices = ['steplr', 'multisteplr', 'reducelr'],
+        help='Scheduler to use for finetuning'
     )
+
+    # StepLR params
     parser.add_argument(
         '-lr_decay', dest='lr_decay', type=float, default=0.5,
         help='The factor by which to decrease the learning rate')
@@ -63,9 +104,56 @@ def get_args(parser):
         '-lr_step_size', dest='lr_step_size', type=int, default=1,
         help='After how many passes to decrease learning rate')
     
-    # Finetuning / Graph Training Args
+    # ReduceLROnPlateau params
+    parser.add_argument(
+        '-rlr_factor', type=float, default=0.1, 
+        help="Factor by which the learning rate will be reduced."
+    )
+    parser.add_argument(
+        '-rlr_patience', type=int, default=2,
+        help='Number of epochs with no improvement after which '\
+            'learning rate will be reduced.' 
+    )
+    parser.add_argument(
+        '-rlr_threshold', type=int, default=1e-4,
+        help="Threshold for measuring the new optimum, to only "\
+            "focus on significant changes."
+    )
+
+    ###########################################################################
+    ### Graph Model parameters
+    ###########################################################################
+    parser.add_argument(
+        '-nc', '--n_channels', type=int, default=32, dest='n_channels',
+        help='Number of convolution channels to use.'
+    )
+    parser.add_argument(
+        '-nhidd', '--hidden_size', type=int, default=64, dest='hidden_size',
+        help='The dimensionality of the hidden layer in the graph network.')
+    parser.add_argument(
+        '-rep', '--node_representation', 
+        type=str, 
+        default='conv1d',
+        dest='node_representation',
+        choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary', 'zeros'],
+        help='How to construct the node representation '
+             'from the nucleotide representations.'
+    )
+    parser.add_argument(
+        '--pca_dims',
+        type=int,
+        default=2,
+        help='compnents that the 5000 features get reduced to for the node representation')
     parser.add_argument('-gcn_dropout', type=float, default=0.2)
-    parser.add_argument('-gcn_layers', type=int, default=2)
+
+    #parser.add_argument("-rep_size", type=int, default=128, 
+    #    help="Size of the initial node representation before 1D convolution")
+    #parser.add_argument('-gate', action='store_true')
+
+
+    ###########################################################################
+    ### Graph initialization
+    ###########################################################################
     parser.add_argument('-A_saliency', action='store_true')
     parser.add_argument('-adj_type', type=str,
         choices=['constant', 'hic', 'both', 'random', 'none', ''],
@@ -76,72 +164,30 @@ def get_args(parser):
     parser.add_argument('-hicsize', type=str,
                         choices=['125000', '250000', '500000', '1000000'],
                         default='500000')
-    parser.add_argument('-gate', action='store_true')
-    parser.add_argument(
-        '-nhidd', '--hidden_size', type=int, default=64, dest='hidden_size',
-        help='The dimensionality of the hidden layer in the graph network.')
+
+
+    ###########################################################################
+    # Full Model Parameters
+    ###########################################################################
     parser.add_argument(
         '-nhidd_f', '--hidden_size_full', type=int, default=128,
         dest='hidden_size_full',
         help='The dimensionality of the hidden layer in the final network.')
-    parser.add_argument(
-        '-gbs', '--graph_batch_size', dest='graph_batch_size', type=int,
-        default=32, help='Batch size for finetuning.')
-    parser.add_argument(
-        '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
-        default=16, help='Number of epochs for graph training.')
-    
-    parser.add_argument(
-        '-rep', '--node_representation', 
-        type=str, 
-        default='conv1d',
-        dest='node_representation',
-        choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary', 'zeros'],
-        help='How to construct the node representation '
-             'from the nucleotide representations.'
-    )
 
-    parser.add_argument("-rep_size", type=int, default=128, 
-        help="Size of the initial node representation before 1D convolution")
 
-    parser.add_argument(
-        '--pca_dims',
-        type=int,
-        default=2,
-        help='compnents that the 5000 features get reduced to for the node representation')
-
-    parser.add_argument('-gcn_optim', type=str, choices=['adam', 'sgd'],
-        default='adam')
-    parser.add_argument('-gcn_lr', type=float, default=0.0001)
-    parser.add_argument('-full_lr', type=float, default=0.0001)
-
-    # Training args applicable to both -pretrain and -finetune
-    parser.add_argument(
-        '-vi', '--validation_interval', type=int, default=32,
-        dest='validation_interval', help='Per how many epochs to validate.')
-    parser.add_argument(
-        '-li', '--log_interval', type=int, default=32,
-        dest='log_interval', help='Per how many updates to log to WandB.')
-    parser.add_argument('-dropout', type=float, default=0.1)
-
+    ###########################################################################
     # Logging Args
+    ###########################################################################
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
     parser.add_argument('-wbn', dest='wandb_name', default="", type=str, 
         help="Name of wandb run.")
 
     # need to assign these:
-    parser.add_argument('-weight_decay', type=float, default=5e-5,
-                        help='weight decay')
-
-    parser.add_argument('-lr_decay2', type=float, default=0) # triggers update of scheduler at every epoch if > 1
-    parser.add_argument('-lr_step_size2', type=int, default=100)
-
-    parser.add_argument('-save_mode', type=str, choices=['all', 'best'],
-                        default='best')
-    parser.add_argument('-br_threshold', type=float, default=0.5)
-    parser.add_argument('-no_cuda', action='store_true')
-    parser.add_argument('-viz', action='store_true')
-    parser.add_argument('-overwrite', action='store_true')
+    #parser.add_argument('-br_threshold', type=float, default=0.5)
+    #parser.add_argument('-no_cuda', action='store_true')
+    #parser.add_argument('-viz', action='store_true')
+    #parser.add_argument('-overwrite', action='store_true')
+    #parser.add_argument('-dropout', type=float, default=0.1)
 
     opt = parser.parse_args()
     return opt
@@ -191,7 +237,7 @@ def config_args(opt, config):
 
     opt.dec_dropout = opt.dropout
 
-    # opt.model_id += random_id
+    
 
     opt.model_name = f'{opt.model_id}_graph.splice_ai'
     #opt.model_name += '.' + str(opt.optim)
@@ -214,7 +260,7 @@ def config_args(opt, config):
         opt.model_name += '.lr_' + str(opt.gcn_lr).split('.')[1]
         opt.model_name += '.gcndrop_' + (
                 "%.2f" % opt.gcn_dropout).split('.')[1]
-        opt.model_name += '.' + str(opt.gcn_optim)
+        opt.model_name += '.' + str(opt.ft_optim)
         opt.model_name += '.layers_' + str(opt.gcn_layers)
         if opt.gate:
             opt.model_name += '.gate'
