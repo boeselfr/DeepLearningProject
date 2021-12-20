@@ -4,16 +4,14 @@ datafile_{}_{}.h5 and convert them into a format usable by Keras.'''
 ###############################################################################
 
 import re
-from math import ceil
 import logging
-from collections import Counter
-
-import numpy as np
-import wandb
-from sklearn.metrics import average_precision_score
-from tqdm.auto import tqdm
 import os
+
+from math import ceil
+from collections import Counter
+import numpy as np
 import yaml
+from splicing.utils.general_utils import CHR2IX, IX2CHR
 
 
 ### LOADING CONFIG 
@@ -42,14 +40,6 @@ OUT_MAP = np.asarray([[1, 0, 0],
                       [0, 1, 0],
                       [0, 0, 1],
                       [0, 0, 0]])
-
-
-CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
-IX2CHR = lambda ix: 'chrX' if ix == 23 else 'chrY' \
-    if ix == 24 else f'chr{str(ix)}'
-
-
-CHR2IX = lambda chr: 23 if chr == 'X' else 24 if chr == 'Y' else int(chr)
 
 
 def ceil_div(x, y):
@@ -195,51 +185,6 @@ def one_hot_encode(Xd, Yd):
     return IN_MAP[Xd.astype('int8')], \
            [OUT_MAP[Yd[t].astype('int8')] for t in range(1)]
 
-
-def print_topl_statistics(
-        y_true, y_pred, loss, prediction_type, log_wandb, step, split):
-    # Prints the following information: top-kL statistics for k=0.5,1,2,4,
-    # auprc, thresholds for k=0.5,1,2,4, number of true splice sites.
-
-    idx_true = np.nonzero(y_true == 1)[0]
-    argsorted_y_pred = np.argsort(y_pred)
-    # sorted_y_pred = np.sort(y_pred)
-
-    topkl_accuracy = []
-    # threshold = []
-
-    for top_length in [0.5, 1, 2, 4]:
-        idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
-
-        topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred))
-                           / (float(min(len(idx_pred), len(idx_true))) + 1e-6)]
-        # threshold += [sorted_y_pred[-int(top_length * len(idx_true))]]
-
-    auprc = average_precision_score(y_true, y_pred)
-
-    no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
-    logging.info('Top-K Accuracy')
-    logging.info('|0.5\t|1\t|2\t|4\t|')
-    logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
-        topkl_accuracy[0], topkl_accuracy[1],
-        topkl_accuracy[2], topkl_accuracy[3]))
-    # logging.info('Thresholds for K')
-    # logging.info('|0.5\t|1\t|2\t|4\t|')
-    # logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
-    #     threshold[0], threshold[1], threshold[2], threshold[3]))
-    logging.info(f'AUPRC: {auprc:.6f}')
-    logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
-    logging.info('# Predicted Splice Sites: '
-                 f'{no_positive_predictions} / {len(y_pred)}')
-    if log_wandb:
-        wandb.log({
-            f'{split}/Test Loss: {prediction_type}': loss,
-            f'{split}/AUPRC: {prediction_type}': auprc,
-            f'{split}/Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
-            # f'{split}/Thresholds for K: {prediction_type}': threshold[1],
-            # f'{split}/Proportion of True Splice Sites Predicted'
-            # f': {prediction_type}': no_positive_predictions / len(idx_true),
-        })
 
 
 def get_architecture(size, N_GPUS=1):

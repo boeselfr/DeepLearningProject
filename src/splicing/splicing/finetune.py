@@ -13,11 +13,12 @@ from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.loader import NeighborLoader
 
-from splicing.utils.graph_utils import process_graph, split2desc, \
+from splicing.utils.general_utils import SPLIT2DESC, IX2CHR
+from splicing.utils.graph_utils import process_graph, \
     build_node_representations, save_node_representations
 from splicing.utils.wandb_utils import report_wandb, analyze_gradients
+
 from splicing.data_models.splice_dataset import ChromosomeDataset
-from splicing.utils.utils import IX2CHR
 
 
 def get_gpu_stats():
@@ -73,19 +74,17 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     #dataloader = DataLoader(
     #    chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=False)
 
-    nodes = build_node_representations(
-        xs, opt.node_representation, opt
-    )
     # nodes.requires_grad = True
+    xs = torch.stack([(xs[loc][0]) for loc in xs])
     ys = torch.stack([(ys[loc][0]) for loc in ys])
 
     graph = process_graph(
-        opt.adj_type, split_adj_dict, len(nodes),
+        opt.adj_type, split_adj_dict, len(xs),
         IX2CHR(chromosome), bin_dict, opt.window_size
     )
     graph_data = Data(
-        x=nodes,
-        y = ys,
+        x=xs,
+        y=ys,
         edge_index=graph.coalesce().indices()
     )
 
@@ -95,7 +94,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         batch_size = opt.graph_batch_size
     )
 
-    desc_i = f'({str.upper(split2desc[split])} on chromosome {chromosome})'
+    desc_i = f'({str.upper(SPLIT2DESC[split])} on chromosome {chromosome})'
     logging.info(f'{desc_i} - batch size {opt.graph_batch_size}, nbatches '
                  f' {len(graph_loader)}')
 
@@ -112,7 +111,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
         #_x.requires_grad = True
         #a, f = get_gpu_stats()
-        node_representation = graph_model(_x, _edge_index)
+        node_representation = graph_model(_x, _edge_index, opt)
 
         #l_ix = opt.graph_batch_size * batch
         #u_ix = opt.graph_batch_size * (batch + 1)
