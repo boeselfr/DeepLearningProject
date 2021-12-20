@@ -5,9 +5,7 @@ import logging
 import numpy as np
 import torch
 from scipy import sparse
-from sklearn.metrics import average_precision_score
 
-from splicing.utils.general_utils import IX2CHR
 from sklearn.decomposition import PCA
 
 
@@ -214,30 +212,3 @@ def save_node_representations(node_representation, chromosome, opt):
     torch.save(node_representation, node_features_fname)
 
 
-def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
-    # logging.info(f'Saving features for model {model_name}.')
-
-    features_dir = model_name.split('/finetune')[0]
-    directory_setup(features_dir)
-    data_fname = path.join(
-        features_dir, f'chrom_feature_dict_{split}_chr{chromosome}.pt')
-    location_feature_dict = {}
-    location_index_dict = {}
-    if path.exists(data_fname):
-        location_feature_dict = torch.load(data_fname)
-    else:
-        location_feature_dict['x'] = {}
-        location_feature_dict['y'] = {}
-
-    for idx, location in enumerate(locations):
-        if location not in location_index_dict:
-            location_index_dict[location] = []
-        location_index_dict[location].append(idx)
-
-    for location in location_index_dict:
-        chrom_indices = torch.Tensor(location_index_dict[location]).long()
-        x = torch.index_select(X, 0, chrom_indices)
-        y = torch.index_select(Y, 0, chrom_indices)
-        location_feature_dict['x'][location] = x
-        location_feature_dict['y'][location] = y
-    torch.save(location_feature_dict, data_fname)

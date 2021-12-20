@@ -13,14 +13,14 @@ import torch.nn as nn
 from torchsummary import summary
 import wandb
 import coloredlogs
-from collections import OrderedDict
+
 
 from splicing.utils.config_args import config_args, get_args
 
 from splicing.utils.wandb_utils import get_wandb_config
 from splicing.utils.general_utils import CHR2IX, count_parameters, \
     get_optimizer, get_scheduler, get_criterion, \
-        load_base_checkpoint, load_pretrained_base_model
+        load_pretrained_base_model
 
 from splicing.models.splice_ai import SpliceAI, SpliceAIEnsemble
 from splicing.models.geometric_models import SpliceGraph, FullModel

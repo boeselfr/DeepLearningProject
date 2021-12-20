@@ -4,15 +4,12 @@ datafile_{}_{}.h5 and convert them into a format usable by Keras.'''
 ###############################################################################
 
 import re
-from math import ceil
 import logging
-from collections import Counter
-
-import numpy as np
-import wandb
-from sklearn.metrics import average_precision_score
-from tqdm.auto import tqdm
 import os
+
+from math import ceil
+from collections import Counter
+import numpy as np
 import yaml
 from splicing.utils.general_utils import CHR2IX, IX2CHR
 

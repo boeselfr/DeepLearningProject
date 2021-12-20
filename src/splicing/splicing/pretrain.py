@@ -1,7 +1,7 @@
 import torch
 from tqdm import tqdm
 
-from splicing.utils.general_utils import SPLIT2DESC, IX2CHR
+from splicing.utils.general_utils import SPLIT2DESC, IX2CHR, save_feats
 from splicing.utils.wandb_utils import report_wandb
 from splicing.utils.spliceai_utils import get_data
 
@@ -37,7 +37,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
 
     for batch, (X, y, loc) in enumerate(
             tqdm(dataloader, total=n_batches,
-                 desc=split2desc[split], leave=False)):
+                 desc=SPLIT2DESC[split], leave=False)):
 
         if opt.pretrain and split == 'train':
             optimizer.zero_grad()
@@ -75,7 +75,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
                          step=batch // opt.validation_interval)
 
     if opt.save_feats:
-        graph_utils.save_feats(
+        save_feats(
             opt.model_name, split, all_targets, all_locs, all_x_f,
             opt.chromosomes[split][epoch - 1], epoch)
 
