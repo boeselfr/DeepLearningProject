@@ -124,6 +124,8 @@ class SpliceGraph(torch.nn.Module):
             n_channels = opt.n_channels * opt.pca_dims # might be changed
         elif opt.node_representation == 'summary':
             n_channels = opt.n_channels * 5
+        elif opt.node_representation == "conv1d":
+            n_channels = opt.hidden_size
         else:
             n_channels = opt.n_channels    
 
