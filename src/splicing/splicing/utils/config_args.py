@@ -84,7 +84,7 @@ def get_args(parser):
         default='adam')
     parser.add_argument('-weight_decay', type=float, default=1e-6,
                         help='SGD weight decay')
-    parser.add_argument('-nr_lr', type=float, default=0.0001)
+    parser.add_argument('-nr_lr', type=float, default=0.001)
     parser.add_argument('-gcn_lr', type=float, default=0.0001)
     parser.add_argument('-full_lr', type=float, default=0.0001)
     
@@ -177,7 +177,7 @@ def get_args(parser):
         dest='hidden_size_full',
         help='The dimensionality of the hidden layer in the final network.')
     parser.add_argument(
-        '-zero_nuc', action='store_true'
+        '-zeronuc', action='store_true'
     )
 
     ###########################################################################

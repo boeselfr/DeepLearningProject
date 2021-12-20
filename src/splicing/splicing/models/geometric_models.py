@@ -12,7 +12,7 @@ class FullModel(nn.Module):
 
         self.device = device
 
-        self.zero_nuc = opt.zero_nuc
+        self.zeronuc = opt.zeronuc
 
         self.batch_norm0 = nn.BatchNorm1d(opt.n_channels + opt.hidden_size)
 
@@ -61,7 +61,7 @@ class FullModel(nn.Module):
         # residual_x_1 = self.residual_conv1(x)
         # residual_x_2 = self.residual_conv2(x)
 
-        if self.zero_nuc:
+        if self.zeronuc:
             x = torch.zeros(x.shape).to('cuda')
 
         x = self.nucleotide_conv_1(x)
@@ -170,25 +170,25 @@ class SpliceGraph(torch.nn.Module):
 
             elif opt.nr_model in ["clem_drop", "clem_bn", "clem_bn_end", "clem_bn_start"]:
                 
-                self.nr_bn_0 = nn.BatchNorm1d(32)
+                self.nr_bn_start = nn.BatchNorm1d(32)
                 self.nr_conv1d_1 = nn.Conv1d(32, 16, kernel_size=1)
                 self.nr_maxpool_1 = nn.MaxPool1d(kernel_size=4, stride=4)
                 self.nr_bn_1 = nn.BatchNorm1d(4)
                 self.nr_dropout1 = nn.Dropout(p = opt.gcn_dropout)
-                self.nr_conv1d_2 = nn.Conv1d(4,16, kernel_size=11, stride=5, padding=3)
-                self.nr_maxpool_2 = nn.MaxPool1d(kernel_size=4, stride=4)
+                self.nr_conv1d_2 = nn.Conv1d(4,12, kernel_size=22, stride=10, padding=6)
+                self.nr_maxpool_2 = nn.MaxPool1d(kernel_size=3, stride=3)
                 self.nr_bn_2 = nn.BatchNorm1d(4)
                 self.nr_dropout2 = nn.Dropout(p = opt.gcn_dropout)
-                self.nr_conv1d_3 = nn.Conv1d(4,16, kernel_size=11, stride=5, padding=3)
-                self.nr_maxpool_3 = nn.MaxPool1d(kernel_size=4, stride=4)
+                self.nr_conv1d_3 = nn.Conv1d(4,8, kernel_size=22, stride=10, padding=6)
+                self.nr_maxpool_3 = nn.MaxPool1d(kernel_size=2, stride=2)
                 self.nr_bn_3 = nn.BatchNorm1d(4)
-                self.nr_dropout3 = nn.Dropout(p = opt.gcn_dropout)
-                self.nr_conv1d_4 = nn.Conv1d(4,16, kernel_size=11, stride=5, padding=3)
-                self.nr_maxpool_4 = nn.MaxPool1d(kernel_size=4, stride=4)
-                self.nr_bn_4 = nn.BatchNorm1d(4)
-                self.nr_dropout4 = nn.Dropout(p = opt.gcn_dropout)
-                self.nr_linear = nn.Linear(40*4, n_channels)
-                self.nr_bn_5 = nn.BatchNorm1d(n_channels)
+                #self.nr_dropout3 = nn.Dropout(p = opt.gcn_dropout)
+                #self.nr_conv1d_4 = nn.Conv1d(4,16, kernel_size=11, stride=5, padding=3)
+                #self.nr_maxpool_4 = nn.MaxPool1d(kernel_size=4, stride=4)
+                #self.nr_bn_4 = nn.BatchNorm1d(4)
+                #self.nr_dropout4 = nn.Dropout(p = opt.gcn_dropout)
+                self.nr_linear = nn.Linear(50*4, n_channels)
+                self.nr_bn_end = nn.BatchNorm1d(n_channels)
 
         # single graph conv
         self.gcn_conv = GCNConv(n_channels, opt.hidden_size)
@@ -233,10 +233,6 @@ class SpliceGraph(torch.nn.Module):
                 x = nn.ReLU()(x)
                 x = self.nr_maxpool_3(x.permute(0,2,1)).permute(0,2,1)
                 x = self.nr_dropout_3(x)
-                x = self.nr_conv1d_4(x)
-                x = nn.ReLU()(x)
-                x = self.nr_maxpool_4(x.permute(0,2,1)).permute(0,2,1)
-                x = self.nr_dropout_4(x)
 
                 x = torch.reshape(x, (x.shape[0],x.shape[1]*x.shape[2]))
 
@@ -255,10 +251,6 @@ class SpliceGraph(torch.nn.Module):
                 x = nn.ReLU()(x)
                 x = self.nr_maxpool_3(x.permute(0,2,1)).permute(0,2,1)
                 x = self.nr_bn_3(x)
-                x = self.nr_conv1d_4(x)
-                x = nn.ReLU()(x)
-                x = self.nr_maxpool_4(x.permute(0,2,1)).permute(0,2,1)
-                x = self.nr_bn_4(x)
 
                 x = torch.reshape(x, (x.shape[0],x.shape[1]*x.shape[2]))
 
@@ -277,18 +269,14 @@ class SpliceGraph(torch.nn.Module):
                 x = nn.ReLU()(x)
                 x = self.nr_maxpool_3(x.permute(0,2,1)).permute(0,2,1)
                 x = self.nr_bn_3(x)
-                x = self.nr_conv1d_4(x)
-                x = nn.ReLU()(x)
-                x = self.nr_maxpool_4(x.permute(0,2,1)).permute(0,2,1)
-                x = self.nr_bn_4(x)
 
                 x = torch.reshape(x, (x.shape[0],x.shape[1]*x.shape[2]))
 
                 x = self.nr_linear(x)
-                x = self.nr_bn_5(x)
+                x = self.nr_bn_end(x)
             
             elif self.nr_model == "clem_bn_start": 
-                x = self.nr_bn_0(x)
+                x = self.nr_bn_start(x)
                 x = self.nr_conv1d_1(x)
                 x = nn.ReLU()(x)
                 x = self.nr_maxpool_1(x.permute(0,2,1)).permute(0,2,1)
@@ -301,10 +289,6 @@ class SpliceGraph(torch.nn.Module):
                 x = nn.ReLU()(x)
                 x = self.nr_maxpool_3(x.permute(0,2,1)).permute(0,2,1)
                 x = self.nr_bn_3(x)
-                x = self.nr_conv1d_4(x)
-                x = nn.ReLU()(x)
-                x = self.nr_maxpool_4(x.permute(0,2,1)).permute(0,2,1)
-                x = self.nr_bn_4(x)
 
                 x = torch.reshape(x, (x.shape[0],x.shape[1]*x.shape[2]))
 

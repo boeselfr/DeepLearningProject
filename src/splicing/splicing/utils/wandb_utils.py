@@ -45,7 +45,7 @@ def get_wandb_config(opt):
 
     config.gcn_dropout = opt.gcn_dropout
     config.nr_model = opt.nr_model
-    config.zero_nuc = opt.zero_nuc
+    config.zero_nuc = opt.zeronuc
 
     return config
 
