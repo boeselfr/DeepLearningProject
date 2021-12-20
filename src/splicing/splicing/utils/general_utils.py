@@ -6,6 +6,8 @@ from math import floor
 import numpy as np
 import torch
 from splicing.models.losses import CategoricalCrossEntropy2d
+from sklearn.metrics import average_precision_score
+import wandb
 
 # Maps etc.
 SPLIT2DESC = {
