@@ -177,31 +177,31 @@ def build_node_representations(xs, mode, opt, chromosome=''):
 
     # xs[loc] is of shape : [1, 32, 5000]
     if mode == 'average':
-        x = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
+        x = xs.mean(axis=2)
     elif mode == 'max':
-        x = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
+        x = xs.max(axis=2).values
     elif mode == 'min':
-        x = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
+        x = xs.min(axis=2).values
     elif mode == 'min-max':
-        x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
-        x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
+        x_min = xs.min(axis=2).values
+        x_max = xs.max(axis=2).values
         x = torch.cat((x_min, x_max), 1)
     elif mode == 'conv1d':
-        x = torch.stack([(xs[loc][0]) for loc in xs])
+        x = xs
     elif mode == 'pca':
+        #TODO: fix this to handle current xs format
         pca = PCA(n_components=opt.pca_dims)
         x = torch.stack([torch.flatten(torch.tensor(pca.fit_transform(xs[loc][0]),
                                                     dtype=torch.float).squeeze()) for loc in xs])
     elif mode == 'summary':
-        x_min = torch.stack([xs[loc][0].min(axis=1).values for loc in xs])
-        x_max = torch.stack([xs[loc][0].max(axis=1).values for loc in xs])
-        x_avg = torch.stack([xs[loc][0].mean(axis=1) for loc in xs])
-        x_median = torch.stack([xs[loc][0].median(axis=1).values for loc in xs])
-        x_std = torch.stack([xs[loc][0].std(axis=1) for loc in xs])
+        x_min = xs.min(axis=2).values
+        x_max = xs.max(axis=2).values
+        x_avg = xs.mean(axis=2)
+        x_median = xs.median(axis=2).values
+        x_std = xs.std(axis=2)
         x = torch.cat((x_min, x_max, x_avg, x_median, x_std), 1)
     elif mode == 'zeros':
-        x = torch.stack([torch.zeros(32) for loc in xs])
-
+        x = torch.zeros(xs.shape)
     return x
 
 

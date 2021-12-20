@@ -74,19 +74,17 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     #dataloader = DataLoader(
     #    chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=False)
 
-    nodes = build_node_representations(
-        xs, opt.node_representation, opt
-    )
     # nodes.requires_grad = True
+    xs = torch.stack([(xs[loc][0]) for loc in xs])
     ys = torch.stack([(ys[loc][0]) for loc in ys])
 
     graph = process_graph(
-        opt.adj_type, split_adj_dict, len(nodes),
+        opt.adj_type, split_adj_dict, len(xs),
         IX2CHR(chromosome), bin_dict, opt.window_size
     )
     graph_data = Data(
-        x=nodes,
-        y = ys,
+        x=xs,
+        y=ys,
         edge_index=graph.coalesce().indices()
     )
 
@@ -113,7 +111,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
         #_x.requires_grad = True
         #a, f = get_gpu_stats()
-        node_representation = graph_model(_x, _edge_index)
+        node_representation = graph_model(_x, _edge_index, opt)
 
         #l_ix = opt.graph_batch_size * batch
         #u_ix = opt.graph_batch_size * (batch + 1)

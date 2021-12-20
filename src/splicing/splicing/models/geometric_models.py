@@ -5,6 +5,7 @@ from torch_geometric.nn import GCNConv, BatchNorm, \
     Linear, Sequential
 
 from splicing.utils.general_utils import compute_conv1d_lout
+from splicing.utils.graph_utils import build_node_representations
 
 class FullModel(nn.Module):
     def __init__(self, opt, device='cuda'):
@@ -117,7 +118,7 @@ class SpliceGraph(torch.nn.Module):
     def __init__(self, opt):
         super().__init__()
         
-        
+        self.node_representation = opt.node_representation
         if opt.node_representation == 'min-max':
             n_channels = opt.n_channels * 2
         elif opt.node_representation == 'pca':
@@ -201,8 +202,13 @@ class SpliceGraph(torch.nn.Module):
 
         #nn.BatchNorm(opt.hidden_size)
 
-    def forward(self, x, edge_index):
+    def forward(self, xs, edge_index, opt):
         
+        # build node representations:
+        x = build_node_representations(
+            xs, opt.node_representation, opt
+        )
+
         # node rep convolution
         if self.nr_conv1d:
             if self.nr_model == "fredclem":

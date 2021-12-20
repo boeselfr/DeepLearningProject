@@ -305,4 +305,6 @@ def config_args(opt, config):
     assert not (os.path.exists(opt.model_name) and opt.finetune), \
         "Finetune model directory already exists"
 
+    assert not opt.node_representation == "pca", "PCA is broken rn"
+
     return opt
