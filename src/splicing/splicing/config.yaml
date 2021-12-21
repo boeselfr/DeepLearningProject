@@ -1,5 +1,5 @@
 
-DATA_DIRECTORY: /cluster/scratch/cguerner/dl_data/splicing
+DATA_DIRECTORY: /cluster/scratch/fboesel/data/deep-learning-project
 
 RAW_DATA:  
   splice_table: raw_data/gtex_dataset.txt
