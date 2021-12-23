@@ -46,6 +46,8 @@ def get_wandb_config(opt):
     config.gcn_dropout = opt.gcn_dropout
     config.nr_model = opt.nr_model
     config.zero_nuc = opt.zeronuc
+    config.boost_graph = opt.boost_graph
+    config.boost_period = opt.boost_period
 
     return config
 
@@ -82,47 +84,55 @@ def report_wandb(predictions, targets, loss, opt, split, step):
     
 
 def analyze_gradients(graph_model, full_model, _x, nodes, opt):
+    log_message = {}
+    try:
+        nucleotide_grad = list(
+            full_model.conv1.parameters())[0].grad[:opt.n_channels, ...].data
+        node_grad = list(
+            full_model.conv1.parameters())[0].grad[opt.n_channels:, ...].data
 
-    nucleotide_grad = list(
-        full_model.conv1.parameters())[0].grad[:opt.n_channels, ...].data
-    node_grad = list(
-        full_model.conv1.parameters())[0].grad[opt.n_channels:, ...].data
+        nucleotide_weight = list(
+            full_model.conv1.parameters())[0][:opt.n_channels, ...].data
+        node_weight = list(
+            full_model.conv1.parameters())[0][opt.n_channels:, ...].data
 
-    nucleotide_weight = list(
-        full_model.conv1.parameters())[0][:opt.n_channels, ...].data
-    node_weight = list(
-        full_model.conv1.parameters())[0][opt.n_channels:, ...].data
+        log_message = {
+            'full_grad/full_nucleotide': np.linalg.norm(
+                nucleotide_grad.detach().cpu().numpy()) / opt.n_channels,
+            'full_grad/full_node': np.linalg.norm(
+                node_grad.detach().cpu().numpy()) / opt.hidden_size,
+            'full_weight/full_nucleotide': np.linalg.norm(
+                nucleotide_weight.detach().cpu().numpy()) / opt.n_channels,
+            'full_weight/full_node': np.linalg.norm(
+                node_weight.detach().cpu().numpy()) / opt.hidden_size,
+            #'node_gradients/node_grad': np.linalg.norm(
+            #    nodes.grad.detach().cpu().numpy()) / len(nodes),
+            #'node_representations/node_weights': np.linalg.norm(
+            #    nodes.detach().cpu().numpy()) / len(nodes),
+            #'nucleotide_gradients/nucleotide_grad': np.linalg.norm(
+            #    _x.grad.detach().cpu().numpy()) / len(_x),
+        }
+    except Exception as e:
+        # needed for boost_graph option
+        pass
 
-    log_message = {
-        'full_grad/full_nucleotide': np.linalg.norm(
-            nucleotide_grad.detach().cpu().numpy()) / opt.n_channels,
-        'full_grad/full_node': np.linalg.norm(
-            node_grad.detach().cpu().numpy()) / opt.hidden_size,
-        'full_weight/full_nucleotide': np.linalg.norm(
-            nucleotide_weight.detach().cpu().numpy()) / opt.n_channels,
-        'full_weight/full_node': np.linalg.norm(
-            node_weight.detach().cpu().numpy()) / opt.hidden_size,
-        #'node_gradients/node_grad': np.linalg.norm(
-        #    nodes.grad.detach().cpu().numpy()) / len(nodes),
-        #'node_representations/node_weights': np.linalg.norm(
-        #    nodes.detach().cpu().numpy()) / len(nodes),
-        #'nucleotide_gradients/nucleotide_grad': np.linalg.norm(
-        #    _x.grad.detach().cpu().numpy()) / len(_x),
-    }
+    try:
+        for jj, param in enumerate(full_model.named_parameters()):
+            #if jj == 2:
+            #    continue
+            param_name = param[0]
+            param_data = param[1].data
+            param_grad = param[1].grad.data
 
-    for jj, param in enumerate(full_model.named_parameters()):
-        #if jj == 2:
-        #    continue
-        param_name = param[0]
-        param_data = param[1].data
-        param_grad = param[1].grad.data
+            m = param_data.shape[1] if len(param_data.shape) > 1 else 1
 
-        m = param_data.shape[1] if len(param_data.shape) > 1 else 1
-
-        log_message[f'full_grad/{param_name}'] = np.linalg.norm(
-            param_grad.detach().cpu().numpy()) / m
-        log_message[f'full_weight/{param_name}'] = np.linalg.norm(
-            param_data.detach().cpu().numpy()) / m
+            log_message[f'full_grad/{param_name}'] = np.linalg.norm(
+                param_grad.detach().cpu().numpy()) / m
+            log_message[f'full_weight/{param_name}'] = np.linalg.norm(
+                param_data.detach().cpu().numpy()) / m
+    except Exception as e:
+        # sry for the code
+        pass
 
     for jj, param in enumerate(graph_model.named_parameters()):
         param_name = param[0]

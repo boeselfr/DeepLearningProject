@@ -217,7 +217,7 @@ def load_pretrained_base_model(opt, config):
             config.dilation_rate
         )
 
-        model_fname = f'SpliceAI' \
+        model_fname = f'SpliceAI_base' \
             f'_e{opt.model_iteration}' \
             f'_cl{opt.context_length}' \
             f'_g{opt.model_index}.h5'

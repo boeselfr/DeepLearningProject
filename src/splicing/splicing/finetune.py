@@ -64,7 +64,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         path.join(
             opt.model_name.split('/finetune')[0],
             f'chrom_feature_dict_{split}_chr{chromosome}.pt'
-        )
+        ), map_location='cpu'
     )
 
     xs = chromosome_data['x']

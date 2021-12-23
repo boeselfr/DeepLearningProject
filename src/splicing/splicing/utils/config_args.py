@@ -120,6 +120,15 @@ def get_args(parser):
             "focus on significant changes."
     )
 
+    # Boost Graph
+    parser.add_argument(
+        '-boost_graph', action='store_true',
+        help="If set, only trains the full model weights every 100 epochs"
+    )
+    parser.add_argument(
+        '-boost_period', type=int, default=10,
+        help='periodicity of full model training aswell'
+    )
     ###########################################################################
     ### Graph Model parameters
     ###########################################################################
@@ -273,7 +282,7 @@ def config_args(opt, config):
 
     # TODO
     opt.graph_data_root = path.join(
-        config['DATA_DIRECTORY'], config['DATA_PIPELINE']['output_dir'])
+        config['DATA_DIRECTORY'], config['DATA_PIPELINE']['output_dir'], str(opt.window_size))
     opt.dataset = path.join(opt.graph_data_root, opt.cell_type)
     opt.cuda = True #opt.no_cuda
 
