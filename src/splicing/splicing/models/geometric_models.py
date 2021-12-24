@@ -11,10 +11,7 @@ class FullModel(nn.Module):
     def __init__(self, opt, device='cuda'):
         super(FullModel, self).__init__()
 
-        self.device = device
-
-        self.zeronuc = opt.zeronuc
-        
+        self.device = device        
         self.nt_conv = False
         if opt.nt_conv:
             self.nt_conv = True
@@ -66,9 +63,6 @@ class FullModel(nn.Module):
         # self.batch_norm_n_2 = nn.BatchNorm1d(opt.n_channels)
 
     def forward(self, x, node_rep):
-
-        if self.zeronuc:
-            x = torch.zeros(x.shape).to('cuda')
         
         if self.nt_conv:
             x = self.nucleotide_conv_1(x)
