@@ -59,11 +59,11 @@ def get_args(parser):
     ###########################################################################
     parser.add_argument(
         '-cl', '--context_length', dest='context_length',
-        choices = [80, 400],
-        type=int, required=True, help='The context length to use.')
+        choices = [80, 400], required=True,
+        type=int, help='The context length to use.')
     parser.add_argument(
         '-ws', '--window_size', dest='window_size', 
-        required=True, type=int, choices=[1000, 5000], 
+        choices = [1000, 5000], type=int, required=True,
         help='Size of the pretrain batches and graph windows.')
 
 

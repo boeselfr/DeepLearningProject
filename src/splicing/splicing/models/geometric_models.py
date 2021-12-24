@@ -8,9 +8,13 @@ from splicing.utils.general_utils import compute_conv1d_lout
 from splicing.utils.graph_utils import build_node_representations
 
 class FullModel(nn.Module):
-    def __init__(self, opt):
+    def __init__(self, opt, device='cuda'):
         super(FullModel, self).__init__()
 
+        self.device = device
+
+        self.zeronuc = opt.zeronuc
+        
         self.nt_conv = False
         if opt.nt_conv:
             self.nt_conv = True
@@ -25,9 +29,20 @@ class FullModel(nn.Module):
         self.conv1 = nn.Conv1d(
             in_channels=opt.n_channels + opt.hidden_size,
             out_channels=opt.hidden_size_full,
-            kernel_size=1)
-        
+            kernel_size=1).to(self.device)
         self.batch_norm1 = nn.BatchNorm1d(opt.hidden_size_full)
+
+        # self.conv2 = nn.Conv1d(
+        #     in_channels=opt.hidden_size_full,
+        #     out_channels=opt.hidden_size_full,
+        #     kernel_size=1).to(self.device)
+        # self.batch_norm2 = nn.BatchNorm1d(opt.hidden_size_full)
+        #
+        # self.conv3 = nn.Conv1d(
+        #     in_channels=opt.hidden_size_full,
+        #     out_channels=opt.hidden_size_full,
+        #     kernel_size=1).to(self.device)
+        # self.batch_norm3 = nn.BatchNorm1d(opt.hidden_size_full)
 
         self.out = nn.Conv1d(
             in_channels=opt.hidden_size_full,
@@ -39,13 +54,30 @@ class FullModel(nn.Module):
 
         self.out_act = nn.Softmax(dim=1)
 
+        self.nucleotide_conv_1 = nn.Conv1d(
+            in_channels=opt.n_channels,
+            out_channels=opt.n_channels,
+            kernel_size=1)
+        # self.nucleotide_conv_2 = nn.Conv1d(
+        #     in_channels=opt.n_channels,
+        #     out_channels=opt.n_channels,
+        #     kernel_size=1)
+        self.batch_norm_n_1 = nn.BatchNorm1d(opt.n_channels)
+        # self.batch_norm_n_2 = nn.BatchNorm1d(opt.n_channels)
 
     def forward(self, x, node_rep):
 
+        if self.zeronuc:
+            x = torch.zeros(x.shape).to('cuda')
+        
         if self.nt_conv:
             x = self.nucleotide_conv_1(x)
             x = F.relu(x)
             x = self.batch_norm_n_1(x)
+
+        # x = self.nucleotide_conv_2(x)
+        # x = F.relu(x)
+        # x = self.batch_norm_n_2(x)
 
         bs, _, sl = x.shape
         _, n_h = node_rep.shape
@@ -61,6 +93,24 @@ class FullModel(nn.Module):
         x = self.batch_norm1(x)
 
         # x = self.dropout(x)
+        #
+        # t = x
+        #
+        # x = self.conv2(x)
+        # x = F.relu(x)
+        # x = self.batch_norm2(x)
+        #
+        # x = torch.add(x, t)
+        #
+        # x = self.dropout(x)
+        #
+        # t = x
+        #
+        # x = self.conv3(x)
+        # x = F.relu(x)
+        # x = self.batch_norm3(x)
+        #
+        # x = torch.add(x, t)
 
         out = self.out(x)
 
