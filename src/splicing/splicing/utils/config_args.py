@@ -279,8 +279,7 @@ def config_args(opt, config):
 
     opt.graph_data_root = path.join(
         config['DATA_DIRECTORY'], 
-        config['DATA_PIPELINE']['output_dir'], 
-        f"graphs_{opt.window_size}"
+        config['DATA_PIPELINE']['output_dir']
     )
     opt.dataset = path.join(opt.graph_data_root, opt.cell_type)
     opt.cuda = True #opt.no_cuda
