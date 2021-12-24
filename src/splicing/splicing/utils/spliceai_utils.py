@@ -21,11 +21,6 @@ with open("config.yaml", "r") as stream:
     except yaml.YAMLError as exc:
         print(exc)
 
-CL = config['DATA_PIPELINE']['context_length']
-SL = config['DATA_PIPELINE']['window_size']
-
-assert CL % 2 == 0
-
 # One-hot encoding of the inputs: 0 is for padding, and 1, 2, 3, 4 correspond
 # to A, C, G, T respectively.
 IN_MAP = np.asarray([[0, 0, 0, 0],
@@ -46,7 +41,8 @@ def ceil_div(x, y):
     return int(ceil(float(x) / y))
 
 
-def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end, chrom):
+def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end, chrom, \
+    window_size, context_length):
     # This function first converts the sequence into an integer array, where
     # A, C, G, T, N are mapped to 1, 2, 3, 4, 0 respectively. If the strand is
     # negative, then reverse complementing is done. The splice junctions 
@@ -110,8 +106,8 @@ def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end, chrom):
     # into chunks of length SL (plus context length for X's)
     # and storing each such chunk in separate row.
     # start location of each row stored in locs
-    Xd, Yd, locs = reformat_data(X0, Y0, tx_start)
-
+    Xd, Yd, locs = reformat_data(X0, Y0, tx_start, window_size, \
+         context_length)
 
     X, Y = one_hot_encode(Xd, Yd)
 
@@ -119,7 +115,7 @@ def create_datapoints(seq, strand, tx_start, tx_end, jn_start, jn_end, chrom):
     return X, Y, locs, chroms
 
 
-def reformat_data(X0, Y0, tx_start):
+def reformat_data(X0, Y0, tx_start, window_size, context_length):
     # This function converts X0, Y0 of the create_datapoints function into
     # blocks such that the data is broken down into data points where the
     # input is a sequence of length SL+CL_max corresponding to SL nucleotides
@@ -129,12 +125,12 @@ def reformat_data(X0, Y0, tx_start):
     # CL_max/2 on either side of the SL nucleotides of interest.
 
     #num_points = ceil_div(len(Y0[0]), SL)
-    num_points = int(len(Y0[0]) // SL)
+    num_points = int(len(Y0[0]) // window_size)
     locs = np.zeros(num_points)
 
     # create matrix of shape [# of sequences of length SL, SL + context window]
-    Xd = np.zeros((num_points, SL + CL))
-    Yd = [-np.ones((num_points, SL)) for t in range(1)]
+    Xd = np.zeros((num_points, window_size + context_length))
+    Yd = [-np.ones((num_points, window_size)) for t in range(1)]
 
     # add padding of size SL (e.g. 5000) to the end of the Xs and Ys
     #X0 = np.pad(X0, [0, SL], 'constant', constant_values=0)
@@ -143,18 +139,19 @@ def reformat_data(X0, Y0, tx_start):
 
     # populate rows with incremented sequence values
     for i in range(num_points):
-        Xd[i] = X0[SL * i:CL + SL * (i + 1)]
+        Xd[i] = X0[window_size * i:context_length + window_size * (i + 1)]
         # for debugging purposes
-        x_start = (tx_start - (CL // 2 + 1)) + SL * i
-        x_end = (tx_start - (CL // 2 + 1)) + CL + SL * (i + 1)
+        #x_start = (tx_start - (context_length // 2 + 1)) + window_size * i
+        #x_end = (tx_start - (context_length // 2 + 1)) + \
+        # context_length + window_size * (i + 1)
 
 
     # populate labels for all nucleotides in each incremental sequence
     # and store the locations
     for t in range(1):
         for i in range(num_points):
-            Yd[t][i] = Y0[t][SL * i:SL * (i + 1)]
-            locs[i] = tx_start + i * SL
+            Yd[t][i] = Y0[t][window_size * i:window_size * (i + 1)]
+            locs[i] = tx_start + i * window_size
 
     return Xd, Yd, locs
 

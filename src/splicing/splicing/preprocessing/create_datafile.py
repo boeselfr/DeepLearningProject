@@ -27,6 +27,14 @@ parser = argparse.ArgumentParser(
     description='Create the data files from the gtex dataset '
                 'and the DNA sequence.')
 parser.add_argument(
+    '-cl', '--context_length', dest='context_length',
+    choices = [80, 400],
+    type=int, default=400, help='The context length to use.')
+parser.add_argument(
+    '-ws', '--window_size', dest='window_size', 
+    choices = [1000, 5000], type=int, default=5000, 
+    help='Size of the pretrain batches and graph windows.')
+parser.add_argument(
     '-g', '--group', dest='group', type=str,
     help='The chromosome group to process. One of ["train", "test", "all"].')
 parser.add_argument(
@@ -35,6 +43,8 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+cl = args.context_length
+ws = args.window_size
 group = args.group
 paralog = args.paralog
 
@@ -70,14 +80,10 @@ CHROM_SIZE_FILE = os.path.join(
 )
 
 # data pipeline config
-CL_MAX = config['DATA_PIPELINE']['context_length']
-
 TRAIN_CHROMS = config['DATA_PIPELINE']['train_chroms']
 VALID_CHROMS = config['DATA_PIPELINE']['valid_chroms']
 TEST_CHROMS = config['DATA_PIPELINE']['test_chroms']
 ALL_CHROMS = TRAIN_CHROMS + VALID_CHROMS + TEST_CHROMS
-
-INTERVAL = config['DATA_PIPELINE']['window_size']
 
 if group == 'train':
     CHROM_GROUP = TRAIN_CHROMS
@@ -92,25 +98,25 @@ else:
 GENE_WINDOWS_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'gene_windows_{INTERVAL}_{CL_MAX}.bed'
+    f'gene_windows_{ws}_{cl}.bed'
 )
 
 GRAPH_WINDOWS_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'graph_windows_{INTERVAL}_{CL_MAX}.bed'
+    f'graph_windows_{ws}_{cl}.bed'
 )
 
 SEQUENCE_FILE_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'gtex_sequence_{INTERVAL}_{CL_MAX}.txt'
+    f'gtex_sequence_{ws}_{cl}.txt'
 )
 
 DATAFILE_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'datafile_{group}_{paralog}_{INTERVAL}_{CL_MAX}.h5'
+    f'datafile_{group}_{paralog}_{ws}_{cl}.h5'
 )
 
 ###############################################################################
@@ -118,16 +124,16 @@ DATAFILE_PATH = os.path.join(
 ###############################################################################
 
 # CL length adjustment after alignment modification
-CL_R = int(CL_MAX / 2) # 200
+CL_R = int(cl / 2) # 200
 CL_L = int(CL_R + 1) # 201
 
 
 def apply_adjustment(start, end):
     # round gene start/end down/up adjusting to graph
-    adj_start = (start // INTERVAL) * INTERVAL
-    adj_end = ((end // INTERVAL) + 1) * INTERVAL
+    adj_start = (start // ws) * ws
+    adj_end = ((end // ws) + 1) * ws
 
-    assert (adj_end - adj_start) % INTERVAL == 0, \
+    assert (adj_end - adj_start) % ws == 0, \
         "gene window index adjustment error"
 
     # add in extra context window for edge nucleotides
@@ -146,7 +152,7 @@ with open(CHROM_SIZE_FILE) as csvfile:
     csv_reader = csv.DictReader(csvfile, delimiter='\t',
                                 fieldnames=['chrom_name', 'length'])
     for csv_row in csv_reader:
-        lengths[csv_row['chrom_name']] = int(csv_row['length']) - INTERVAL
+        lengths[csv_row['chrom_name']] = int(csv_row['length']) - ws
 
 gene_windows_file_w = open(GENE_WINDOWS_PATH, 'w')
 
@@ -173,9 +179,9 @@ with open(SPLICE_TABLE_PATH, 'r') as fpr1:
             chrom + '\t' + str(cl_start) + '\t' + str(cl_end) + '\n')
 
         chrom_bins = chrom_bin_dict.get(chrom, [])
-        for i in range(int((adj_end - adj_start) / INTERVAL)):
+        for i in range(int((adj_end - adj_start) / ws)):
             chrom_bins.append(
-                (adj_start + i * INTERVAL, adj_start + (i + 1) * INTERVAL))
+                (adj_start + i * ws, adj_start + (i + 1) * ws))
         chrom_bin_dict[chrom] = chrom_bins
 
 gene_windows_file_w.close()
@@ -237,8 +243,8 @@ with open(SPLICE_TABLE_PATH, 'r') as fpr1:
         assert data1[2] == data2[0]
         assert cl_start == int(data2[1])
         assert cl_end == int(data2[2])
-        assert adj_start == int(data2[1]) + CL_MAX // 2 + 1
-        assert adj_end == int(data2[2]) - CL_MAX // 2
+        assert adj_start == int(data2[1]) + cl // 2 + 1
+        assert adj_end == int(data2[2]) - cl // 2
 
         if data1[2] not in CHROM_GROUP:
             continue

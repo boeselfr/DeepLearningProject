@@ -1,5 +1,5 @@
 
-DATA_DIRECTORY: /cluster/scratch/fboesel/data/deep-learning-project
+DATA_DIRECTORY: /cluster/scratch/cguerner/dl_data/splicing
 
 RAW_DATA:  
   splice_table: raw_data/gtex_dataset.txt
@@ -12,8 +12,8 @@ RAW_DATA:
 
 DATA_PIPELINE:
   output_dir: processed_data
-  context_length: 400
-  window_size: 5000
+  #context_length: 400
+  #window_size: 5000
   # max number of genes to be stored in a single h5 dataset.
   dataset_chunk_size: 2000
   train_chroms:

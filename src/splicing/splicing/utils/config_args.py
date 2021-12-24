@@ -55,11 +55,21 @@ def get_args(parser):
 
 
     ###########################################################################
-    # SpliceAI / Pretraining args
+    # Data params
     ###########################################################################
     parser.add_argument(
         '-cl', '--context_length', dest='context_length',
+        choices = [80, 400],
         type=int, default=400, help='The context length to use.')
+    parser.add_argument(
+        '-ws', '--window_size', dest='window_size', 
+        choices = [1000, 5000], type=int, default=5000, 
+        help='Size of the pretrain batches and graph windows.')
+
+
+    ###########################################################################
+    # SpliceAI / Pretraining args
+    ###########################################################################
     parser.add_argument(
         '-w', '--class_weights', type=int, nargs=3, default=(1, 1, 1),
         dest='class_weights', help='Class weights to use.')
@@ -85,13 +95,12 @@ def get_args(parser):
     parser.add_argument('-weight_decay', type=float, default=1e-6,
                         help='SGD weight decay')
     parser.add_argument('-nr_lr', type=float, default=0.001)
-    parser.add_argument('-gcn_lr', type=float, default=0.0001)
-    parser.add_argument('-full_lr', type=float, default=0.0001)
+    parser.add_argument('-gcn_lr', type=float, default=0.001)
+    parser.add_argument('-full_lr', type=float, default=0.001)
     
-
     # Scheduler: three types - StepLr, MultiStepLR, ReduceLROnPlateau
     parser.add_argument(
-        '-ft_sched', dest='ft_sched', type=str, default='multisteplr',
+        '-ft_sched', dest='ft_sched', type=str, default='reducelr',
         choices = ['steplr', 'multisteplr', 'reducelr'],
         help='Scheduler to use for finetuning'
     )
@@ -122,13 +131,11 @@ def get_args(parser):
 
     # Boost Graph
     parser.add_argument(
-        '-boost_graph', action='store_true',
-        help="If set, only trains the full model weights every 100 epochs"
+        '-boost_period', type=int, default=1,
+        help='Update full model weights only every x iterations,'\
+            'default 1 means updates every epoch.'
     )
-    parser.add_argument(
-        '-boost_period', type=int, default=10,
-        help='periodicity of full model training aswell'
-    )
+
     ###########################################################################
     ### Graph Model parameters
     ###########################################################################
@@ -161,7 +168,6 @@ def get_args(parser):
     #parser.add_argument("-rep_size", type=int, default=128, 
     #    help="Size of the initial node representation before 1D convolution")
     #parser.add_argument('-gate', action='store_true')
-
 
     ###########################################################################
     ### Graph initialization
@@ -209,7 +215,7 @@ def get_args(parser):
 
 def config_args(opt, config):
 
-    random_id = str(random.randint(1, 1000000))
+    opt.ft_random_id = str(random.randint(1, 1000000))
 
     # OUR DATA DIRECTORIES
     opt.splice_data_root = path.join(
@@ -241,20 +247,21 @@ def config_args(opt, config):
 
     # CNN args:
     kernel_size, dilation_rate, batch_size = get_architecture(
-        opt.context_length)
+        opt.context_length
+    )
 
     opt.kernel_size = kernel_size
     opt.dilation_rate = dilation_rate
     opt.batch_size = batch_size
 
-    opt.window_size = config['DATA_PIPELINE']['window_size']
-
-    opt.model_name = f'{opt.model_id}_graph.splice_ai'
+    opt.model_name = f'{opt.model_id}_splice_ai'
+    opt.model_name += '.ws_' + str(opt.window_size)
+    opt.model_name += '.cl_' + str(opt.context_length)
+    
     #opt.model_name += '.' + str(opt.optim)
-    opt.model_name += '.adam'
-    #opt.model_name += '.cl_' + str(opt.context_length)
-    opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
-
+    #opt.model_name += '.adam'
+    #opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
+    
     #if opt.lr_decay > 0:
     #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(
     #        '.', '') + '_' + str(opt.lr_step_size)
@@ -266,28 +273,20 @@ def config_args(opt, config):
         # opt.epochs = 1
 
     if opt.finetune:
-        opt.model_name += '/finetune' + '_' + random_id
-        opt.model_name += '.lr_' + str(opt.gcn_lr).split('.')[1]
-        opt.model_name += '.gcndrop_' + (
-                "%.2f" % opt.gcn_dropout).split('.')[1]
-        opt.model_name += '.' + str(opt.ft_optim)
-        opt.model_name += '.adj_' + opt.adj_type
-        if opt.adj_type == 'hic' or opt.adj_type == 'both':
-            opt.model_name += '.norm_' + opt.hicnorm
-        if opt.lr_decay > 0:
-            opt.model_name += '.decay_' + str(opt.lr_decay).replace(
-                '.', '') + '_' + str(opt.lr_step_size)
+        opt.model_name += '/finetune' + '_' + opt.ft_random_id
 
     opt.model_name = path.join(opt.results_dir, opt.cell_type, opt.model_name)
 
-    # TODO
     opt.graph_data_root = path.join(
-        config['DATA_DIRECTORY'], config['DATA_PIPELINE']['output_dir'], str(opt.window_size))
+        config['DATA_DIRECTORY'], 
+        config['DATA_PIPELINE']['output_dir'], 
+        f"graphs_{opt.window_size}"
+    )
     opt.dataset = path.join(opt.graph_data_root, opt.cell_type)
     opt.cuda = True #opt.no_cuda
 
-    if opt.load_gcn:
-        opt.model_name += '.load_gcn'
+    #if opt.load_gcn:
+    #    opt.model_name += '.load_gcn'
 
     # if (not opt.viz) \
     #         and (not opt.overwrite) \
@@ -302,6 +301,7 @@ def config_args(opt, config):
     #     elif 'y' not in overwrite_status.lower():
     #         exit(0)
 
+    # TODO: what is this doing? can we remove or clean up?
     if not opt.pretrain and not opt.save_feats:
         opt.batch_size = 16
     elif not opt.pretrain:
@@ -315,5 +315,7 @@ def config_args(opt, config):
         "Finetune model directory already exists"
 
     assert not opt.node_representation == "pca", "PCA is broken rn"
+
+    assert opt.context_length % 2 == 0
 
     return opt
