@@ -162,7 +162,7 @@ def get_args(parser):
         help='compnents that the 5000 features get reduced to for the node representation')
     parser.add_argument('-gcn_dropout', type=float, default=0.2)
     parser.add_argument('-nr_model', type=str, default="clem_bn",
-        choices = ["fredclem", "clem_drop", "clem_bn", "clem_bn_end", "clem_bn_start"], 
+        choices = ["clem_bn", "linbig", "linmed", "linsmall"], 
         help='Version of the node representation architecture to use.')
 
     #parser.add_argument("-rep_size", type=int, default=128, 
@@ -192,7 +192,7 @@ def get_args(parser):
         dest='hidden_size_full',
         help='The dimensionality of the hidden layer in the final network.')
     parser.add_argument(
-        '-zeronuc', action='store_true'
+        '-nt_conv', action='store_true', default=False
     )
 
     ###########################################################################

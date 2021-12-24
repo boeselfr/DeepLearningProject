@@ -52,7 +52,7 @@ def get_wandb_config(opt):
 
     config.gcn_dropout = opt.gcn_dropout
     
-    config.zero_nuc = opt.zeronuc
+    config.nt_conv = opt.nt_conv
     config.boost_period = opt.boost_period
 
 
