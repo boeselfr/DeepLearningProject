@@ -73,11 +73,13 @@ def run_model(base_model, graph_model, full_model, datasets,
         if opt.finetune:
             datasets = shuffle_chromosomes(datasets)
 
-        if scheduler and (opt.pretrain or opt.lr_decay > 0) and epoch > 1:
-            if opt.ft_sched == "multisteplr":
+        if scheduler and epoch > 1:
+            if ((opt.pretrain and opt.cnn_sched == "multisteplr") or
+                (opt.finetune and opt.ft_sched == "multisteplr")):
                 scheduler.step()
-            elif (opt.ft_sched in ["reducelr", "steplr"] and 
-                    epoch % len(datasets['train']) == 0):
+            elif (((opt.pretrain and opt.cnn_sched in ["reducelr", "steplr"]) or
+                (opt.finetune and opt.ft_sched in ["reducelr", "steplr"])) and 
+                epoch % len(datasets['train']) == 0):
                 scheduler.step(valid_loss)
 
         train_loss, valid_loss = 0, 0

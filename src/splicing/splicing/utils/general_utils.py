@@ -142,7 +142,7 @@ def get_scheduler(opt, optimizer, len_datasets):
     elif opt.ft_sched == "reducelr":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
-            mode='max',
+            mode='min',
             factor=opt.rlr_factor,
             patience=opt.rlr_patience,
             threshold=opt.rlr_threshold

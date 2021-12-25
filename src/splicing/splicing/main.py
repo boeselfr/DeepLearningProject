@@ -166,14 +166,24 @@ def main(opt):
     if opt.pretrain or opt.save_feats:
         # default schedule: 6 epochs at 0.001, then halve lr every epoch
         optimizer = torch.optim.Adam(
-            base_model.parameters(), lr=opt.cnn_lr
-        )
-        step_size_milestones = [(train_data_file.attrs['n_datasets'] * x) + 1 \
-            for x in [6, 7, 8, 9, 10]]
-        scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=step_size_milestones, 
-            gamma=0.5, verbose=False
-        )
+                base_model.parameters(), lr=opt.cnn_lr
+            )
+        if opt.cnn_sched == "multisteplr":
+            step_size_milestones = [(train_data_file.attrs['n_datasets'] * x) + 1 \
+                for x in [6, 7, 8, 9, 10]]
+            scheduler = torch.torch.optim.lr_scheduler.MultiStepLR(
+                optimizer, milestones=step_size_milestones, 
+                gamma=0.5, verbose=False
+            )
+        elif opt.cnn_sched == "reducelr":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer,
+                mode='min',
+                factor=opt.rlr_factor,
+                patience=opt.rlr_patience,
+                threshold=opt.rlr_threshold,
+                verbose=True
+            )
     elif opt.finetune:
         optimizer = get_optimizer(
             graph_model, full_model, opt

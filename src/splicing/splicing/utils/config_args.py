@@ -77,6 +77,10 @@ def get_args(parser):
         '-npass', '--passes', type=int, default=10,
         dest='passes', help='Number of passes over the train dataset to do.')
     parser.add_argument('-cnn_lr', type=float, default=0.001)
+    parser.add_argument('-cnn_sched', type=str, default='reducelr',
+        choices = ['multisteplr', 'reducelr'],
+        help='Scheduler to use for pretraining'
+    )
 
 
     ###########################################################################
