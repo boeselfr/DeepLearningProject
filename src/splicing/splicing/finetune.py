@@ -46,14 +46,14 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     # we need it also for the constant case, thus always has to be loaded
     bin_dict_file = path.join(
         opt.graph_data_root,
-        f'test_val_train_bin_dict_{opt.hicsize}_{opt.hicnorm}norm.pkl'
+        f'{opt.window_size}_test_val_train_bin_dict_{opt.hicsize}_{opt.hicnorm}norm.pkl'
     )
     bin_dict = pickle.load(open(bin_dict_file, "rb"))
 
     if opt.adj_type in ['hic', 'both']:
         graph_file = path.join(
             opt.graph_data_root,
-            split + '_graphs_' + opt.hicsize + '_' + opt.hicnorm + 'norm.pkl')
+            f"{opt.window_size}_{split}_graphs_{opt.hicsize}_{opt.hicnorm}norm.pkl")
         split_adj_dict = pickle.load(open(graph_file, "rb"))
     else:
         split_adj_dict = None
@@ -64,7 +64,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         path.join(
             opt.model_name.split('/finetune')[0],
             f'chrom_feature_dict_{split}_chr{chromosome}.pt'
-        )
+        ), map_location='cpu'
     )
 
     xs = chromosome_data['x']

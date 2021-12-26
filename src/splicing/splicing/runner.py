@@ -83,6 +83,14 @@ def run_model(base_model, graph_model, full_model, datasets,
         train_loss, valid_loss = 0, 0
         if not opt.load_gcn and not (opt.test_baseline or opt.test_graph):
             # TRAIN
+            if opt.boost_period > 1:
+                if epoch % opt.boost_period != 0:
+                    # only update the full model every 100 epochs
+                    for param in full_model.parameters():
+                        param.requires_grad = False
+                else:
+                    for param in full_model.parameters():
+                        param.requires_grad = True
             train_predictions, train_targets, train_loss, elapsed = run_epoch(
                 base_model, graph_model, full_model, datasets,
                 criterion, optimizer, epoch, opt, 'train')

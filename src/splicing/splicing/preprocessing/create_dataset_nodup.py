@@ -24,6 +24,15 @@ start_time = time.time()
 
 parser = argparse.ArgumentParser(
     description='Create the model-compatible datasets.')
+
+parser.add_argument(
+    '-cl', '--context_length', dest='context_length',
+    choices = [80, 400],
+    type=int, default=400, help='The context length to use.')
+parser.add_argument(
+    '-ws', '--window_size', dest='window_size', 
+    choices = [1000, 5000], type=int, default=5000, 
+    help='Size of the pretrain batches and graph windows.')
 parser.add_argument(
     '-g', '--group', dest='group', type=str,
     help='The chromosome group to process. One of ["train", "test", "all"].')
@@ -33,6 +42,8 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+cl = args.context_length
+ws = args.window_size
 group = args.group
 paralog = args.paralog
 
@@ -51,9 +62,6 @@ with open("config.yaml", "r") as stream:
 
 DATA_DIR = config['DATA_DIRECTORY']
 
-INTERVAL = config['DATA_PIPELINE']['window_size']
-CL_MAX = config['DATA_PIPELINE']['context_length']
-
 # CHUNK_SIZE: max number of genes to be stored in a single h5 dataset.
 CHUNK_SIZE = config['DATA_PIPELINE']['dataset_chunk_size']
 
@@ -61,14 +69,14 @@ CHUNK_SIZE = config['DATA_PIPELINE']['dataset_chunk_size']
 DATAFILE_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'datafile_{group}_{paralog}_{INTERVAL}_{CL_MAX}.h5'
+    f'datafile_{group}_{paralog}_{ws}_{cl}.h5'
 )
 
 # outputs
 DATASET_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'dataset_{group}_{paralog}_{INTERVAL}_{CL_MAX}.h5'
+    f'dataset_{group}_{paralog}_{ws}_{cl}.h5'
 )
 
 ###############################################################################
@@ -113,7 +121,7 @@ for chrom in chroms:
                 SEQ[idx], STRAND[idx],
                 TX_START[idx], TX_END[idx],
                 JN_START[idx], JN_END[idx], 
-                CHROM[idx]
+                CHROM[idx], ws, cl
             )
             
             for i, loc in enumerate(locations):
