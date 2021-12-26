@@ -53,8 +53,9 @@ def get_wandb_config(opt):
     config.gcn_dropout = opt.gcn_dropout
     
     config.zero_nuc = opt.zeronuc
+    config.zero_nodes = opt.zeronodes
     config.boost_period = opt.boost_period
-
+    config.node_headstart = opt.node_headstart
 
     return config
 

@@ -188,7 +188,7 @@ def load_pretrained_base_model(opt, config):
         base_models = []
 
         model_fnames = [
-            fname for fname in os.listdir(opt.test_models_dir)
+            fname for fname in os.listdir(opt.test_baseline_models_dir)
             if fname[-3:] == '.h5']
 
         for model_fname in model_fnames:
@@ -197,9 +197,10 @@ def load_pretrained_base_model(opt, config):
                 config.n_channels,
                 config.kernel_size,
                 config.dilation_rate
-            )
+            ).to('cuda')
 
-            checkpoint_path = path.join(opt.test_models_dir, model_fname)
+            checkpoint_path = path.join(
+                opt.test_baseline_models_dir, model_fname)
 
             load_base_checkpoint(base_model, checkpoint_path)
 
@@ -234,6 +235,76 @@ def load_pretrained_base_model(opt, config):
     return base_model
 
 
+def load_finetuned_checkpoint(graph_model, checkpoint_path, splice_ai_device):
+
+    logging.info(f'==> Loading saved graph_model {checkpoint_path}')
+
+    checkpoint = torch.load(checkpoint_path,
+                            map_location=torch.device(splice_ai_device))
+
+    graph_model.load_state_dict(checkpoint['model'])
+
+
+def load_pretrained_graph_model(opt, config):
+    from splicing.models.geometric_models import SpliceGraph, FullModel
+    from splicing.models.geometric_models import SpliceGraphEnsemble, \
+    FullModelEnsemble
+
+    graph_models, full_models = [], []
+
+    graph_model_fnames = [
+        fname for fname in sorted(os.listdir(
+            path.join(opt.test_graph_models_dir, 'graph_models')))
+        if fname[-3:] == '.h5']
+    full_model_fnames = [
+        fname for fname in sorted(os.listdir(
+            path.join(opt.test_graph_models_dir, 'full_models')))
+        if fname[-3:] == '.h5']
+
+    for graph_model_fname, full_model_fname in zip(
+            graph_model_fnames, full_model_fnames):
+
+        graph_model = SpliceGraph(opt).to('cpu')
+        full_model = FullModel(opt, device='cpu').to('cpu')
+
+        graph_checkpoint_path = path.join(
+            opt.test_graph_models_dir, 'graph_models', graph_model_fname)
+
+        full_checkpoint_path = path.join(
+            opt.test_graph_models_dir, 'full_models', full_model_fname)
+
+        load_finetuned_checkpoint(
+            graph_model, graph_checkpoint_path, 'cpu')
+        load_finetuned_checkpoint(
+            full_model, full_checkpoint_path, 'cpu')
+
+        graph_model.eval()
+        full_model.eval()
+
+        graph_models.append(graph_model)
+        full_models.append(full_model)
+
+    graph_model = SpliceGraphEnsemble(graph_models)
+    full_model = FullModelEnsemble(full_models, opt.window_size)
+
+    return graph_model.cuda(), full_model.cuda()
+
+
+def save_model(opt, epoch, model, model_type='base'):
+
+    model_suffix = f'{model_type}' \
+                   f'_e{epoch // opt.full_validation_interval}' \
+                   f'_cl{opt.context_length}' \
+                   f'_g{opt.model_index}.h5'
+
+    checkpoint = {'model': model.state_dict(), 'settings': opt, 'epoch': epoch}
+
+    directory_setup(opt.model_name)
+    model_fname = path.join(opt.model_name, model_suffix)
+    logging.info(f'Saving model {model_fname}')
+    torch.save(checkpoint, model_fname)
+
+
 def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
     # logging.info(f'Saving features for model {model_name}.')
 
@@ -261,53 +332,3 @@ def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
         location_feature_dict['x'][location] = x
         location_feature_dict['y'][location] = y
     torch.save(location_feature_dict, data_fname)
-
-
-# Deprecated
-def save_feats_per_chromosome(
-        model_name, split, Y, locations, X, chromosomes, epoch):
-    # logging.info(f'Saving features for model {model_name}.')
-
-    features_dir = model_name.split('/finetune')[0]
-    directory_setup(features_dir)
-    all_chromosomes = set(chromosomes)
-    data_fnames = {
-        chromosome: path.join(
-            features_dir, f'chrom_feature_dict_{split}_chr{chromosome}.pt')
-        for chromosome in all_chromosomes
-    }
-
-    location_feature_dict = {}
-    location_index_dict = {}
-
-    for chromosome in all_chromosomes:
-        if path.exists(data_fnames[chromosome]):
-            location_feature_dict[chromosome] = torch.load(
-                data_fnames[chromosome])
-        else:
-            location_feature_dict[chromosome] = {
-                'x': {}, 'y': {}
-            }
-
-    for chromosome in all_chromosomes:
-        location_index_dict[chromosome] = {}
-
-    for idx, (chromosome, location) in enumerate(zip(chromosomes, locations)):
-        if location not in location_index_dict[chromosome]:
-            location_index_dict[chromosome][location] = []
-        location_index_dict[chromosome][location].append(idx)
-
-    for chromosome in all_chromosomes:
-        for location in location_index_dict[chromosome].keys():
-            chrom_indices = torch.Tensor(
-                location_index_dict[chromosome][location]).long()
-            x = torch.index_select(X, 0, chrom_indices)
-            y = torch.index_select(Y, 0, chrom_indices)
-            location_feature_dict[chromosome]['x'][location] = x
-            location_feature_dict[chromosome]['y'][location] = y
-
-    for chromosome in all_chromosomes:
-        torch.save(location_feature_dict[chromosome], data_fnames[chromosome])
-
-
-

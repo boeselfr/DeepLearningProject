@@ -64,17 +64,12 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         path.join(
             opt.model_name.split('/finetune')[0],
             f'chrom_feature_dict_{split}_chr{chromosome}.pt'
-        ), map_location='cpu'
+        ), map_location=torch.device('cpu')
     )
 
     xs = chromosome_data['x']
     ys = chromosome_data['y']
 
-    #chromosome_dataset = ChromosomeDataset(xs, ys)
-    #dataloader = DataLoader(
-    #    chromosome_dataset, batch_size=opt.graph_batch_size, shuffle=False)
-
-    # nodes.requires_grad = True
     xs = torch.stack([(xs[loc][0]) for loc in xs])
     ys = torch.stack([(ys[loc][0]) for loc in ys])
 
@@ -91,33 +86,33 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     graph_loader = NeighborLoader(
         graph_data, 
         num_neighbors=[-1],
-        batch_size = opt.graph_batch_size
+        batch_size=opt.graph_batch_size
     )
 
     desc_i = f'({str.upper(SPLIT2DESC[split])} on chromosome {chromosome})'
     logging.info(f'{desc_i} - batch size {opt.graph_batch_size}, nbatches '
                  f' {len(graph_loader)}')
 
-    #a, f = get_gpu_stats()
+    # a, f = get_gpu_stats()
 
     analyze_grad_interval = math.ceil(len(graph_loader) / 100)
 
     for batch, graph_batch in tqdm(enumerate(graph_loader), leave=False,
-                                total=len(graph_loader), desc=desc_i):
+                                   total=len(graph_loader), desc=desc_i):
 
         _x = graph_batch['x'].to('cuda')
         _y = graph_batch['y'].to('cuda')
         _edge_index = graph_batch['edge_index'].to('cuda')
 
-        #_x.requires_grad = True
-        #a, f = get_gpu_stats()
+        # a, f = get_gpu_stats()
+
         node_representation = graph_model(_x, _edge_index, opt)
+        if epoch <= opt.node_headstart * len(chromosomes):
+            _x = torch.zeros(_x.shape).to('cuda')
 
-        #l_ix = opt.graph_batch_size * batch
-        #u_ix = opt.graph_batch_size * (batch + 1)
+        _x.requires_grad = opt.ingrad
+        # node_representation.requires_grad = opt.ingrad
 
-        #batch_node_representation = node_representation[l_ix: u_ix, :]
-        #_y_hat = full_model(_x, batch_node_representation)
         _y_hat = full_model(_x, node_representation)
 
         loss = criterion(_y_hat, _y)
@@ -129,27 +124,24 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             optimizer.step()
 
             if batch % 100 == 0 and opt.wandb:
-                #start = time.time()
                 analyze_gradients(
                     graph_model, full_model, _x, node_representation, opt
                 )
-                #end = time.time()
-                #logging.info(f"gradient_reporting: {end-start}")
-        
 
-        total_loss += loss.sum().item()
-        all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
-        all_targets = torch.cat((all_targets, _y.cpu().data), 0)
+        if split != 'train':
+            total_loss += loss.sum().item()
+            all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
+            all_targets = torch.cat((all_targets, _y.cpu().data), 0)
 
         # wandb reporting
         if split == 'train':
             optimizer.zero_grad()
             if batch % 25 == 0 and opt.wandb:
                 report_wandb(_y_hat, _y, loss, opt, split, step=batch)
-        else:
+        elif opt.wandb:
             report_wandb(_y_hat, _y, loss, opt, split, step=batch)
 
-    if epoch == opt.finetune_epochs:
-        save_node_representations(graph_data.x, chromosome, opt)
+    # if epoch == opt.finetune_epochs:
+    #     save_node_representations(graph_data.x, chromosome, opt)
 
     return all_preds, all_targets, total_loss
