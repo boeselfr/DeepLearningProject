@@ -2,23 +2,16 @@ import os.path as path
 import pickle
 import logging
 
-import numpy as np
 import math
 from tqdm import tqdm
-import time
 
 import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.loader import NeighborLoader
 
 from splicing.utils.general_utils import SPLIT2DESC, IX2CHR
-from splicing.utils.graph_utils import process_graph, \
-    build_node_representations, save_node_representations
+from splicing.utils.graph_utils import process_graph
 from splicing.utils.wandb_utils import report_wandb, analyze_gradients
-
-from splicing.data_models.splice_dataset import ChromosomeDataset
 
 
 def get_gpu_stats():
@@ -101,7 +94,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
                                    total=len(graph_loader), desc=desc_i):
 
         _x = graph_batch['x'].to('cuda')
-        _y = graph_batch['y'].to('cuda')
+        _y = graph_batch['y'].to('cuda' if split != 'test' else 'cpu')
         _edge_index = graph_batch['edge_index'].to('cuda')
 
         # a, f = get_gpu_stats()

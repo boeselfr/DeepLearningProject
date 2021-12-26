@@ -85,7 +85,7 @@ def print_topl_statistics(
             # f': {prediction_type}': no_positive_predictions / len(idx_true),
         })
 
-# Training functions 
+# Training functions
 def shuffle_chromosomes(datasets):
     for key in ['train', 'test', 'valid']:
         datasets[key] = datasets[key][
@@ -94,7 +94,7 @@ def shuffle_chromosomes(datasets):
     return datasets
 
 def get_optimizer(graph_model, full_model, opt):
-    
+
     nr_params = []
     gcn_params = []
     other_graph_params = []
@@ -105,7 +105,7 @@ def get_optimizer(graph_model, full_model, opt):
             gcn_params.append(param)
         else:
             other_graph_params.append(param)
-    
+
     if opt.ft_optim == 'adam':
         optimizer = torch.optim.Adam(
             [
@@ -136,7 +136,7 @@ def get_scheduler(opt, optimizer, len_datasets):
         )
     elif opt.ft_sched == "steplr":
         scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=opt.lr_step_size, 
+            optimizer, step_size=opt.lr_step_size,
             gamma=opt.lr_decay, verbose=False
         )
     elif opt.ft_sched == "reducelr":
@@ -149,7 +149,7 @@ def get_scheduler(opt, optimizer, len_datasets):
         )
     else:
         scheduler = None
-    return scheduler 
+    return scheduler
 
 
 # Model loading, model utils
@@ -248,7 +248,7 @@ def load_finetuned_checkpoint(graph_model, checkpoint_path, splice_ai_device):
 def load_pretrained_graph_model(opt, config):
     from splicing.models.geometric_models import SpliceGraph, FullModel
     from splicing.models.geometric_models import SpliceGraphEnsemble, \
-    FullModelEnsemble
+        FullModelEnsemble
 
     graph_models, full_models = [], []
 
@@ -265,7 +265,7 @@ def load_pretrained_graph_model(opt, config):
             graph_model_fnames, full_model_fnames):
 
         graph_model = SpliceGraph(opt).to('cpu')
-        full_model = FullModel(opt, device='cpu').to('cpu')
+        full_model = FullModel(opt, device='cuda').to('cpu')
 
         graph_checkpoint_path = path.join(
             opt.test_graph_models_dir, 'graph_models', graph_model_fname)
