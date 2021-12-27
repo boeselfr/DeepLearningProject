@@ -91,7 +91,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     graph_loader = NeighborLoader(
         graph_data, 
         num_neighbors=[-1],
-        batch_size = opt.graph_batch_size
+        batch_size = opt.graph_batch_size,
+        drop_last=True
     )
 
     desc_i = f'({str.upper(SPLIT2DESC[split])} on chromosome {chromosome})'

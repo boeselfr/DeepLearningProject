@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, BatchNorm, \
-    Linear, Sequential
+    Linear, Sequential, InstanceNorm
 
 from splicing.utils.general_utils import compute_conv1d_lout
 from splicing.utils.graph_utils import build_node_representations
@@ -197,7 +197,10 @@ class SpliceGraph(torch.nn.Module):
         self.gcn_conv = GCNConv(n_channels, opt.hidden_size)
         self.gcn_lin = Linear(n_channels, opt.hidden_size)
         self.gcn_gate = Linear(opt.hidden_size, opt.hidden_size)
-        self.gcn_bn = BatchNorm(opt.hidden_size)
+        if opt.adj_type != 'none':
+            self.gcn_bn = BatchNorm(opt.hidden_size)
+        else:
+            self.gcn_bn = InstanceNorm(opt.hidden_size)
         self.gcn_dropout = nn.Dropout(opt.gcn_dropout)
 
         #nn.BatchNorm(opt.hidden_size)
