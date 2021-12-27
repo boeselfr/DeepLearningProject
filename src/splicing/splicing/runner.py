@@ -78,8 +78,8 @@ def run_model(base_model, graph_model, full_model, datasets,
                 (opt.finetune and opt.ft_sched == "multisteplr")):
                 scheduler.step()
             elif (((opt.pretrain and opt.cnn_sched in ["reducelr", "steplr"]) or
-                (opt.finetune and opt.ft_sched in ["reducelr", "steplr"])) and 
-                epoch % len(datasets['train']) == 0):
+                (opt.finetune and opt.ft_sched in ["reducelr", "steplr"]))
+                and epoch % opt.full_validation_interval == 1 and valid_loss != 0):
                 scheduler.step(valid_loss)
 
         train_loss, valid_loss = 0, 0

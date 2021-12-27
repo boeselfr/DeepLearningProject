@@ -77,7 +77,7 @@ def get_args(parser):
         '-npass', '--passes', type=int, default=10,
         dest='passes', help='Number of passes over the train dataset to do.')
     parser.add_argument('-cnn_lr', type=float, default=0.001)
-    parser.add_argument('-cnn_sched', type=str, default='reducelr',
+    parser.add_argument('-cnn_sched', type=str, default='multisteplr',
         choices = ['multisteplr', 'reducelr'],
         help='Scheduler to use for pretraining'
     )
@@ -128,7 +128,7 @@ def get_args(parser):
             'learning rate will be reduced.' 
     )
     parser.add_argument(
-        '-rlr_threshold', type=int, default=1e-4,
+        '-rlr_threshold', type=int, default=1e-2,
         help="Threshold for measuring the new optimum, to only "\
             "focus on significant changes."
     )
