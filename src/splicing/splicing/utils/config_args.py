@@ -52,6 +52,10 @@ def get_args(parser):
     parser.add_argument(
         '-li', '--log_interval', type=int, default=32,
         dest='log_interval', help='Per how many updates to log to WandB.')
+    parser.add_argument(
+        '-test', action='store_true', 
+        help="Compute test scores at every full validation interval"
+    )
 
 
     ###########################################################################
