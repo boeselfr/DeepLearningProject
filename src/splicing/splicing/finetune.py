@@ -113,6 +113,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         #a, f = get_gpu_stats()
 
         if split == 'train':
+            if opt.ingrad:
+                node_representation.retain_grad()
             loss.backward()
             optimizer.step()
 

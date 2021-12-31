@@ -108,9 +108,19 @@ def run_model(base_model, graph_model, full_model, datasets,
                     run_epoch(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
+                # FULL TEST
+                test_predictions, test_targets, test_loss, elapsed = \
+                    run_epoch(base_model, graph_model, full_model, datasets,
+                              criterion, optimizer, epoch, opt, 'test')
+
                 pass_end(
                     elapsed, valid_predictions.numpy(), valid_targets.numpy(),
                     valid_loss, opt, split='full_valid',
+                    step=epoch // opt.full_validation_interval)
+
+                pass_end(
+                    elapsed, test_predictions.numpy(), test_targets.numpy(),
+                    test_loss, opt, split='full_test',
                     step=epoch // opt.full_validation_interval)
 
                 if opt.pretrain:
