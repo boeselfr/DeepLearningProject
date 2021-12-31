@@ -145,7 +145,8 @@ def get_scheduler(opt, optimizer, len_datasets):
             mode='min',
             factor=opt.rlr_factor,
             patience=opt.rlr_patience,
-            threshold=opt.rlr_threshold
+            threshold=opt.rlr_threshold,
+            verbose=True
         )
     else:
         scheduler = None
