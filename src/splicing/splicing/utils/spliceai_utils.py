@@ -210,7 +210,7 @@ def get_architecture(size, N_GPUS=1):
 
 
 def get_data(h5f, available_chromosomes, context_length, batch_size,
-             full=False, chromosome=None):
+             full=False, chromosome=None, device='cuda'):
     from splicing.data_models.splice_dataset import SpliceDataset
     from torch.utils.data import DataLoader, ConcatDataset
 
@@ -221,7 +221,7 @@ def get_data(h5f, available_chromosomes, context_length, batch_size,
         locs = np.asarray(h5f[dchromosome + '_Locations' + str(dix)][:],
                           dtype=np.float32)
 
-        return SpliceDataset(X, y, locs, context_length)
+        return SpliceDataset(X, y, locs, context_length, device=device)
 
     if not full:
         if chromosome is None:  # return a random chunk

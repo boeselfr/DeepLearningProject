@@ -20,9 +20,9 @@ from splicing.utils.config_args import config_args, get_args
 from splicing.utils.wandb_utils import get_wandb_config
 from splicing.utils.general_utils import CHR2IX, count_parameters, \
     get_optimizer, get_scheduler, get_criterion, \
-        load_pretrained_base_model
+    load_pretrained_base_model, load_pretrained_graph_model
 
-from splicing.models.splice_ai import SpliceAI, SpliceAIEnsemble
+from splicing.models.splice_ai import SpliceAI
 from splicing.models.geometric_models import SpliceGraph, FullModel
 from splicing.runner import run_model
 
@@ -58,7 +58,7 @@ def main(opt):
 
     # Loading Dataset
     logging.info('==> Loading Data')
-    if opt.finetune:
+    if opt.finetune or opt.test_graph:
         # features_dir = opt.model_name.split('.finetune')[0]
 
         datasets = {
@@ -86,7 +86,8 @@ def main(opt):
 
         test_data_file = h5py.File(path.join(
             opt.splice_data_root, 
-            f'dataset_test_0_{opt.window_size}_{opt.context_length}.h5'), 'r')
+            f'dataset_test_all_{opt.window_size}_{opt.context_length}.h5'),
+            'r')
 
         opt.full_validation_interval = train_data_file.attrs['n_datasets']
 
@@ -115,23 +116,30 @@ def main(opt):
             wandb_project_name = 'pretrain'
         elif opt.finetune:
             wandb_project_name = 'finetune'
+        elif opt.test_baseline:
+            wandb_project_name = 'test_baseline'
+        elif opt.test_graph:
+            wandb_project_name = 'test_graph'
         wandb.init(
             entity='splicegraph', project=wandb_project_name, config=config, name=config.name
         )
 
+    base_model = None
+    graph_model, full_model = None, None
     # Initialize Models
     if opt.load_pretrained:
-        base_model = load_pretrained_base_model(opt, config)
+        if opt.test_graph:
+            # currently, the only reason to load pretrained
+            # graph model is to test it
+            graph_model, full_model = load_pretrained_graph_model(opt, config)
+        else:
+            base_model = load_pretrained_base_model(opt, config)
     else:
         base_model = SpliceAI(
             opt.n_channels,
             opt.kernel_size,
             opt.dilation_rate
         )
-
-    opt.total_num_parameters = int(count_parameters(base_model))
-
-    graph_model, full_model = None, None
 
     # if fine_tuning, create the SpliceGraph and Full Model
     if opt.finetune:
@@ -195,7 +203,8 @@ def main(opt):
 
     if torch.cuda.is_available() and opt.cuda:
         criterion = criterion.cuda()
-        base_model = base_model.cuda()
+        if base_model is not None:
+            base_model = base_model.cuda()
         if graph_model is not None:
             graph_model = graph_model.cuda()
         if full_model is not None:
@@ -205,7 +214,7 @@ def main(opt):
 
     try:
         run_model(base_model, graph_model, full_model, datasets, criterion,
-                  optimizer, scheduler, opt, logger=None)
+                  optimizer, scheduler, opt)
     except KeyboardInterrupt:
         logging.info('-' * 89 + '\nManual Exit')
         exit()

@@ -53,8 +53,9 @@ def get_wandb_config(opt):
     config.gcn_dropout = opt.gcn_dropout
     
     config.zero_nuc = opt.zeronuc
+    config.zero_nodes = opt.zeronodes
     config.boost_period = opt.boost_period
-
+    config.node_headstart = opt.node_headstart
 
     return config
 
@@ -91,6 +92,7 @@ def report_wandb(predictions, targets, loss, opt, split, step):
     
 
 def analyze_gradients(graph_model, full_model, _x, nodes, opt):
+
     log_message = {}
     try:
         nucleotide_grad = list(
@@ -112,15 +114,14 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
                 nucleotide_weight.detach().cpu().numpy()) / opt.n_channels,
             'full_weight/full_node': np.linalg.norm(
                 node_weight.detach().cpu().numpy()) / opt.hidden_size,
-            #'node_gradients/node_grad': np.linalg.norm(
-            #    nodes.grad.detach().cpu().numpy()) / len(nodes),
-            #'node_representations/node_weights': np.linalg.norm(
-            #    nodes.detach().cpu().numpy()) / len(nodes),
-            #'nucleotide_gradients/nucleotide_grad': np.linalg.norm(
-            #    _x.grad.detach().cpu().numpy()) / len(_x),
         }
     except AttributeError:
         pass
+    if opt.ingrad:
+        log_message['input_gradients/windows'] = np.linalg.norm(
+           nodes.grad.detach().cpu().numpy()) / (nodes.shape[0] * nodes.shape[1])
+        log_message['input_gradients/nucleotides'] = np.linalg.norm(
+           _x.grad.detach().cpu().numpy()) / (_x.shape[0] * _x.shape[1])
 
     for jj, param in enumerate(full_model.named_parameters()):
     
@@ -137,8 +138,8 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
 
             log_message[f'full_grad/{param_name}'] = np.linalg.norm(
                 param_grad.detach().cpu().numpy()) / m
-            log_message[f'full_weight/{param_name}'] = np.linalg.norm(
-                param_data.detach().cpu().numpy()) / m
+            # log_message[f'full_weight/{param_name}'] = np.linalg.norm(
+            #     param_data.detach().cpu().numpy()) / m
 
     for jj, param in enumerate(graph_model.named_parameters()):
         param_name = param[0]
@@ -152,8 +153,8 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
 
             log_message[f'graph_grad/{param_name}'] = np.linalg.norm(
                 param_grad.detach().cpu().numpy()) / m
-            log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
-                param_data.detach().cpu().numpy()) / m
+            # log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
+            #     param_data.detach().cpu().numpy()) / m
 
     wandb.log(log_message)
 

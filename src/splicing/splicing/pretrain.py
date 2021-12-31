@@ -42,7 +42,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         if opt.pretrain and split == 'train':
             optimizer.zero_grad()
 
-        y_hat, x, _ = base_model(X)
+        y_hat, x, _ = base_model(X, save_feats=opt.save_feats)
 
         if opt.test_baseline:
             y = y.cpu()
