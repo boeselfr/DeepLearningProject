@@ -202,7 +202,10 @@ def get_args(parser):
         dest='hidden_size_full',
         help='The dimensionality of the hidden layer in the final network.')
     parser.add_argument(
-        '-nt_conv', action='store_true', default=False
+        '-nt_conv', action='store_true'
+    )
+    parser.add_argument(
+        '-zeronuc', action='store_true'
     )
     parser.add_argument(
         '-zeronodes', action='store_true'
