@@ -118,6 +118,7 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
         }
     except AttributeError:
         pass
+
     if opt.ingrad:
         log_message['input_gradients/windows'] = np.linalg.norm(
            nodes.grad.detach().cpu().numpy()) / (nodes.shape[0] * nodes.shape[1])
@@ -154,8 +155,8 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
 
             log_message[f'graph_grad/{param_name}'] = np.linalg.norm(
                 param_grad.detach().cpu().numpy()) / m
-            # log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
-            #     param_data.detach().cpu().numpy()) / m
+            log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
+                param_data.detach().cpu().numpy()) / m
 
     wandb.log(log_message)
 

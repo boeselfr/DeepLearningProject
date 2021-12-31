@@ -131,7 +131,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         # wandb reporting
         if split == 'train':
             optimizer.zero_grad()
-            if batch % 25 == 0 and opt.wandb:
+            if batch % 100 == 0 and opt.wandb:
                 report_wandb(_y_hat, _y, loss, opt, split, step=batch)
         elif opt.wandb:
             report_wandb(_y_hat, _y, loss, opt, split, step=batch)

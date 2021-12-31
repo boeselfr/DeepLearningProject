@@ -41,11 +41,6 @@ class FullModel(nn.Module):
 
         self.out_act = nn.Softmax(dim=1)
 
-        self.nucleotide_conv_1 = nn.Conv1d(
-            in_channels=opt.n_channels,
-            out_channels=opt.n_channels,
-            kernel_size=1)
-        self.batch_norm_n_1 = nn.BatchNorm1d(opt.n_channels)
 
     def forward(self, x, node_rep):
         
@@ -84,16 +79,17 @@ class SpliceGraph(torch.nn.Module):
         super().__init__()
         
         self.node_representation = opt.node_representation
+        
+        # rep_size: size of the node representation
+        self.rep_size = opt.n_channels
         if opt.node_representation == 'min-max':
-            n_channels = opt.n_channels * 2
+            self.rep_size = opt.n_channels * 2
         elif opt.node_representation == 'pca':
-            n_channels = opt.n_channels * opt.pca_dims # might be changed
+            self.rep_size = opt.n_channels * opt.pca_dims # might be changed
         elif opt.node_representation == 'summary':
-            n_channels = opt.n_channels * 5
+            self.rep_size = opt.n_channels * 5
         elif opt.node_representation == "conv1d":
-            n_channels = opt.hidden_size
-        else:
-            n_channels = opt.n_channels    
+            self.rep_size = opt.hidden_size   
 
         # learned node matrix
         self.nr_conv1d = False
@@ -104,7 +100,7 @@ class SpliceGraph(torch.nn.Module):
             
             if opt.nr_model == 'fredclem':
                 self.nr_conv1d_1 = nn.Conv1d(
-                    in_channels=n_channels,
+                    in_channels=self.rep_size,
                     out_channels=16,
                     kernel_size=1
                 )
@@ -133,7 +129,7 @@ class SpliceGraph(torch.nn.Module):
                 self.nr_relu3 = nn.ReLU()
                 self.nr_bn_3 = nn.BatchNorm1d(1)
 
-                self.nr_linear = nn.Linear(l_out_2, n_channels)
+                self.nr_linear = nn.Linear(l_out_2, self.rep_size)
                 
 
             elif opt.nr_model == "clem_bn":
@@ -144,13 +140,16 @@ class SpliceGraph(torch.nn.Module):
                 self.nr_bn_1 = nn.BatchNorm1d(4)
                 
                 self.nr_conv1d_2 = nn.Conv1d(4,12, kernel_size=22, stride=10, padding=6)
+                s1 = compute_conv1d_lout(opt.window_size, padding=6, kernel_size=22, stride=10)
                 self.nr_maxpool_2 = nn.MaxPool1d(kernel_size=3, stride=3)
                 self.nr_bn_2 = nn.BatchNorm1d(4)
                 
                 self.nr_conv1d_3 = nn.Conv1d(4,8, kernel_size=22, stride=10, padding=6)
+                s2 = compute_conv1d_lout(s1, padding=6, kernel_size=22, stride=10)
                 self.nr_maxpool_3 = nn.MaxPool1d(kernel_size=2, stride=2)
                 self.nr_bn_3 = nn.BatchNorm1d(4)
-                self.nr_linear = nn.Linear(50*4, n_channels)
+
+                self.nr_linear = nn.Linear(s2*4, self.rep_size)
             
             elif opt.nr_model == "linbig":
                 self.nr_bn_start = nn.BatchNorm1d(32)
@@ -159,29 +158,29 @@ class SpliceGraph(torch.nn.Module):
                 self.nr_bn_1 = nn.BatchNorm1d(4)
                 self.nr_conv1d_2 = nn.Conv1d(4,1,kernel_size=1)
                 self.nr_bn_2 = nn.BatchNorm1d(1)
-                self.nr_linear = nn.Linear(5000, n_channels)
+                self.nr_linear = nn.Linear(opt.window_size, self.rep_size)
 
             elif opt.nr_model == "linmed": 
                 self.nr_bn_start = nn.BatchNorm1d(32)
                 self.nr_conv1d_1 = nn.Conv1d(32, 4, kernel_size=1)
                 self.nr_maxpool_1 = nn.MaxPool1d(kernel_size=4, stride=4)
                 self.nr_bn_1 = nn.BatchNorm1d(1)
-                self.nr_linear = nn.Linear(5000, n_channels)
+                self.nr_linear = nn.Linear(opt.window_size, self.rep_size)
 
             elif opt.nr_model == "linsmall":
                 self.nr_bn_start = nn.BatchNorm1d(32)
                 self.nr_conv1d_1 = nn.Conv1d(32, 1, kernel_size=1)
                 self.nr_bn_1 = nn.BatchNorm1d(1)
-                self.nr_linear = nn.Linear(5000, n_channels)
+                self.nr_linear = nn.Linear(opt.window_size, self.rep_size)
                 
 
         # single graph conv
         if opt.gat_conv:
             self.gcn_conv = GATv2Conv(
-                n_channels, opt.hidden_size, heads=opt.n_heads)
+                self.rep_size, opt.hidden_size, heads=opt.n_heads)
         else:
-            self.gcn_conv = GCNConv(n_channels, opt.hidden_size)
-        self.gcn_lin = Linear(n_channels, opt.hidden_size)
+            self.gcn_conv = GCNConv(self.rep_size, opt.hidden_size)
+        self.gcn_lin = Linear(self.rep_size, opt.hidden_size)
         self.gcn_gate = Linear(opt.hidden_size, opt.hidden_size)
         self.gcn_bn = BatchNorm(opt.hidden_size)
         self.gcn_dropout = nn.Dropout(opt.gcn_dropout)
