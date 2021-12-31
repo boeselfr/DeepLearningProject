@@ -333,3 +333,4 @@ def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
         location_feature_dict['x'][location] = x
         location_feature_dict['y'][location] = y
     torch.save(location_feature_dict, data_fname)
+    logging.info(f"Exporting {data_fname}")
