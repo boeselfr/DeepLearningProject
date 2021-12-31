@@ -7,8 +7,8 @@ from tqdm.auto import trange
 from splicing.finetune import finetune
 from splicing.pretrain import pretrain
 
-from splicing.utils.general_utils import print_topl_statistics, shuffle_chromosomes
-from splicing.utils.evals import SaveLogger
+from splicing.utils.general_utils import print_topl_statistics, \
+    shuffle_chromosomes, save_model
 
 
 def pass_end(elapsed, predictions, targets, loss, opt, step, split):
@@ -46,7 +46,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
             base_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
 
-    elif opt.finetune or opt.test_baseline:
+    elif opt.finetune or opt.test_graph:
         # logging.info('Fine-tuning the graph-based model')
         predictions, targets, loss = finetune(
             graph_model, full_model, datasets[split], criterion, optimizer,
@@ -61,10 +61,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
 
 
 def run_model(base_model, graph_model, full_model, datasets,
-              criterion, optimizer, scheduler, opt, logger):
-
-    if not opt.save_feats:
-        save_logger = SaveLogger(opt.model_name)
+              criterion, optimizer, scheduler, opt):
 
     for epoch in trange(1, opt.epochs + 1):
 
@@ -93,7 +90,7 @@ def run_model(base_model, graph_model, full_model, datasets,
                 else:
                     for param in full_model.parameters():
                         param.requires_grad = True
-            train_predictions, train_targets, train_loss, elapsed = run_epoch(
+            run_epoch(
                 base_model, graph_model, full_model, datasets,
                 criterion, optimizer, epoch, opt, 'train')
 
@@ -105,30 +102,34 @@ def run_model(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
             if epoch % opt.full_validation_interval == 0 \
-                    and not opt.save_feats:
+                    and not opt.save_feats \
+                    and not (opt.test_baseline or opt.test_graph):
+                
                 # FULL VALIDATION
                 valid_predictions, valid_targets, valid_loss, elapsed = \
                     run_epoch(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
+
+                # FULL TEST
+                test_predictions, test_targets, test_loss, elapsed = \
+                    run_epoch(base_model, graph_model, full_model, datasets,
+                              criterion, optimizer, epoch, opt, 'test')
+
                 pass_end(
                     elapsed, valid_predictions.numpy(), valid_targets.numpy(),
                     valid_loss, opt, split='full_valid',
                     step=epoch // opt.full_validation_interval)
 
-                if not opt.save_feats:
-                    save_logger.save(
-                        epoch, opt, base_model, graph_model, full_model,
-                        valid_loss, valid_predictions, valid_targets)
-                    # save_logger.log('valid.log', epoch, valid_loss)
-                    # save_logger.log('train.log', epoch, train_loss)
+                pass_end(
+                    elapsed, test_predictions.numpy(), test_targets.numpy(),
+                    test_loss, opt, split='full_test',
+                    step=epoch // opt.full_validation_interval)
 
-        # LOGGING
-        # best_valid, best_test = logger.evaluate(
-        #     train_metrics, valid_metrics, test_metrics=None,
-        #     epoch=epoch, num_params=opt.total_num_parameters)
-
-        # print('best loss epoch: ' + str(save_logger.best_loss_epoch))
-        # print(opt.model_name)
+                if opt.pretrain:
+                    save_model(opt, epoch, base_model, model_type='base')
+                else:
+                    save_model(opt, epoch, graph_model, model_type='graph')
+                    save_model(opt, epoch, full_model, model_type='full')
 
     # TEST
     if opt.save_feats:  # hacky
@@ -147,4 +148,3 @@ def run_model(base_model, graph_model, full_model, datasets,
         pass_end(
             elapsed, test_predictions.numpy(), test_targets.numpy(),
             test_loss, opt, step=1, split='test')
-        # save_logger.log('test.log', opt.epochs, test_loss, test_metrics)

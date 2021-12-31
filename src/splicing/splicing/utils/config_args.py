@@ -91,7 +91,7 @@ def get_args(parser):
         default=32, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
-        default=16, help='Number of epochs for graph training.')
+        default=10, help='Number of epochs for graph training.')
 
     # Optimizer and lrs
     parser.add_argument('-ft_optim', type=str, choices=['adam', 'sgd'],
@@ -168,6 +168,8 @@ def get_args(parser):
     parser.add_argument('-nr_model', type=str, default="clem_bn",
         choices = ["clem_bn", "linbig", "linmed", "linsmall"], 
         help='Version of the node representation architecture to use.')
+    parser.add_argument('-gat_conv', action='store_true')
+    parser.add_argument('-n_heads', default=1, type=int)
 
     #parser.add_argument("-rep_size", type=int, default=128, 
     #    help="Size of the initial node representation before 1D convolution")
@@ -198,6 +200,16 @@ def get_args(parser):
     parser.add_argument(
         '-nt_conv', action='store_true', default=False
     )
+    parser.add_argument(
+        '-zeronodes', action='store_true'
+    )
+    parser.add_argument(
+        '-ingrad', action='store_true', help='Analyze input gradients.'
+    )
+    parser.add_argument(
+        '-nhs', '--node_headstart', dest='node_headstart', type=int, default=0,
+        help='Number of epochs to train on node representations only.')
+    parser.add_argument('-full_dropout', type=float, default=0.5)
 
     ###########################################################################
     # Logging Args
@@ -205,13 +217,6 @@ def get_args(parser):
     parser.add_argument('-wb', '--wandb', dest='wandb', action='store_true')
     parser.add_argument('-wbn', dest='wandb_name', default="", type=str, 
         help="Name of wandb run.")
-
-    # need to assign these:
-    #parser.add_argument('-br_threshold', type=float, default=0.5)
-    #parser.add_argument('-no_cuda', action='store_true')
-    #parser.add_argument('-viz', action='store_true')
-    #parser.add_argument('-overwrite', action='store_true')
-    #parser.add_argument('-dropout', type=float, default=0.1)
 
     opt = parser.parse_args()
     return opt
@@ -244,8 +249,10 @@ def config_args(opt, config):
         assert opt.load_pretrained, 'Have to load pretrained model'
         opt.workflow = 'test_graph'
 
-    opt.test_models_dir = path.join(
-        config['DATA_DIRECTORY'], config['TRAINING']['test_models_dir'])
+    opt.test_baseline_models_dir = path.join(
+        config['DATA_DIRECTORY'], config['TRAINING']['test_baseline_models_dir'])
+    opt.test_graph_models_dir = path.join(
+        config['DATA_DIRECTORY'], config['TRAINING']['test_graph_models_dir'])
 
     opt.cell_type = 'GM12878'
 

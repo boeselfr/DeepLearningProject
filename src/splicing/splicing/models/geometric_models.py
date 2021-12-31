@@ -1,8 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, BatchNorm, \
-    Linear, Sequential
+from torch_geometric.nn import GCNConv, BatchNorm, Linear, GATv2Conv
 
 from splicing.utils.general_utils import compute_conv1d_lout
 from splicing.utils.graph_utils import build_node_representations
@@ -12,9 +11,12 @@ class FullModel(nn.Module):
         super(FullModel, self).__init__()
 
         self.device = device        
-        self.nt_conv = False
-        if opt.nt_conv:
-            self.nt_conv = True
+        
+        self.nt_conv = opt.nt_conv
+        self.zeronuc = opt.zeronuc
+        self.zeronodes = opt.zeronodes
+
+        if self.nt_conv:
             self.batch_norm_n_1 = nn.BatchNorm1d(opt.n_channels)
             self.nucleotide_conv_1 = nn.Conv1d(
                 in_channels=opt.n_channels,
@@ -28,18 +30,6 @@ class FullModel(nn.Module):
             out_channels=opt.hidden_size_full,
             kernel_size=1).to(self.device)
         self.batch_norm1 = nn.BatchNorm1d(opt.hidden_size_full)
-
-        # self.conv2 = nn.Conv1d(
-        #     in_channels=opt.hidden_size_full,
-        #     out_channels=opt.hidden_size_full,
-        #     kernel_size=1).to(self.device)
-        # self.batch_norm2 = nn.BatchNorm1d(opt.hidden_size_full)
-        #
-        # self.conv3 = nn.Conv1d(
-        #     in_channels=opt.hidden_size_full,
-        #     out_channels=opt.hidden_size_full,
-        #     kernel_size=1).to(self.device)
-        # self.batch_norm3 = nn.BatchNorm1d(opt.hidden_size_full)
 
         self.out = nn.Conv1d(
             in_channels=opt.hidden_size_full,
@@ -55,23 +45,19 @@ class FullModel(nn.Module):
             in_channels=opt.n_channels,
             out_channels=opt.n_channels,
             kernel_size=1)
-        # self.nucleotide_conv_2 = nn.Conv1d(
-        #     in_channels=opt.n_channels,
-        #     out_channels=opt.n_channels,
-        #     kernel_size=1)
         self.batch_norm_n_1 = nn.BatchNorm1d(opt.n_channels)
-        # self.batch_norm_n_2 = nn.BatchNorm1d(opt.n_channels)
 
     def forward(self, x, node_rep):
         
+        if self.zeronuc:
+            x = torch.zeros(x.shape).to('cuda')
+        if self.zeronodes:
+            node_rep = torch.zeros(node_rep.shape).to('cuda')
+
         if self.nt_conv:
             x = self.nucleotide_conv_1(x)
             x = F.relu(x)
             x = self.batch_norm_n_1(x)
-
-        # x = self.nucleotide_conv_2(x)
-        # x = F.relu(x)
-        # x = self.batch_norm_n_2(x)
 
         bs, _, sl = x.shape
         _, n_h = node_rep.shape
@@ -86,28 +72,7 @@ class FullModel(nn.Module):
         x = F.relu(x)
         x = self.batch_norm1(x)
 
-        # x = self.dropout(x)
-        #
-        # t = x
-        #
-        # x = self.conv2(x)
-        # x = F.relu(x)
-        # x = self.batch_norm2(x)
-        #
-        # x = torch.add(x, t)
-        #
-        # x = self.dropout(x)
-        #
-        # t = x
-        #
-        # x = self.conv3(x)
-        # x = F.relu(x)
-        # x = self.batch_norm3(x)
-        #
-        # x = torch.add(x, t)
-
         out = self.out(x)
-
         out = self.out_act(out)
 
         return out
@@ -211,13 +176,15 @@ class SpliceGraph(torch.nn.Module):
                 
 
         # single graph conv
-        self.gcn_conv = GCNConv(n_channels, opt.hidden_size)
+        if opt.gat_conv:
+            self.gcn_conv = GATv2Conv(
+                n_channels, opt.hidden_size, heads=opt.n_heads)
+        else:
+            self.gcn_conv = GCNConv(n_channels, opt.hidden_size)
         self.gcn_lin = Linear(n_channels, opt.hidden_size)
         self.gcn_gate = Linear(opt.hidden_size, opt.hidden_size)
         self.gcn_bn = BatchNorm(opt.hidden_size)
         self.gcn_dropout = nn.Dropout(opt.gcn_dropout)
-
-        #nn.BatchNorm(opt.hidden_size)
 
     def forward(self, xs, edge_index, opt):
         
@@ -287,3 +254,38 @@ class SpliceGraph(torch.nn.Module):
         x = self.gcn_dropout(x)
 
         return x
+
+
+class SpliceGraphEnsemble(nn.Module):
+    def __init__(self, graph_models):
+        super(SpliceGraphEnsemble, self).__init__()
+        self.graph_models = graph_models
+
+    def forward(self, xs, edge_index, opt):
+
+        node_reps = [model.cuda()(
+            xs, edge_index, opt).cpu() for model in self.graph_models]
+
+        return node_reps
+
+
+class FullModelEnsemble(nn.Module):
+    def __init__(self, full_models, window_size):
+        super(FullModelEnsemble, self).__init__()
+        self.full_models = full_models
+        self.window_size = window_size
+
+    def forward(self, input, node_reps):
+
+        predictions = torch.zeros(
+            size=(len(self.full_models), input.shape[0], 3, self.window_size)
+        )
+
+        for ii, (model, node_rep) in enumerate(
+                zip(self.full_models, node_reps)):
+            predictions[ii, :, :, :] = model.cuda()(
+                input.cuda(), node_rep.cuda()).cpu()
+
+        combined_predictions = torch.mean(predictions, dim=0)
+
+        return combined_predictions.cpu()

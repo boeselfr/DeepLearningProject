@@ -67,7 +67,7 @@ class SpliceAI(nn.Module):
             kernel_size=1).to(device)
         self.out_act = nn.Softmax(dim=1)
 
-    def forward(self, input):
+    def forward(self, input, save_feats):
 
         conv = self.conv(input)
         skip = self.skip(conv)
@@ -83,7 +83,7 @@ class SpliceAI(nn.Module):
 
         pred = self.out(x)
         pred = self.out_act(pred)
-        return pred, x, None
+        return (pred, x, None) if save_feats else (pred, None, None)
 
 
 class SpliceAIEnsemble(nn.Module):

@@ -72,4 +72,5 @@ DATA_PIPELINE:
 
 TRAINING:
   results_dir: results
-  test_models_dir: test_models
+  test_baseline_models_dir: test_baseline_models
+  test_graph_models_dir: test_graph_models
