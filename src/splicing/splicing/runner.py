@@ -70,40 +70,21 @@ def run_model(base_model, graph_model, full_model, datasets,
         if opt.finetune:
             datasets = shuffle_chromosomes(datasets)
 
-        if scheduler and epoch > 1:
-            if ((opt.pretrain and opt.cnn_sched == "multisteplr") or
-                (opt.finetune and opt.ft_sched == "multisteplr")):
-                scheduler.step()
-            elif (((opt.pretrain and opt.cnn_sched in ["reducelr", "steplr"]) or
-                (opt.finetune and opt.ft_sched in ["reducelr", "steplr"]))
-                and epoch % opt.full_validation_interval == 1 and valid_loss != 0):
-                scheduler.step(valid_loss)
-
         train_loss, valid_loss = 0, 0
         if not opt.load_gcn and not (opt.test_baseline or opt.test_graph):
             # TRAIN
-            if opt.boost_period > 1:
-                if epoch % opt.boost_period != 0:
-                    # only update the full model every boost_period epochs
-                    for param in full_model.parameters():
-                        param.requires_grad = False
-                else:
-                    for param in full_model.parameters():
-                        param.requires_grad = True
             run_epoch(
                 base_model, graph_model, full_model, datasets,
                 criterion, optimizer, epoch, opt, 'train')
 
-            if epoch % opt.validation_interval == 0 and not opt.save_feats:
+            #if epoch % opt.validation_interval == 0 and not opt.save_feats:
 
-                # VALIDATE
-                valid_predictions, valid_targets, valid_loss, elapsed = \
-                    run_epoch(base_model, graph_model, full_model, datasets,
-                              criterion, optimizer, epoch, opt, 'valid')
+            #    # VALIDATE
+            #    valid_predictions, valid_targets, valid_loss, elapsed = \
+            #        run_epoch(base_model, graph_model, full_model, datasets,
+            #                  criterion, optimizer, epoch, opt, 'valid')
 
-            if epoch % opt.full_validation_interval == 0 \
-                    and not opt.save_feats \
-                    and not (opt.test_baseline or opt.test_graph):
+            if not opt.save_feats and not (opt.test_baseline or opt.test_graph):
                 
                 # FULL VALIDATION
                 valid_predictions, valid_targets, valid_loss, elapsed = \
@@ -133,16 +114,22 @@ def run_model(base_model, graph_model, full_model, datasets,
                     save_model(opt, epoch, graph_model, model_type='graph')
                     save_model(opt, epoch, full_model, model_type='full')
 
+    if scheduler:
+        if ((opt.pretrain and opt.cnn_sched in ["multisteplr", "steplr"]) or
+            (opt.finetune and opt.ft_sched in ["multisteplr", "steplr"])):
+            scheduler.step()
+        elif ((opt.pretrain and opt.cnn_sched == "reducelr") or
+            (opt.finetune and opt.ft_sched == "reducelr")):
+            scheduler.step(valid_loss)
+
     # TEST
     if opt.save_feats:  # hacky
-        for chromosome in range(len(opt.chromosomes['test'])):
-            run_epoch(
-                base_model, graph_model, full_model, datasets, criterion,
-                optimizer, chromosome, opt, 'test')
-        for chromosome in range(len(opt.chromosomes['valid'])):
-            run_epoch(
-                base_model, graph_model, full_model, datasets, criterion,
-                optimizer, chromosome, opt, 'valid')
+        run_epoch(
+            base_model, graph_model, full_model, datasets, criterion,
+            optimizer, chromosome, opt, 'test')
+        run_epoch(
+            base_model, graph_model, full_model, datasets, criterion,
+            optimizer, chromosome, opt, 'valid')
     else:
         test_predictions, test_targets, test_loss, elapsed = run_epoch(
             base_model, graph_model, full_model, datasets,

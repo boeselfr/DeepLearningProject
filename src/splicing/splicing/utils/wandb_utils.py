@@ -61,7 +61,7 @@ def get_wandb_config(opt):
     return config
 
 
-def report_wandb(predictions, targets, loss, opt, split, step):
+def report_wandb(predictions, targets, loss, opt, split, step=0):
 
     # sums_true = y.sum(axis=(0, 2))
     # sums_pred = predictions.sum(axis=(0, 2))

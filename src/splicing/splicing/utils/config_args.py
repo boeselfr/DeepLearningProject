@@ -47,10 +47,10 @@ def get_args(parser):
     # General Training Params
     ###########################################################################
     parser.add_argument(
-        '-vi', '--validation_interval', type=int, default=32,
+        '-vi', '--validation_interval', type=int, default=64,
         dest='validation_interval', help='Per how many epochs to validate.')
     parser.add_argument(
-        '-li', '--log_interval', type=int, default=32,
+        '-li', '--log_interval', type=int, default=64,
         dest='log_interval', help='Per how many updates to log to WandB.')
     parser.add_argument(
         '-test', action='store_true', 
@@ -240,8 +240,8 @@ def config_args(opt, config):
         config['DATA_DIRECTORY'], config['TRAINING']['results_dir'])
 
     # Workflow
-    assert (sum([opt.pretrain, opt.save_feats, opt.finetune]) == 1, 
-        "Must have only one of: -pretrain, -save_feats, -finetune")
+    assert sum([opt.pretrain, opt.save_feats, opt.finetune]) == 1, \
+        "Must have only one of: -pretrain, -save_feats, -finetune"
     
     if opt.pretrain:
         opt.workflow = "pretrain"
@@ -276,19 +276,9 @@ def config_args(opt, config):
     opt.model_name += '.ws_' + str(opt.window_size)
     opt.model_name += '.cl_' + str(opt.context_length)
     
-    #opt.model_name += '.' + str(opt.optim)
-    #opt.model_name += '.adam'
-    #opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
-    
-    #if opt.lr_decay > 0:
-    #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(
-    #        '.', '') + '_' + str(opt.lr_step_size)
-
     if opt.save_feats:
-        #opt.model_name += '.save_feats'
         opt.pretrain = False
         opt.train_ratio = 1.0
-        # opt.epochs = 1
 
     if opt.finetune:
         opt.model_name += '/finetune' + '_' + opt.ft_random_id
@@ -300,28 +290,9 @@ def config_args(opt, config):
         config['DATA_PIPELINE']['output_dir']
     )
     opt.dataset = path.join(opt.graph_data_root, opt.cell_type)
-    opt.cuda = True #opt.no_cuda
+    opt.cuda = True
 
-    #if opt.load_gcn:
-    #    opt.model_name += '.load_gcn'
-
-    # if (not opt.viz) \
-    #         and (not opt.overwrite) \
-    #         and ('test' not in opt.model_name) \
-    #         and (path.exists(opt.model_name)) \
-    #         and (not opt.load_gcn) \
-    #         and (not opt.save_feats):
-    #     print(opt.model_name)
-    #     overwrite_status = input('Already Exists. Overwrite?: ')
-    #     if overwrite_status == 'rm':
-    #         os.system('rm -rf ' + opt.model_name)
-    #     elif 'y' not in overwrite_status.lower():
-    #         exit(0)
-
-    # TODO: what is this doing? can we remove or clean up?
-    if not opt.pretrain and not opt.save_feats:
-        opt.batch_size = 16
-    elif not opt.pretrain:
+    if opt.save_feats:
         opt.batch_size = 512
 
     # Directory handling

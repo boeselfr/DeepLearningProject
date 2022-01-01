@@ -128,8 +128,7 @@ def get_optimizer(graph_model, full_model, opt):
 
 def get_scheduler(opt, optimizer, len_datasets):
     if opt.ft_sched == "multisteplr":
-        step_size_milestones = [(len_datasets * x) + 1
-                                for x in list(range(8, opt.epochs))]
+        step_size_milestones = list(range(9, opt.epochs + 1))
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=step_size_milestones,
             gamma=0.5, verbose=False
