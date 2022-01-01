@@ -15,19 +15,19 @@ DATA_PIPELINE:
   # max number of genes to be stored in a single h5 dataset.
   dataset_chunk_size: 2000
   train_chroms:
-    #- chr7
-    #- chr2
-    #- chr4
-    #- chr5
-    #- chr6
-    #- chr9
-    #- chr10
-    #- chr11
-    #- chr13
-    #- chr14
-    #- chr15
-    #- chr16
-    #- chr18
+    - chr7
+    - chr2
+    - chr4
+    - chr5
+    - chr6
+    - chr9
+    - chr10
+    - chr11
+    - chr13
+    - chr14
+    - chr15
+    - chr16
+    - chr18
     - chr19
     - chr20
     - chr22

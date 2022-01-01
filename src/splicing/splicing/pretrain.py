@@ -78,6 +78,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
                 all_targets[count_ys:count_ys + y_hat.shape[0]] = y.cpu().data
                 count_ys += y_hat.shape[0]
 
+            #TODO DEBUG THIS
             if opt.save_feats:
                 #all_x_f = torch.cat((all_x_f, x.detach().cpu()), 0)
                 all_x_f[count_xs:count_xs + x.shape[0]] = x.detach().cpu()
