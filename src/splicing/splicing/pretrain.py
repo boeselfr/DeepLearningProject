@@ -36,7 +36,12 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         
         n_batches = n_instances // batch_size
 
-        desc = f"PRETRAIN: epoch {epoch}, split "\
+        if opt.pretrain:
+            desc_prefix = "PRETRAIN"
+        elif opt.save_feats:
+            desc_prefix = "SAVE_FEATS"
+
+        desc = f"{desc_prefix}: epoch {epoch}, split "\
             f"{SPLIT2DESC[split]}, chromosome {chromosome}"
 
         for batch, (X, y, loc) in enumerate(
@@ -82,12 +87,12 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         if opt.save_feats:
             save_feats(
                 opt.model_name, split, all_targets, all_locs, all_x_f, 
-                chromosome, epoch)
+                chromosome)
             all_targets = torch.Tensor().cpu()
             all_x_f = torch.Tensor().cpu()
             all_locs = []
 
-        if split in ["valid", "test"]:
+        if split in ["valid", "test"] and not opt.save_feats:
             scores[chromosome] = compute_scores(
                 all_preds.numpy(), 
                 all_targets.numpy(),
@@ -104,7 +109,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
             all_locs = []
             total_loss = 0
 
-    if split in  ["valid", "test"]:
+    if split in ["valid", "test"] and not opt.save_feats:
         combined_scores = compute_average_scores(
             scores, opt.wandb, split
         )

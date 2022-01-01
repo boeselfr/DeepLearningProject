@@ -48,7 +48,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
 
     elif opt.finetune or opt.test_graph:
         # logging.info('Fine-tuning the graph-based model')
-        predictions, targets, loss = finetune(
+        combined_scores = finetune(
             graph_model, full_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
 
@@ -124,10 +124,10 @@ def run_model(base_model, graph_model, full_model, datasets,
     if opt.save_feats:  # hacky
         run_epoch(
             base_model, graph_model, full_model, datasets, criterion,
-            optimizer, chromosome, opt, 'test')
+            optimizer, 0, opt, 'test')
         run_epoch(
             base_model, graph_model, full_model, datasets, criterion,
-            optimizer, chromosome, opt, 'valid')
+            optimizer, 0, opt, 'valid')
     else:
         test_scores, elapsed = run_epoch(
             base_model, graph_model, full_model, datasets,

@@ -385,7 +385,7 @@ def save_model(opt, epoch, model, model_type='base'):
     torch.save(checkpoint, model_fname)
 
 
-def save_feats(model_name, split, Y, locations, X, chromosome, epoch):
+def save_feats(model_name, split, Y, locations, X, chromosome):
     # logging.info(f'Saving features for model {model_name}.')
 
     features_dir = model_name.split('/finetune')[0]

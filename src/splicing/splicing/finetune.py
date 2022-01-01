@@ -36,6 +36,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     total_loss = 0
     batch_count = 0
 
+    scores = {}
+
     # bin dict has information for all chromosomes
     # that's why we can load it here before:
     # we need it also for the constant case, thus always has to be loaded
