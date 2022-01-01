@@ -122,8 +122,6 @@ def compute_scores(predictions, targets, loss, log_wandb, step, split, chromosom
         scores[f"{prediction_type}_topk_2"] = topkl_accuracy[2]
         scores[f"{prediction_type}_topk_4"] = topkl_accuracy[3]
 
-        chromosome = IX2CHR(chromosome)
-
         if log_wandb:
             wandb.log({
                 f'{split}/{chromosome} Test Loss - {prediction_type}': loss,

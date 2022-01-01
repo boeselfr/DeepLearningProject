@@ -9,7 +9,8 @@ import torch
 from torch_geometric.data import Data
 from torch_geometric.loader import NeighborLoader
 
-from splicing.utils.general_utils import SPLIT2DESC, IX2CHR
+from splicing.utils.general_utils import SPLIT2DESC, IX2CHR, \
+    compute_scores, compute_average_scores
 from splicing.utils.graph_utils import process_graph
 from splicing.utils.wandb_utils import report_wandb, analyze_gradients
 
@@ -67,8 +68,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         xs = chromosome_data['x']
         ys = chromosome_data['y']
 
-        xs = torch.stack([(xs[loc][0]) for loc in xs])
-        ys = torch.stack([(ys[loc][0]) for loc in ys])
+        xs = torch.stack([(xs[loc][0]) for loc in xs])[:100]
+        ys = torch.stack([(ys[loc][0]) for loc in ys])[:100]
 
         graph = process_graph(
             opt.adj_type, split_adj_dict, len(xs),
@@ -96,7 +97,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
                                     total=len(graph_loader), desc=desc_i):
 
             _x = graph_batch['x'].to('cuda')
-            _y = graph_batch['y'].to('cuda' if split != 'test' else 'cpu')
+            _y = graph_batch['y'].to('cuda')
+            #_y = graph_batch['y'].to('cuda' if split != 'test' else 'cpu')
             _edge_index = graph_batch['edge_index'].to('cuda')
 
             # a, f = get_gpu_stats()
@@ -150,8 +152,30 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
             batch_count+=1
 
+        if split in ["valid", "test"]:
+            scores[chromosome] = compute_scores(
+                all_preds.numpy(), 
+                all_targets.numpy(),
+                total_loss,
+                opt.wandb,
+                epoch,
+                split,
+                chromosome
+            )
+
+            all_preds = torch.Tensor().cpu()
+            all_targets = torch.Tensor().cpu()
+            total_loss = 0
+
+    if split in ["valid", "test"]:
+        combined_scores = compute_average_scores(
+            scores, opt.wandb, split
+        )
+    else:
+        combined_scores = {}
+
         # TODO: check node reps before and after
         # if epoch == opt.finetune_epochs:
         #     save_node_representations(graph_data.x, chromosome, opt)
 
-    return all_preds, all_targets, total_loss
+    return combined_scores
