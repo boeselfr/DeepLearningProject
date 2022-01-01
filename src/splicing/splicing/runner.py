@@ -128,7 +128,7 @@ def run_model(base_model, graph_model, full_model, datasets,
         run_epoch(
             base_model, graph_model, full_model, datasets, criterion,
             optimizer, 0, opt, 'valid')
-    else:
+    elif not opt.test:
         test_scores, elapsed = run_epoch(
             base_model, graph_model, full_model, datasets,
             criterion, optimizer, opt.epochs, opt, 'test')
