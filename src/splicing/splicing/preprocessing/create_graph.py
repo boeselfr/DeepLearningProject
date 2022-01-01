@@ -81,10 +81,10 @@ parser.add_argument('--hic_edges', type=int, default=500000)
 args = parser.parse_args()
 
 # make sure that window size and resolution match up:
-try:
-    args.resolution = str(int(args.window_length / 1000))
-except Exception as e:
-    print(f'the specified window size {args.window_length} is not valid!')
+if args.window_size == 5000:
+    args.resolution = '5'
+elif args.window_size == 1000:
+    args.resolution = '1'
 
 args.stride_length=args.window_length
 args.chrom_sizes = os.path.join(args.genome_root,args.genome,args.genome+'.chrom_sizes')
