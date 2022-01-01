@@ -88,6 +88,8 @@ def print_topl_statistics(
 def compute_scores(predictions, targets, loss, log_wandb, step, split, chromosome):
     is_expr = targets.sum(axis=(1, 2)) >= 1
 
+    chromosome = IX2CHR(chromosome)
+
     scores = {
         'loss': loss,
         'n_obs': len(targets)
@@ -120,11 +122,13 @@ def compute_scores(predictions, targets, loss, log_wandb, step, split, chromosom
         scores[f"{prediction_type}_topk_2"] = topkl_accuracy[2]
         scores[f"{prediction_type}_topk_4"] = topkl_accuracy[3]
 
+        chromosome = IX2CHR(chromosome)
+
         if log_wandb:
             wandb.log({
-                f'{split}/{chromosome}/Test Loss - {prediction_type}': loss,
-                f'{split}/{chromosome}/AUPRC - {prediction_type}': auprc,
-                f'{split}/{chromosome}/Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
+                f'{split}/{chromosome} Test Loss - {prediction_type}': loss,
+                f'{split}/{chromosome} AUPRC - {prediction_type}': auprc,
+                f'{split}/{chromosome} Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
                 # f'{split}/Thresholds for K: {prediction_type}': threshold[1],
                 # f'{split}/Proportion of True Splice Sites Predicted'
                 # f': {prediction_type}': no_positive_predictions / len(idx_true),
@@ -150,14 +154,14 @@ def compute_average_scores(chrom_scores, log_wandb, split):
     combined_scores['avg_topk_0.5'] = np.mean([combined_scores['Acceptor_topk_0.5'], combined_scores['Donor_topk_0.5']])
     if log_wandb:
         wandb.log({
-                f'{split}/Aggregated/Total Test Loss': combined_scores['loss'],
-                f'{split}/Aggregated/Average Test Loss': combined_scores['avg_loss'],
-                f'{split}/Aggregated/AUPRC - Acceptor': combined_scores['Acceptor_auprc'],
-                f'{split}/Aggregated/AUPRC - Donor': combined_scores['Donor_auprc'],
-                f'{split}/Aggregated/AUPRC - Average': combined_scores['avg_auprc'],
-                f'{split}/Aggregated/Top-K Accuracy - Acceptor:': combined_scores['Acceptor_topk_0.5'],
-                f'{split}/Aggregated/Top-K Accuracy - Donor:': combined_scores['Donor_topk_0.5'],
-                f'{split}/Aggregated/Top-K Accuracy - Average:': combined_scores['avg_topk_0.5']
+                f'{split}/aggregated/Total Test Loss': combined_scores['loss'],
+                f'{split}/aggregated/Average Test Loss': combined_scores['avg_loss'],
+                f'{split}/aggregated/AUPRC - Acceptor': combined_scores['Acceptor_auprc'],
+                f'{split}/aggregated/AUPRC - Donor': combined_scores['Donor_auprc'],
+                f'{split}/aggregated/AUPRC - Average': combined_scores['avg_auprc'],
+                f'{split}/aggregated/Top-K Accuracy - Acceptor:': combined_scores['Acceptor_topk_0.5'],
+                f'{split}/aggregated/Top-K Accuracy - Donor:': combined_scores['Donor_topk_0.5'],
+                f'{split}/aggregated/Top-K Accuracy - Average:': combined_scores['avg_topk_0.5']
             })
     return combined_scores
 
@@ -369,7 +373,7 @@ def load_pretrained_graph_model(opt, config):
 def save_model(opt, epoch, model, model_type='base'):
 
     model_suffix = f'{model_type}' \
-                   f'_e{epoch // opt.full_validation_interval}' \
+                   f'_e{epoch}' \
                    f'_cl{opt.context_length}' \
                    f'_g{opt.model_index}.h5'
 
