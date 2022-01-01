@@ -47,11 +47,15 @@ def get_args(parser):
     # General Training Params
     ###########################################################################
     parser.add_argument(
-        '-vi', '--validation_interval', type=int, default=32,
+        '-vi', '--validation_interval', type=int, default=64,
         dest='validation_interval', help='Per how many epochs to validate.')
     parser.add_argument(
-        '-li', '--log_interval', type=int, default=32,
+        '-li', '--log_interval', type=int, default=64,
         dest='log_interval', help='Per how many updates to log to WandB.')
+    parser.add_argument(
+        '-test', action='store_true', 
+        help="Compute test scores at every full validation interval"
+    )
 
 
     ###########################################################################
@@ -77,6 +81,10 @@ def get_args(parser):
         '-npass', '--passes', type=int, default=10,
         dest='passes', help='Number of passes over the train dataset to do.')
     parser.add_argument('-cnn_lr', type=float, default=0.001)
+    parser.add_argument('-cnn_sched', type=str, default='multisteplr',
+        choices = ['multisteplr', 'reducelr'],
+        help='Scheduler to use for pretraining'
+    )
 
 
     ###########################################################################
@@ -87,7 +95,7 @@ def get_args(parser):
         default=32, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
-        default=10, help='Number of epochs for graph training.')
+        default=6, help='Number of epochs for graph training.')
 
     # Optimizer and lrs
     parser.add_argument('-ft_optim', type=str, choices=['adam', 'sgd'],
@@ -96,7 +104,7 @@ def get_args(parser):
                         help='SGD weight decay')
     parser.add_argument('-nr_lr', type=float, default=0.001)
     parser.add_argument('-gcn_lr', type=float, default=0.001)
-    parser.add_argument('-full_lr', type=float, default=0.001)
+    parser.add_argument('-full_lr', type=float, default=0.0001)
     
     # Scheduler: three types - StepLr, MultiStepLR, ReduceLROnPlateau
     parser.add_argument(
@@ -124,7 +132,7 @@ def get_args(parser):
             'learning rate will be reduced.' 
     )
     parser.add_argument(
-        '-rlr_threshold', type=int, default=1e-4,
+        '-rlr_threshold', type=int, default=1e-2,
         help="Threshold for measuring the new optimum, to only "\
             "focus on significant changes."
     )
@@ -149,7 +157,7 @@ def get_args(parser):
     parser.add_argument(
         '-rep', '--node_representation', 
         type=str, 
-        default='conv1d',
+        default='min-max',
         dest='node_representation',
         choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary', 'zeros'],
         help='How to construct the node representation '
@@ -162,7 +170,7 @@ def get_args(parser):
         help='compnents that the 5000 features get reduced to for the node representation')
     parser.add_argument('-gcn_dropout', type=float, default=0.2)
     parser.add_argument('-nr_model', type=str, default="clem_bn",
-        choices = ["fredclem", "clem_drop", "clem_bn", "clem_bn_end", "clem_bn_start"], 
+        choices = ["clem_bn", "linbig", "linmed", "linsmall"], 
         help='Version of the node representation architecture to use.')
     parser.add_argument('-gat_conv', action='store_true')
     parser.add_argument('-n_heads', default=1, type=int)
@@ -193,6 +201,9 @@ def get_args(parser):
         '-nhidd_f', '--hidden_size_full', type=int, default=128,
         dest='hidden_size_full',
         help='The dimensionality of the hidden layer in the final network.')
+    parser.add_argument(
+        '-nt_conv', action='store_true'
+    )
     parser.add_argument(
         '-zeronuc', action='store_true'
     )
@@ -229,8 +240,8 @@ def config_args(opt, config):
         config['DATA_DIRECTORY'], config['TRAINING']['results_dir'])
 
     # Workflow
-    assert (sum([opt.pretrain, opt.save_feats, opt.finetune]) == 1, 
-        "Must have only one of: -pretrain, -save_feats, -finetune")
+    assert sum([opt.pretrain, opt.save_feats, opt.finetune]) == 1, \
+        "Must have only one of: -pretrain, -save_feats, -finetune"
     
     if opt.pretrain:
         opt.workflow = "pretrain"
@@ -265,19 +276,9 @@ def config_args(opt, config):
     opt.model_name += '.ws_' + str(opt.window_size)
     opt.model_name += '.cl_' + str(opt.context_length)
     
-    #opt.model_name += '.' + str(opt.optim)
-    #opt.model_name += '.adam'
-    #opt.model_name += '.lr_' + str(opt.cnn_lr).split('.')[1]
-    
-    #if opt.lr_decay > 0:
-    #    opt.model_name += '.decay_' + str(opt.lr_decay).replace(
-    #        '.', '') + '_' + str(opt.lr_step_size)
-
     if opt.save_feats:
-        #opt.model_name += '.save_feats'
         opt.pretrain = False
         opt.train_ratio = 1.0
-        # opt.epochs = 1
 
     if opt.finetune:
         opt.model_name += '/finetune' + '_' + opt.ft_random_id
@@ -289,28 +290,9 @@ def config_args(opt, config):
         config['DATA_PIPELINE']['output_dir']
     )
     opt.dataset = path.join(opt.graph_data_root, opt.cell_type)
-    opt.cuda = True #opt.no_cuda
+    opt.cuda = True
 
-    #if opt.load_gcn:
-    #    opt.model_name += '.load_gcn'
-
-    # if (not opt.viz) \
-    #         and (not opt.overwrite) \
-    #         and ('test' not in opt.model_name) \
-    #         and (path.exists(opt.model_name)) \
-    #         and (not opt.load_gcn) \
-    #         and (not opt.save_feats):
-    #     print(opt.model_name)
-    #     overwrite_status = input('Already Exists. Overwrite?: ')
-    #     if overwrite_status == 'rm':
-    #         os.system('rm -rf ' + opt.model_name)
-    #     elif 'y' not in overwrite_status.lower():
-    #         exit(0)
-
-    # TODO: what is this doing? can we remove or clean up?
-    if not opt.pretrain and not opt.save_feats:
-        opt.batch_size = 16
-    elif not opt.pretrain:
+    if opt.save_feats:
         opt.batch_size = 512
 
     # Directory handling

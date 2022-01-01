@@ -52,6 +52,7 @@ def get_wandb_config(opt):
 
     config.gcn_dropout = opt.gcn_dropout
     
+    config.nt_conv = opt.nt_conv
     config.zero_nuc = opt.zeronuc
     config.zero_nodes = opt.zeronodes
     config.boost_period = opt.boost_period
@@ -60,7 +61,7 @@ def get_wandb_config(opt):
     return config
 
 
-def report_wandb(predictions, targets, loss, opt, split, step):
+def report_wandb(predictions, targets, loss, opt, split, step=0):
 
     # sums_true = y.sum(axis=(0, 2))
     # sums_pred = predictions.sum(axis=(0, 2))
@@ -117,6 +118,7 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
         }
     except AttributeError:
         pass
+
     if opt.ingrad:
         log_message['input_gradients/windows'] = np.linalg.norm(
            nodes.grad.detach().cpu().numpy()) / (nodes.shape[0] * nodes.shape[1])
@@ -153,8 +155,8 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
 
             log_message[f'graph_grad/{param_name}'] = np.linalg.norm(
                 param_grad.detach().cpu().numpy()) / m
-            # log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
-            #     param_data.detach().cpu().numpy()) / m
+            log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
+                param_data.detach().cpu().numpy()) / m
 
     wandb.log(log_message)
 
