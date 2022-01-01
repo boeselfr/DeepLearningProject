@@ -70,6 +70,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
         all_preds = torch.zeros(ys.shape).cpu()
         all_targets = torch.zeros(ys.shape).cpu()
+        count_ys = 0
 
         graph = process_graph(
             opt.adj_type, split_adj_dict, len(xs),
@@ -143,9 +144,10 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             if split != 'train':
                 total_loss += loss.sum().item()
                 #all_preds[batch * opt.graph_batch_size:(batch+1) * opt.graph_batch_size] = torch.cat((all_preds, _y_hat.cpu().data), 0)
-                all_preds[batch * opt.graph_batch_size:(batch+1) * opt.graph_batch_size] = _y_hat.cpu().data
+                all_preds[count_ys:count_ys + _y_hat.shape[0]] = _y_hat.cpu().data
                 #all_targets[] = torch.cat((all_targets, _y.cpu().data), 0)
-                all_targets[batch * opt.graph_batch_size:(batch+1) * opt.graph_batch_size] = _y.cpu().data
+                all_targets[count_ys:count_ys + _y_hat.shape[0]] = _y.cpu().data
+                count_ys += _y_hat.shape[0]
 
             # wandb reporting
             if split == 'train' and batch_count % opt.log_interval == 0 and opt.wandb:
