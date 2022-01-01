@@ -34,12 +34,12 @@ DATA_PIPELINE:
 #    - chrX
 #    - chrY
   valid_chroms:
-    - chr3
+#    - chr3
     - chr12
     - chr17
   test_chroms:
     - chr1
-    - chr8
+#    - chr8
     - chr21
   train_chroms_spliceai:
     - chr11

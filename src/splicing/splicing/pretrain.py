@@ -2,7 +2,8 @@ import logging
 import torch
 from tqdm import tqdm
 
-from splicing.utils.general_utils import SPLIT2DESC, IX2CHR, save_feats
+from splicing.utils.general_utils import SPLIT2DESC, IX2CHR, save_feats, \
+    compute_scores, compute_average_scores
 from splicing.utils.wandb_utils import report_wandb
 from splicing.utils.spliceai_utils import get_data
 
@@ -22,8 +23,9 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
     batch_count = 0
     batch_size = opt.batch_size
 
+    scores = {}
+
     for chromosome in opt.chromosomes[split]:
-        logging.info(f"Pretraining epoch {epoch}, chromosome {chromosome}")
 
         dataloader = get_data(
             data_file, chromosome, opt.context_length,
@@ -34,9 +36,13 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         
         n_batches = n_instances // batch_size
 
+        desc = f"PRETRAIN: epoch {epoch}, split "\
+            f"{SPLIT2DESC[split]}, chromosome {chromosome}"
+
         for batch, (X, y, loc) in enumerate(
                 tqdm(dataloader, total=n_batches,
-                    desc=SPLIT2DESC[split], leave=False)):
+                    desc=desc, 
+                    leave=False)):
 
             if opt.pretrain and split == 'train':
                 optimizer.zero_grad()
@@ -81,4 +87,28 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
             all_x_f = torch.Tensor().cpu()
             all_locs = []
 
-    return all_preds, all_targets, total_loss
+        if split in ["valid", "test"]:
+            scores[chromosome] = compute_scores(
+                all_preds.numpy(), 
+                all_targets.numpy(),
+                total_loss,
+                opt.log_wandb,
+                epoch,
+                split,
+                chromosome
+            )
+
+            all_preds = torch.Tensor().cpu()
+            all_targets = torch.Tensor().cpu()
+            all_x_f = torch.Tensor().cpu()
+            all_locs = []
+            total_loss = 0
+
+    if split in  ["valid", "test"]:
+        combined_scores = compute_average_scores(
+            scores, opt.log_wandb, split
+        )
+    else:
+        combined_scores = {}
+
+    return combined_scores

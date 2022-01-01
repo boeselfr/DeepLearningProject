@@ -85,6 +85,82 @@ def print_topl_statistics(
             # f': {prediction_type}': no_positive_predictions / len(idx_true),
         })
 
+def compute_scores(predictions, targets, loss, log_wandb, step, split, chromosome):
+    is_expr = targets.sum(axis=(1, 2)) >= 1
+
+    scores = {
+        'loss': loss,
+        'n_obs': len(targets)
+    }
+    for ix, prediction_type in enumerate(['Acceptor', 'Donor']):
+        y_true = targets[is_expr, ix + 1, :].flatten()
+        y_pred = predictions[is_expr, ix + 1, :].flatten()
+
+        idx_true = np.nonzero(y_true == 1)[0]
+        argsorted_y_pred = np.argsort(y_pred)
+        # sorted_y_pred = np.sort(y_pred)
+
+        topkl_accuracy = []
+        # threshold = []
+
+        for top_length in [0.5, 1, 2, 4]:
+            idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
+
+            topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred))
+                               / (float(min(len(idx_pred), len(idx_true))) + 1e-6)]
+            # threshold += [sorted_y_pred[-int(top_length * len(idx_true))]]
+
+        auprc = average_precision_score(y_true, y_pred)
+
+        #no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
+
+        scores[f"{prediction_type}_auprc"] = auprc
+        scores[f"{prediction_type}_topk_0.5"] = topkl_accuracy[0],
+        scores[f"{prediction_type}_topk_1"] = topkl_accuracy[1],
+        scores[f"{prediction_type}_topk_2"] = topkl_accuracy[2],
+        scores[f"{prediction_type}_topk_4"] = topkl_accuracy[3]
+
+        if log_wandb:
+            wandb.log({
+                f'{split}/{chromosome}/Test Loss - {prediction_type}': loss,
+                f'{split}/{chromosome}/AUPRC - {prediction_type}': auprc,
+                f'{split}/{chromosome}/Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
+                # f'{split}/Thresholds for K: {prediction_type}': threshold[1],
+                # f'{split}/Proportion of True Splice Sites Predicted'
+                # f': {prediction_type}': no_positive_predictions / len(idx_true),
+            })
+    
+    return scores
+
+def compute_average_scores(chrom_scores, log_wandb, split):
+    all_scores = {}
+    for chrom, scores in chrom_scores.items():
+        for score, value in scores.items():
+            score_list = avg_scores.get(score, [])
+            score_list.append(value)
+            avg_scores[score] = score_list
+    combined_scores = {}
+    for score, values in all_scores.items():
+        if score in ["loss", "n_obs"]:
+            combined_scores[score] = np.sum(values)
+        else:
+            combined_scores[score] = np.mean(values)
+    combined_scores['avg_loss'] = combined_scores['loss'] / combined_scores['n_obs']
+    combined_scores['avg_auprc'] = np.mean([combined_scores['Acceptor_auprc'], combined_scores['Donor_auprc']])
+    combined_scores['avg_topk_0.5'] = np.mean([combined_scores['Acceptor_topk_0.5'], combined_scores['Donor_topk_0.5']])
+    if log_wandb:
+        wandb.log({
+                f'{split}/Aggregated/Total Test Loss': combined_scores['loss'],
+                f'{split}/Aggregated/Average Test Loss': combined_scores['avg_loss'],
+                f'{split}/Aggregated/AUPRC - Acceptor': combined_scores['Acceptor_auprc'],
+                f'{split}/Aggregated/AUPRC - Donor': combined_scores['Donor_auprc'],
+                f'{split}/Aggregated/AUPRC - Average': combined_scores['avg_auprc'],
+                f'{split}/Aggregated/Top-K Accuracy - Acceptor:': combined_scores['Acceptor_topk_0.5'],
+                f'{split}/Aggregated/Top-K Accuracy - Donor:': combined_scores['Donor_topk_0.5'],
+                f'{split}/Aggregated/Top-K Accuracy - Average:': combined_scores['avg_topk_0.5']
+            })
+    return combined_scores
+
 # Training functions
 def shuffle_chromosomes(datasets):
     for key in ['train', 'test', 'valid']:

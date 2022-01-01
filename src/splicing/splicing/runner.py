@@ -42,7 +42,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
 
         # logging.info('Pretraining the base model.')
 
-        predictions, targets, loss = pretrain(
+        combined_scores = pretrain(
             base_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
 
@@ -57,7 +57,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
     #     split=split, elapse=elapsed))
     # logging.info('Total epoch loss: {loss:3.3f}'.format(loss=loss))
 
-    return predictions, targets, loss, elapsed
+    return combined_scores, elapsed
 
 
 def run_model(base_model, graph_model, full_model, datasets,
@@ -87,24 +87,24 @@ def run_model(base_model, graph_model, full_model, datasets,
             if not opt.save_feats and not (opt.test_baseline or opt.test_graph):
                 
                 # FULL VALIDATION
-                valid_predictions, valid_targets, valid_loss, elapsed = \
+                valid_scores, elapsed = \
                     run_epoch(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
                 # FULL TEST
                 if opt.test:
-                    test_predictions, test_targets, test_loss, elapsed = \
+                    test_scores, elapsed = \
                         run_epoch(base_model, graph_model, full_model, datasets,
                                 criterion, optimizer, epoch, opt, 'test')
 
-                pass_end(
-                    elapsed, valid_predictions.numpy(), valid_targets.numpy(),
-                    valid_loss, opt, split='full_valid', step=epoch)
+                #pass_end(
+                #    elapsed, valid_predictions.numpy(), valid_targets.numpy(),
+                #    valid_loss, opt, split='full_valid', step=epoch)
 
-                if opt.test:
-                    pass_end(
-                        elapsed, test_predictions.numpy(), test_targets.numpy(),
-                        test_loss, opt, split='full_test', step=epoch)
+                #if opt.test:
+                #    pass_end(
+                #        elapsed, test_predictions.numpy(), test_targets.numpy(),
+                #        test_loss, opt, split='full_test', step=epoch)
 
                 if opt.pretrain:
                     save_model(opt, epoch, base_model, model_type='base')
@@ -112,13 +112,13 @@ def run_model(base_model, graph_model, full_model, datasets,
                     save_model(opt, epoch, graph_model, model_type='graph')
                     save_model(opt, epoch, full_model, model_type='full')
 
-    if scheduler:
-        if ((opt.pretrain and opt.cnn_sched in ["multisteplr", "steplr"]) or
-            (opt.finetune and opt.ft_sched in ["multisteplr", "steplr"])):
-            scheduler.step()
-        elif ((opt.pretrain and opt.cnn_sched == "reducelr") or
-            (opt.finetune and opt.ft_sched == "reducelr")):
-            scheduler.step(valid_loss)
+        if scheduler:
+            if ((opt.pretrain and opt.cnn_sched in ["multisteplr", "steplr"]) or
+                (opt.finetune and opt.ft_sched in ["multisteplr", "steplr"])):
+                scheduler.step()
+            elif ((opt.pretrain and opt.cnn_sched == "reducelr") or
+                (opt.finetune and opt.ft_sched == "reducelr")):
+                scheduler.step(valid_scores["avg_loss"])
 
     # TEST
     if opt.save_feats:  # hacky
@@ -129,9 +129,9 @@ def run_model(base_model, graph_model, full_model, datasets,
             base_model, graph_model, full_model, datasets, criterion,
             optimizer, chromosome, opt, 'valid')
     else:
-        test_predictions, test_targets, test_loss, elapsed = run_epoch(
+        test_scores, elapsed = run_epoch(
             base_model, graph_model, full_model, datasets,
             criterion, optimizer, opt.epochs, opt, 'test')
-        pass_end(
-            elapsed, test_predictions.numpy(), test_targets.numpy(),
-            test_loss, opt, step=1, split='test')
+        #pass_end(
+        #    elapsed, test_predictions.numpy(), test_targets.numpy(),
+        #    test_loss, opt, step=1, split='test')
