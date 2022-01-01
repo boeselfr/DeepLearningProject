@@ -115,9 +115,9 @@ def compute_scores(predictions, targets, loss, log_wandb, step, split, chromosom
         #no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
 
         scores[f"{prediction_type}_auprc"] = auprc
-        scores[f"{prediction_type}_topk_0.5"] = topkl_accuracy[0],
-        scores[f"{prediction_type}_topk_1"] = topkl_accuracy[1],
-        scores[f"{prediction_type}_topk_2"] = topkl_accuracy[2],
+        scores[f"{prediction_type}_topk_0.5"] = topkl_accuracy[0]
+        scores[f"{prediction_type}_topk_1"] = topkl_accuracy[1]
+        scores[f"{prediction_type}_topk_2"] = topkl_accuracy[2]
         scores[f"{prediction_type}_topk_4"] = topkl_accuracy[3]
 
         if log_wandb:
@@ -136,9 +136,9 @@ def compute_average_scores(chrom_scores, log_wandb, split):
     all_scores = {}
     for chrom, scores in chrom_scores.items():
         for score, value in scores.items():
-            score_list = avg_scores.get(score, [])
+            score_list = all_scores.get(score, [])
             score_list.append(value)
-            avg_scores[score] = score_list
+            all_scores[score] = score_list
     combined_scores = {}
     for score, values in all_scores.items():
         if score in ["loss", "n_obs"]:

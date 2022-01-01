@@ -92,7 +92,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
                 all_preds.numpy(), 
                 all_targets.numpy(),
                 total_loss,
-                opt.log_wandb,
+                opt.wandb,
                 epoch,
                 split,
                 chromosome
@@ -106,7 +106,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
 
     if split in  ["valid", "test"]:
         combined_scores = compute_average_scores(
-            scores, opt.log_wandb, split
+            scores, opt.wandb, split
         )
     else:
         combined_scores = {}
