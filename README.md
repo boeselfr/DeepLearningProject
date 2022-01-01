@@ -2,9 +2,13 @@
 
 Predicting splicing behaviour based on combined local sequence and long-range 3D genome information.
 
-## Installation
+## Repo Setup and Package Installation
 
-Navigate to src folder, then run:
+First, please clone the repo in Euler. Then, navigate to main folder and run 'source ./init_leonhard.sh'
+
+Then, install torch-geometry as explained here: https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
+
+Then, navigate to src folder and run:
 
 pip install -e splicing/
 
