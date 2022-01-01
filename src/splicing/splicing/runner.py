@@ -92,7 +92,7 @@ def run_model(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
                 # FULL TEST
-                if opt.test:
+                if opt.test and epoch > 3:
                     test_scores, elapsed = \
                         run_epoch(base_model, graph_model, full_model, datasets,
                                 criterion, optimizer, epoch, opt, 'test')
