@@ -99,14 +99,12 @@ def run_model(base_model, graph_model, full_model, datasets,
 
                 pass_end(
                     elapsed, valid_predictions.numpy(), valid_targets.numpy(),
-                    valid_loss, opt, split='full_valid',
-                    step=epoch // opt.full_validation_interval)
+                    valid_loss, opt, split='full_valid', step=epoch)
 
                 if opt.test:
                     pass_end(
                         elapsed, test_predictions.numpy(), test_targets.numpy(),
-                        test_loss, opt, split='full_test',
-                        step=epoch // opt.full_validation_interval)
+                        test_loss, opt, split='full_test', step=epoch)
 
                 if opt.pretrain:
                     save_model(opt, epoch, base_model, model_type='base')

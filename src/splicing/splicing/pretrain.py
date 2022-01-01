@@ -1,3 +1,4 @@
+import logging
 import torch
 from tqdm import tqdm
 
@@ -22,6 +23,8 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
     batch_size = opt.batch_size
 
     for chromosome in opt.chromosomes[split]:
+        logging.info(f"Pretraining epoch {epoch}, chromosome {chromosome}")
+
         dataloader = get_data(
             data_file, chromosome, opt.context_length,
             opt.batch_size
