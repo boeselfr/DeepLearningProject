@@ -157,7 +157,7 @@ def get_args(parser):
     parser.add_argument(
         '-rep', '--node_representation', 
         type=str, 
-        default='conv1d',
+        default='min-max',
         dest='node_representation',
         choices = ['average', 'max', 'min', 'min-max', 'conv1d', 'pca', 'summary', 'zeros'],
         help='How to construct the node representation '
