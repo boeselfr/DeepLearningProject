@@ -95,7 +95,7 @@ def get_args(parser):
         default=32, help='Batch size for finetuning.')
     parser.add_argument(
         '-fep', '--finetune_epochs', dest='finetune_epochs', type=int,
-        default=10, help='Number of epochs for graph training.')
+        default=6, help='Number of epochs for graph training.')
 
     # Optimizer and lrs
     parser.add_argument('-ft_optim', type=str, choices=['adam', 'sgd'],
