@@ -42,13 +42,13 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
 
         # logging.info('Pretraining the base model.')
 
-        predictions, targets, loss = pretrain(
+        combined_scores = pretrain(
             base_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
 
     elif opt.finetune or opt.test_graph:
         # logging.info('Fine-tuning the graph-based model')
-        predictions, targets, loss = finetune(
+        combined_scores = finetune(
             graph_model, full_model, datasets[split], criterion, optimizer,
             epoch, opt, split)
 
@@ -57,7 +57,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
     #     split=split, elapse=elapsed))
     # logging.info('Total epoch loss: {loss:3.3f}'.format(loss=loss))
 
-    return predictions, targets, loss, elapsed
+    return combined_scores, elapsed
 
 
 def run_model(base_model, graph_model, full_model, datasets,
@@ -70,58 +70,41 @@ def run_model(base_model, graph_model, full_model, datasets,
         if opt.finetune:
             datasets = shuffle_chromosomes(datasets)
 
-        if scheduler and (opt.pretrain or opt.lr_decay > 0) and epoch > 1:
-            if opt.ft_sched == "multisteplr":
-                scheduler.step()
-            elif (opt.ft_sched in ["reducelr", "steplr"] and 
-                    epoch % len(datasets['train']) == 0):
-                scheduler.step(valid_loss)
-
         train_loss, valid_loss = 0, 0
         if not opt.load_gcn and not (opt.test_baseline or opt.test_graph):
             # TRAIN
-            if opt.boost_period > 1:
-                if epoch % opt.boost_period != 0:
-                    # only update the full model every 100 epochs
-                    for param in full_model.parameters():
-                        param.requires_grad = False
-                else:
-                    for param in full_model.parameters():
-                        param.requires_grad = True
             run_epoch(
                 base_model, graph_model, full_model, datasets,
                 criterion, optimizer, epoch, opt, 'train')
 
-            if epoch % opt.validation_interval == 0 and not opt.save_feats:
+            #if epoch % opt.validation_interval == 0 and not opt.save_feats:
 
-                # VALIDATE
-                valid_predictions, valid_targets, valid_loss, elapsed = \
-                    run_epoch(base_model, graph_model, full_model, datasets,
-                              criterion, optimizer, epoch, opt, 'valid')
+            #    # VALIDATE
+            #    valid_predictions, valid_targets, valid_loss, elapsed = \
+            #        run_epoch(base_model, graph_model, full_model, datasets,
+            #                  criterion, optimizer, epoch, opt, 'valid')
 
-            if epoch % opt.full_validation_interval == 0 \
-                    and not opt.save_feats \
-                    and not (opt.test_baseline or opt.test_graph):
+            if not opt.save_feats and not (opt.test_baseline or opt.test_graph):
                 
                 # FULL VALIDATION
-                valid_predictions, valid_targets, valid_loss, elapsed = \
+                valid_scores, elapsed = \
                     run_epoch(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
                 # FULL TEST
-                test_predictions, test_targets, test_loss, elapsed = \
-                    run_epoch(base_model, graph_model, full_model, datasets,
-                              criterion, optimizer, epoch, opt, 'test')
+                if opt.test and epoch > 3:
+                    test_scores, elapsed = \
+                        run_epoch(base_model, graph_model, full_model, datasets,
+                                criterion, optimizer, epoch, opt, 'test')
 
-                pass_end(
-                    elapsed, valid_predictions.numpy(), valid_targets.numpy(),
-                    valid_loss, opt, split='full_valid',
-                    step=epoch // opt.full_validation_interval)
+                #pass_end(
+                #    elapsed, valid_predictions.numpy(), valid_targets.numpy(),
+                #    valid_loss, opt, split='full_valid', step=epoch)
 
-                pass_end(
-                    elapsed, test_predictions.numpy(), test_targets.numpy(),
-                    test_loss, opt, split='full_test',
-                    step=epoch // opt.full_validation_interval)
+                #if opt.test:
+                #    pass_end(
+                #        elapsed, test_predictions.numpy(), test_targets.numpy(),
+                #        test_loss, opt, split='full_test', step=epoch)
 
                 if opt.pretrain:
                     save_model(opt, epoch, base_model, model_type='base')
@@ -129,20 +112,26 @@ def run_model(base_model, graph_model, full_model, datasets,
                     save_model(opt, epoch, graph_model, model_type='graph')
                     save_model(opt, epoch, full_model, model_type='full')
 
+        if scheduler:
+            if ((opt.pretrain and opt.cnn_sched in ["multisteplr", "steplr"]) or
+                (opt.finetune and opt.ft_sched in ["multisteplr", "steplr"])):
+                scheduler.step()
+            elif ((opt.pretrain and opt.cnn_sched == "reducelr") or
+                (opt.finetune and opt.ft_sched == "reducelr")):
+                scheduler.step(valid_scores["avg_loss"])
+
     # TEST
     if opt.save_feats:  # hacky
-        for chromosome in range(len(opt.chromosomes['test'])):
-            run_epoch(
-                base_model, graph_model, full_model, datasets, criterion,
-                optimizer, chromosome, opt, 'test')
-        for chromosome in range(len(opt.chromosomes['valid'])):
-            run_epoch(
-                base_model, graph_model, full_model, datasets, criterion,
-                optimizer, chromosome, opt, 'valid')
-    else:
-        test_predictions, test_targets, test_loss, elapsed = run_epoch(
+        run_epoch(
+            base_model, graph_model, full_model, datasets, criterion,
+            optimizer, 0, opt, 'test')
+        run_epoch(
+            base_model, graph_model, full_model, datasets, criterion,
+            optimizer, 0, opt, 'valid')
+    elif not opt.test:
+        test_scores, elapsed = run_epoch(
             base_model, graph_model, full_model, datasets,
             criterion, optimizer, opt.epochs, opt, 'test')
-        pass_end(
-            elapsed, test_predictions.numpy(), test_targets.numpy(),
-            test_loss, opt, step=1, split='test')
+        #pass_end(
+        #    elapsed, test_predictions.numpy(), test_targets.numpy(),
+        #    test_loss, opt, step=1, split='test')

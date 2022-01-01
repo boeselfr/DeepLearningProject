@@ -9,7 +9,8 @@ import torch
 from torch_geometric.data import Data
 from torch_geometric.loader import NeighborLoader
 
-from splicing.utils.general_utils import SPLIT2DESC, IX2CHR
+from splicing.utils.general_utils import SPLIT2DESC, IX2CHR, \
+    compute_scores, compute_average_scores
 from splicing.utils.graph_utils import process_graph
 from splicing.utils.wandb_utils import report_wandb, analyze_gradients
 
@@ -24,15 +25,16 @@ def get_gpu_stats():
 
 def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
              epoch, opt, split):
+
     if split == 'train':
         graph_model.train()
     else:
         graph_model.eval()
 
-    all_preds = torch.Tensor().cpu()
-    all_targets = torch.Tensor().cpu()
-
     total_loss = 0
+    batch_count = 0
+
+    scores = {}
 
     # bin dict has information for all chromosomes
     # that's why we can load it here before:
@@ -51,92 +53,132 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     else:
         split_adj_dict = None
 
-    chromosome = chromosomes[epoch % len(chromosomes)]
+    for chromosome in chromosomes:
 
-    chromosome_data = torch.load(
-        path.join(
-            opt.model_name.split('/finetune')[0],
-            f'chrom_feature_dict_{split}_chr{chromosome}.pt'
-        ), map_location=torch.device('cpu')
-    )
+        chromosome_data = torch.load(
+            path.join(
+                opt.model_name.split('/finetune')[0],
+                f'chrom_feature_dict_{split}_chr{chromosome}.pt'
+            ), map_location=torch.device('cpu')
+        )
 
-    xs = chromosome_data['x']
-    ys = chromosome_data['y']
+        xs = chromosome_data['x']
+        ys = chromosome_data['y']
 
-    xs = torch.stack([(xs[loc][0]) for loc in xs])
-    ys = torch.stack([(ys[loc][0]) for loc in ys])
+        xs = torch.stack([(xs[loc][0]) for loc in xs])
+        ys = torch.stack([(ys[loc][0]) for loc in ys])
 
-    graph = process_graph(
-        opt.adj_type, split_adj_dict, len(xs),
-        IX2CHR(chromosome), bin_dict, opt.window_size
-    )
-    graph_data = Data(
-        x=xs,
-        y=ys,
-        edge_index=graph.coalesce().indices()
-    )
+        all_preds = torch.zeros(ys.shape).cpu()
+        all_targets = torch.zeros(ys.shape).cpu()
 
-    graph_loader = NeighborLoader(
-        graph_data, 
-        num_neighbors=[-1],
-        batch_size=opt.graph_batch_size
-    )
+        graph = process_graph(
+            opt.adj_type, split_adj_dict, len(xs),
+            IX2CHR(chromosome), bin_dict, opt.window_size
+        )
+        graph_data = Data(
+            x=xs,
+            y=ys,
+            edge_index=graph.coalesce().indices()
+        )
 
-    desc_i = f'({str.upper(SPLIT2DESC[split])} on chromosome {chromosome})'
-    logging.info(f'{desc_i} - batch size {opt.graph_batch_size}, nbatches '
-                 f' {len(graph_loader)}')
+        graph_loader = NeighborLoader(
+            graph_data, 
+            num_neighbors=[-1],
+            batch_size=opt.graph_batch_size,
+            drop_last=True
+        )
 
-    # a, f = get_gpu_stats()
-
-    analyze_grad_interval = math.ceil(len(graph_loader) / 100)
-
-    for batch, graph_batch in tqdm(enumerate(graph_loader), leave=False,
-                                   total=len(graph_loader), desc=desc_i):
-
-        _x = graph_batch['x'].to('cuda')
-        _y = graph_batch['y'].to('cuda' if split != 'test' else 'cpu')
-        _edge_index = graph_batch['edge_index'].to('cuda')
+        desc_i = f'({str.upper(SPLIT2DESC[split])} on chromosome {chromosome})'
+        logging.info(f'{desc_i} - batch size {opt.graph_batch_size}, nbatches '
+                    f' {len(graph_loader)}')
 
         # a, f = get_gpu_stats()
 
-        node_representation = graph_model(_x, _edge_index, opt)
-        if epoch <= opt.node_headstart * len(chromosomes):
-            _x = torch.zeros(_x.shape).to('cuda')
+        for batch, graph_batch in tqdm(enumerate(graph_loader), leave=False,
+                                    total=len(graph_loader), desc=desc_i):
 
-        _x.requires_grad = opt.ingrad
-        # node_representation.requires_grad = opt.ingrad
+            _x = graph_batch['x'].to('cuda')
+            _y = graph_batch['y'].to('cuda')
+            #_y = graph_batch['y'].to('cuda' if split != 'test' else 'cpu')
+            _edge_index = graph_batch['edge_index'].to('cuda')
 
-        _y_hat = full_model(_x, node_representation)
+            # a, f = get_gpu_stats()
 
-        loss = criterion(_y_hat, _y)
+            if opt.boost_period > 1:
+                if batch_count % opt.boost_period != 0:
+                    # only update the full model every boost_period epochs
+                    for param in full_model.parameters():
+                        param.requires_grad = False
+                else:
+                    for param in full_model.parameters():
+                        param.requires_grad = True
 
-        #a, f = get_gpu_stats()
+            node_representation = graph_model(_x, _edge_index, opt)
+            
+            if epoch <= opt.node_headstart * len(chromosomes):
+                _x = torch.zeros(_x.shape).to('cuda')
 
-        if split == 'train':
-            if opt.ingrad:
-                node_representation.retain_grad()
-            loss.backward()
-            optimizer.step()
+            _x.requires_grad = opt.ingrad
+            # node_representation.requires_grad = opt.ingrad
 
-            if batch % 100 == 0 and opt.wandb:
-                analyze_gradients(
-                    graph_model, full_model, _x, node_representation, opt
-                )
+            _y_hat = full_model(_x, node_representation)
 
-        if split != 'train':
-            total_loss += loss.sum().item()
-            all_preds = torch.cat((all_preds, _y_hat.cpu().data), 0)
-            all_targets = torch.cat((all_targets, _y.cpu().data), 0)
+            loss = criterion(_y_hat, _y)
 
-        # wandb reporting
-        if split == 'train':
-            optimizer.zero_grad()
-            if batch % 25 == 0 and opt.wandb:
-                report_wandb(_y_hat, _y, loss, opt, split, step=batch)
-        elif opt.wandb:
-            report_wandb(_y_hat, _y, loss, opt, split, step=batch)
+            #a, f = get_gpu_stats()
 
-    # if epoch == opt.finetune_epochs:
-    #     save_node_representations(graph_data.x, chromosome, opt)
+            if split == 'train':
+                if opt.ingrad:
+                    node_representation.retain_grad()
+                loss.backward()
+                optimizer.step()
 
-    return all_preds, all_targets, total_loss
+                if batch_count % opt.log_interval == 0 and opt.wandb:
+                    analyze_gradients(
+                        graph_model, full_model, _x, node_representation, opt
+                    )
+
+                optimizer.zero_grad()
+
+            if split != 'train':
+                total_loss += loss.sum().item()
+                #all_preds[batch * opt.graph_batch_size:(batch+1) * opt.graph_batch_size] = torch.cat((all_preds, _y_hat.cpu().data), 0)
+                all_preds[batch * opt.graph_batch_size:(batch+1) * opt.graph_batch_size] = _y_hat.cpu().data
+                #all_targets[] = torch.cat((all_targets, _y.cpu().data), 0)
+                all_targets[batch * opt.graph_batch_size:(batch+1) * opt.graph_batch_size] = _y.cpu().data
+
+            # wandb reporting
+            if split == 'train' and batch_count % opt.log_interval == 0 and opt.wandb:
+                report_wandb(_y_hat, _y, loss, opt, split, step=batch_count)
+            elif split == 'valid' and batch_count % opt.validation_interval == 0 and opt.wandb:
+                report_wandb(_y_hat, _y, loss, opt, split, step=batch_count)
+
+            batch_count+=1
+
+        if split in ["valid", "test"]:
+            scores[chromosome] = compute_scores(
+                all_preds.numpy(), 
+                all_targets.numpy(),
+                total_loss,
+                opt.wandb,
+                epoch,
+                split,
+                chromosome
+            )
+
+            all_preds = torch.Tensor().cpu()
+            all_targets = torch.Tensor().cpu()
+            total_loss = 0
+
+    if split in ["valid", "test"]:
+        combined_scores = compute_average_scores(
+            scores, opt.wandb, split
+        )
+    else:
+        combined_scores = {}
+
+        # TODO: check node reps before and after
+        # if epoch == opt.finetune_epochs:
+        #     save_node_representations(graph_data.x, chromosome, opt)
+
+    return combined_scores
