@@ -87,7 +87,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             graph_data, 
             num_neighbors=[-1],
             batch_size=opt.graph_batch_size,
-            drop_last=True
+            drop_last=True,
+            # shuffle=True
         )
 
         desc_i = f'({str.upper(SPLIT2DESC[split])} on chromosome {chromosome})'
@@ -123,9 +124,10 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             _x.requires_grad = opt.ingrad
             # node_representation.requires_grad = opt.ingrad
 
-            _y_hat = full_model(_x, node_representation)
+            _y_hat = full_model(_x[:opt.graph_batch_size],
+                                node_representation[:opt.graph_batch_size])
 
-            loss = criterion(_y_hat, _y)
+            loss = criterion(_y_hat, _y[:opt.graph_batch_size])
 
             #a, f = get_gpu_stats()
 
@@ -137,7 +139,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
                 if batch_count % opt.log_interval == 0 and opt.wandb:
                     analyze_gradients(
-                        graph_model, full_model, _x, node_representation, opt
+                        graph_model, full_model, _x[:opt.graph_batch_size],
+                        node_representation[:opt.graph_batch_size], opt
                     )
 
                 optimizer.zero_grad()
@@ -153,9 +156,9 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
             # wandb reporting
             if split == 'train' and batch_count % opt.log_interval == 0 and opt.wandb:
-                report_wandb(_y_hat, _y, loss, opt, split, step=batch_count)
+                report_wandb(_y_hat, _y[:opt.graph_batch_size], loss, opt, split, step=batch_count)
             elif split == 'valid' and batch_count % opt.validation_interval == 0 and opt.wandb:
-                report_wandb(_y_hat, _y, loss, opt, split, step=batch_count)
+                report_wandb(_y_hat, _y[:opt.graph_batch_size], loss, opt, split, step=batch_count)
 
             batch_count+=1
 
