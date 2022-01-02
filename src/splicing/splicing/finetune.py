@@ -69,8 +69,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         ys = torch.stack([(ys[loc][0]) for loc in ys])
 
         d1, d2, d3 = ys.shape
-        all_preds = torch.zeros((d1 - d1 % 32, d2, d3)).cpu()
-        all_targets = torch.zeros((d1 - d1 % 32, d2, d3)).cpu()
+        all_preds = torch.zeros((d1 - d1 % opt.graph_batch_size, d2, d3)).cpu()
+        all_targets = torch.zeros((d1 - d1 % opt.graph_batch_size, d2, d3)).cpu()
         count_ys = 0
 
         graph = process_graph(
