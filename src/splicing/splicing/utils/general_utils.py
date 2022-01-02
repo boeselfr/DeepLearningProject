@@ -149,7 +149,7 @@ def compute_average_scores(chrom_scores, log_wandb, split):
             combined_scores[score] = np.mean(values)
     combined_scores['avg_loss'] = combined_scores['loss'] / combined_scores['n_obs']
     combined_scores['avg_auprc'] = np.mean([combined_scores['Acceptor_auprc'], combined_scores['Donor_auprc']])
-    combined_scores['avg_topk_0.5'] = np.mean([combined_scores['Acceptor_topk_0.5'], combined_scores['Donor_topk_0.5']])
+    combined_scores['avg_topk_1'] = np.mean([combined_scores['Acceptor_topk_1'], combined_scores['Donor_topk_1']])
     if log_wandb:
         wandb.log({
                 f'{split}/aggregated/Total Test Loss': combined_scores['loss'],
@@ -157,9 +157,9 @@ def compute_average_scores(chrom_scores, log_wandb, split):
                 f'{split}/aggregated/AUPRC - Acceptor': combined_scores['Acceptor_auprc'],
                 f'{split}/aggregated/AUPRC - Donor': combined_scores['Donor_auprc'],
                 f'{split}/aggregated/AUPRC - Average': combined_scores['avg_auprc'],
-                f'{split}/aggregated/Top-K Accuracy - Acceptor:': combined_scores['Acceptor_topk_0.5'],
-                f'{split}/aggregated/Top-K Accuracy - Donor:': combined_scores['Donor_topk_0.5'],
-                f'{split}/aggregated/Top-K Accuracy - Average:': combined_scores['avg_topk_0.5']
+                f'{split}/aggregated/Top-K Accuracy - Acceptor:': combined_scores['Acceptor_topk_1'],
+                f'{split}/aggregated/Top-K Accuracy - Donor:': combined_scores['Donor_topk_1'],
+                f'{split}/aggregated/Top-K Accuracy - Average:': combined_scores['avg_topk_1']
             })
     return combined_scores
 
