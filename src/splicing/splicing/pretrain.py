@@ -39,6 +39,8 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         all_preds = torch.zeros((n_instances, 3, opt.window_size)).cpu()
         all_targets = torch.zeros((n_instances, 3, opt.window_size)).cpu()
         all_x_f = torch.zeros((n_instances, opt.n_channels, opt.window_size)).cpu()
+        count_ys = 0
+        count_xs = 0
 
         if opt.pretrain:
             desc_prefix = "PRETRAIN"
@@ -71,15 +73,18 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
             if split != 'train':
                 total_loss += loss.item()
                 #all_preds = torch.cat((all_preds, y_hat.cpu().data), 0)
-                all_preds[batch * opt.batch_size:(batch+1) * opt.batch_size] = y_hat.cpu().data
+                all_preds[count_ys:count_ys + y_hat.shape[0]] = y_hat.cpu().data
                 #all_targets = torch.cat((all_targets, y.cpu().data), 0)
-                all_targets[batch * opt.batch_size:(batch+1) * opt.batch_size] = y.cpu().data
+                all_targets[count_ys:count_ys + y_hat.shape[0]] = y.cpu().data
+                count_ys += y_hat.shape[0]
 
+            #TODO DEBUG THIS
             if opt.save_feats:
                 #all_x_f = torch.cat((all_x_f, x.detach().cpu()), 0)
-                all_x_f[batch * opt.batch_size:(batch+1) * opt.batch_size] = x.detach().cpu()
+                all_x_f[count_xs:count_xs + x.shape[0]] = x.detach().cpu()
                 loc = list(loc.detach().cpu().numpy().astype(int))
                 all_locs.extend(loc)
+                counts_xs += x.shape[0]
 
             if split == 'train' and batch_count % opt.log_interval == 0 \
                     and opt.wandb:

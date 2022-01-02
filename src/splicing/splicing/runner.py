@@ -92,7 +92,7 @@ def run_model(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
                 # FULL TEST
-                if opt.test and epoch > 3:
+                if epoch > 3:
                     test_scores, elapsed = \
                         run_epoch(base_model, graph_model, full_model, datasets,
                                 criterion, optimizer, epoch, opt, 'test')
@@ -128,10 +128,10 @@ def run_model(base_model, graph_model, full_model, datasets,
         run_epoch(
             base_model, graph_model, full_model, datasets, criterion,
             optimizer, 0, opt, 'valid')
-    elif not opt.test:
-        test_scores, elapsed = run_epoch(
-            base_model, graph_model, full_model, datasets,
-            criterion, optimizer, opt.epochs, opt, 'test')
+    #elif not opt.test:
+    #    test_scores, elapsed = run_epoch(
+    #        base_model, graph_model, full_model, datasets,
+    #        criterion, optimizer, opt.epochs, opt, 'test')
         #pass_end(
         #    elapsed, test_predictions.numpy(), test_targets.numpy(),
         #    test_loss, opt, step=1, split='test')
