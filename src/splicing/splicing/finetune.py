@@ -101,7 +101,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
                                     total=len(graph_loader), desc=desc_i):
 
             _x = graph_batch['x'].to('cuda')
-            _y = graph_batch['y'].to('cuda')
+            _y = graph_batch['y'][:opt.graph_batch_size].to('cuda')
             #_y = graph_batch['y'].to('cuda' if split != 'test' else 'cpu')
             _edge_index = graph_batch['edge_index'].to('cuda')
 
@@ -127,7 +127,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             _y_hat = full_model(_x[:opt.graph_batch_size],
                                 node_representation[:opt.graph_batch_size])
 
-            loss = criterion(_y_hat, _y[:opt.graph_batch_size])
+            loss = criterion(_y_hat, _y)
 
             #a, f = get_gpu_stats()
 
@@ -148,17 +148,17 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             if split != 'train':
                 total_loss += loss.sum().item()
                 #all_preds[batch * opt.graph_batch_size:(batch+1) * opt.graph_batch_size] = torch.cat((all_preds, _y_hat.cpu().data), 0)
-                all_preds[count_ys:count_ys + opt.graph_batch_size] = _y_hat[:opt.graph_batch_size].cpu().data
+                all_preds[count_ys:count_ys + opt.graph_batch_size] = _y_hat.cpu().data
                 #all_targets[] = torch.cat((all_targets, _y.cpu().data), 0)
-                all_targets[count_ys:count_ys + opt.graph_batch_size] = _y[:opt.graph_batch_size].cpu().data
+                all_targets[count_ys:count_ys + opt.graph_batch_size] = _y.cpu().data
                 # count_ys += _y_hat.shape[0]
                 count_ys += opt.graph_batch_size
 
             # wandb reporting
             if split == 'train' and batch_count % opt.log_interval == 0 and opt.wandb:
-                report_wandb(_y_hat, _y[:opt.graph_batch_size], loss, opt, split, step=batch_count)
+                report_wandb(_y_hat, _y, loss, opt, split, step=batch_count)
             elif split == 'valid' and batch_count % opt.validation_interval == 0 and opt.wandb:
-                report_wandb(_y_hat, _y[:opt.graph_batch_size], loss, opt, split, step=batch_count)
+                report_wandb(_y_hat, _y, loss, opt, split, step=batch_count)
 
             batch_count+=1
 
