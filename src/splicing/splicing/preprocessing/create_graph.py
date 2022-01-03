@@ -58,10 +58,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--genome', type=str, default='hg19')
 parser.add_argument('--cell_type', type=str, default='GM12878')
 parser.add_argument(
-    '-cl', '--context_length', dest='context_length',
-    choices = [80, 400],
-    type=int, default=400, help='The context length to use.')
-parser.add_argument(
     '-ws', '--window_size', dest='window_size',
     choices = [1000, 5000], type=int, default=5000,
     help='Size of the pretrain batches and graph windows.')
@@ -227,18 +223,17 @@ def print_bin_sizes(args, bin_dict):
 def create_graph(args):
     output_root = args.output_root
     window_length = args.window_size
-    context_length = args.context_length
 
-    all_peaks_file_name = os.path.join(args.output_root, f'graph_windows_{window_length}_{context_length}.bed')
+    all_peaks_file_name = os.path.join(args.output_root, f'graph_windows_{window_length}.bed')
 
     hic_root = os.path.join(args.hic_root, args.cell_type + '_combined',
                             args.resolution + 'kb_resolution_intrachromosomal/')
 
-    train_dict = os.path.join(output_root, f'test_{window_length}_train_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
-    valid_dict = os.path.join(output_root, f'test_{window_length}_valid_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
-    test_dict = os.path.join(output_root, f'test_{window_length}_test_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
+    train_dict = os.path.join(output_root, f'{window_length}_train_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
+    valid_dict = os.path.join(output_root, f'{window_length}_valid_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
+    test_dict = os.path.join(output_root, f'{window_length}_test_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
     bin_dict_file = os.path.join(output_root,
-                                 f'test_{window_length}_test_val_train_bin_dict' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
+                                 f'{window_length}_test_val_train_bin_dict' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
 
     print('\nInputs')
     print('| ' + all_peaks_file_name)

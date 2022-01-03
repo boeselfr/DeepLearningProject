@@ -17,7 +17,7 @@ The entire project revolves around two required arguments for every command:
 - Window size (-ws): 1000 or 5000
 - Context length (-cl): 80 or 400
 
-At every step, from data preprocessing to model training, these arguments are required.
+At almost every step, from data preprocessing to model training, these arguments are required.
 Separate datasets, models, etc. are created for each combination of these settings.
 
 The rest of this guide takes you through the -ws 5000 -cl 80 workflow, just change the values
@@ -49,26 +49,35 @@ bsub -R "rusage[mem=16000]" python preprocessing/create_dataset_nodup.py -g vali
 bsub -R "rusage[mem=16000]" python preprocessing/create_dataset_nodup.py -g test -p all -ws 5000 -cl 80
 
 ### Graph Creation
-You now need to create the graph using the hic values that need to be downloaded before.
+You now need to create the graph using the Hi-C values that need to be downloaded before. The graph only depends on the window 
+size and not on the context length. So you will only need to run this once for the 5000 window size and once for the 1000
+window size
 
 The hic data can be downloaded here:
 https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63525
 
 filename: GSE63525_GM12878_combined_intrachromosomal_contact_matrices.tar.gz
-(Gene Expression Omnibus (GEO) accession number for the data sets reported in this paper is GSE63525.)
+
+(Gene Expression Omnibus (GEO) accession number for the Hi-C data sets reported in this paper is GSE63525.)
+
+Use the following commands to download the Hi-C data:
+
+cd {your specified data_dir}/raw_data/hic
+
+wget https://ftp.ncbi.nlm.nih.gov/geo/series/GSE63nnn/GSE63525/suppl/GSE63525%5FGM12878%5Fcombined%5Fintrachromosomal%5Fcontact%5Fmatrices%2Etar%2Egz
+
+tar -xf GSE63525_GM12878_combined_intrachromosomal_contact_matrices.tar.gz
 
 The hic datafolder 5kb_resolution_intrachromosomal (for 5000 window size) or 1kb_resolution_intrachromosomal (for 1000 window size)
-needs to be located here: 
-data_dir/raw_data/hic/GM12878_combined/
+should now be located inside the folder: 
+{your specified data_dir}/raw_data/hic/GM12878_combined/
 
-After the download is complete, run the following command to create the graph:
+After the download is complete and the data is in the right place, run the following command to create the graph:
 
-bsub -R "rusage[mem=32000]" -W 4:00 python preprocessing/create_graph.py -ws 5000 -cl 80
+bsub -R "rusage[mem=32000]" -W 4:00 python preprocessing/create_graph.py -ws 5000 
 
-The command relies on the file graph_windows_5000_80.bed, that is created in the create_datafile command from above.
-
-
-
+The command relies on the file graph_windows_5000.bed, that is created in the create_datafile command from above.
+You should now have four graph related .pkl files in {your specified data_dir}/processed_data 
 
 ## Model Training
 
@@ -85,8 +94,11 @@ bsub -R "rusage[mem=64000,ngpus_excl_p=1]" python main.py -save_feats -load_pret
 
 ### Train Graph & Full model
 bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type both -test -wb -wbn default_both
+
 bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type hic -test -wb -wbn default_hic
+
 bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type constant -test -wb -wbn default_constant
+
 bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type none -test -wb -wbn default_none
 
 - adj_type: specifies which type of graph to use: hic, constant, both, none
