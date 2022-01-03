@@ -42,6 +42,9 @@ parser = argparse.ArgumentParser()
 args = get_args(parser)
 opt = config_args(args, project_config)
 
+# ----------------------------------------------------------------
+# Loading Chromosome Split
+# ----------------------------------------------------------------
 TRAIN_CHROMOSOMES = [CHR2IX(chrom[3:]) for chrom in
                      project_config['DATA_PIPELINE']['train_chroms']]
 VALID_CHROMOSOMES = [CHR2IX(chrom[3:]) for chrom in
@@ -58,20 +61,20 @@ def main(opt):
     # Loading Dataset
     logging.info('==> Loading Data')
     if opt.finetune or opt.test_graph:
-        # features_dir = opt.model_name.split('.finetune')[0]
-
+        # Load just the chromosome numbers if training graph.
+        # Window features will be read in later.
         datasets = {
             'train': np.asarray(TRAIN_CHROMOSOMES, dtype=int),
             'valid': np.asarray(VALID_CHROMOSOMES, dtype=int),
             'test': np.asarray(TEST_CHROMOSOMES, dtype=int),
         }
 
-        #opt.full_validation_interval = len(datasets['train'])
-
-        #opt.epochs = opt.finetune_epochs * len(datasets['train'])
+        # passed over the genome
         opt.epochs = opt.finetune_epochs
 
     else:
+
+        # Load the actual created dataset of sequences
         train_data_path = path.join(
             opt.splice_data_root,
             f'dataset_train_all_{opt.window_size}_{opt.context_length}.h5'
@@ -89,9 +92,8 @@ def main(opt):
             f'dataset_test_all_{opt.window_size}_{opt.context_length}.h5'),
             'r')
 
-        #opt.full_validation_interval = train_data_file.attrs['n_datasets']
-
         if opt.save_feats:
+            # only loop through the genome once
             opt.epochs = 1
         else:
             opt.epochs = opt.passes
@@ -157,7 +159,7 @@ def main(opt):
         checkpoint = torch.load(gcn_model_path)
         graph_model.load_state_dict(checkpoint['model'])
 
-    # if saving feats or finetuning, need to load a base model
+    # if saving feats or finetuning, need to load a trained base model
     if opt.save_feats or opt.finetune:
         
         if opt.save_feats:
@@ -206,6 +208,7 @@ def main(opt):
 
     criterion = get_criterion(opt)
 
+    # Take care of the GPU stuff
     if torch.cuda.device_count() > 0 and opt.pretrain:
         logging.info(f'Using {torch.cuda.device_count()} GPUs!')
         base_model = nn.DataParallel(base_model)
@@ -222,6 +225,7 @@ def main(opt):
     logging.info(f'Model name: {opt.model_name}')
 
     try:
+        # Run the model
         run_model(base_model, graph_model, full_model, datasets, criterion,
                   optimizer, scheduler, opt)
     except KeyboardInterrupt:

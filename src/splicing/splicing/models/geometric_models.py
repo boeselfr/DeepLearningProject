@@ -6,7 +6,10 @@ from torch_geometric.nn import GCNConv, BatchNorm, Linear, GATv2Conv
 from splicing.utils.general_utils import compute_conv1d_lout
 from splicing.utils.graph_utils import build_node_representations
 
+
 class FullModel(nn.Module):
+    """ the model that predicts the splicing based on combined window and
+        base pair information """
     def __init__(self, opt, device='cuda'):
         super(FullModel, self).__init__()
 
@@ -41,19 +44,21 @@ class FullModel(nn.Module):
 
         self.out_act = nn.Softmax(dim=1)
 
-
     def forward(self, x, node_rep):
-        
+
+        # ignore certain features
         if self.zeronuc:
             x = torch.zeros(x.shape).to('cuda')
         if self.zeronodes:
             node_rep = torch.zeros(node_rep.shape).to('cuda')
 
+        # transform the base pair representations before concatenation
         if self.nt_conv:
             x = self.nucleotide_conv_1(x)
             x = F.relu(x)
             x = self.batch_norm_n_1(x)
 
+        # concatenate the base pair and replicated node representations
         bs, _, sl = x.shape
         _, n_h = node_rep.shape
         x = torch.cat(
@@ -67,14 +72,15 @@ class FullModel(nn.Module):
         x = F.relu(x)
         x = self.batch_norm1(x)
 
+        # prediction based on the combined features
         out = self.out(x)
         out = self.out_act(out)
 
         return out
 
 
-# Look at 'graph_models.py' for ChromeGCN reference
 class SpliceGraph(torch.nn.Module):
+    """ the graph convolutional model """
     def __init__(self, opt):
         super().__init__()
         
@@ -91,6 +97,7 @@ class SpliceGraph(torch.nn.Module):
         elif opt.node_representation == "conv1d":
             self.rep_size = opt.hidden_size   
 
+        # different possible node representations
         # learned node matrix
         self.nr_conv1d = False
         if opt.node_representation == 'conv1d':
@@ -173,8 +180,7 @@ class SpliceGraph(torch.nn.Module):
                 self.nr_bn_1 = nn.BatchNorm1d(1)
                 self.nr_linear = nn.Linear(opt.window_size, self.rep_size)
                 
-
-        # single graph conv
+        # single-layer graph conv
         if opt.gat_conv:
             self.gcn_conv = GATv2Conv(
                 self.rep_size, opt.hidden_size, heads=opt.n_heads)
@@ -243,6 +249,7 @@ class SpliceGraph(torch.nn.Module):
                 x = torch.reshape(x, (x.shape[0],x.shape[1]*x.shape[2]))
                 x = self.nr_linear(x)
 
+        # gated graph convolution
         z = self.gcn_conv(x, edge_index)
         z = F.tanh(z)
         g = F.sigmoid(self.gcn_gate(z))
@@ -255,6 +262,7 @@ class SpliceGraph(torch.nn.Module):
         return x
 
 
+# ensemble models to test trained models
 class SpliceGraphEnsemble(nn.Module):
     def __init__(self, graph_models):
         super(SpliceGraphEnsemble, self).__init__()

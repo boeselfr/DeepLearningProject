@@ -183,8 +183,8 @@ def one_hot_encode(Xd, Yd):
            [OUT_MAP[Yd[t].astype('int8')] for t in range(1)]
 
 
-
 def get_architecture(size, N_GPUS=1):
+    """ get the number of residual blocks, dilation rates and batch sizes """
     if int(size) == 80:
         W = np.asarray([11, 11, 11, 11])
         AR = np.asarray([1, 1, 1, 1])
@@ -210,11 +210,12 @@ def get_architecture(size, N_GPUS=1):
 
 
 def get_data(h5f, chromosome, context_length, batch_size, device='cuda'):
+    """ get the chromosome sequence and targets dataset """
     from splicing.data_models.splice_dataset import SpliceDataset
     from torch.utils.data import DataLoader, ConcatDataset, Subset
 
     def get_dataset(dchromosome, dix):
-
+        """ load a single chunk """
         X = h5f[dchromosome + '_X' + str(dix)][:]
         y = np.asarray(h5f[dchromosome + '_Y' + str(dix)][:], dtype=np.float32)
         locs = np.asarray(h5f[dchromosome + '_Locations' + str(dix)][:],

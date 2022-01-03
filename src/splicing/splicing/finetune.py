@@ -45,6 +45,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     )
     bin_dict = pickle.load(open(bin_dict_file, "rb"))
 
+    # get the graph info
     if opt.adj_type in ['hic', 'both']:
         graph_file = path.join(
             opt.graph_data_root,
@@ -53,8 +54,10 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
     else:
         split_adj_dict = None
 
+    # loop over all the chromosomes
     for chromosome in chromosomes:
 
+        # load the saved nucleotide representations
         chromosome_data = torch.load(
             path.join(
                 opt.model_name.split('/finetune')[0],
@@ -65,24 +68,29 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         xs = chromosome_data['x']
         ys = chromosome_data['y']
 
+        # combine the nucleotide representations in a matrix
         xs = torch.stack([(xs[loc][0]) for loc in xs])
         ys = torch.stack([(ys[loc][0]) for loc in ys])
 
+        # init predictions stores
         d1, d2, d3 = ys.shape
         all_preds = torch.zeros((d1 - d1 % opt.graph_batch_size, d2, d3)).cpu()
         all_targets = torch.zeros((d1 - d1 % opt.graph_batch_size, d2, d3)).cpu()
         count_ys = 0
 
+        # create the graph of the appropriate type
         graph = process_graph(
             opt.adj_type, split_adj_dict, len(xs),
             IX2CHR(chromosome), bin_dict, opt.window_size
         )
+        # put everything into a Geometric data type
         graph_data = Data(
             x=xs,
             y=ys,
             edge_index=graph.coalesce().indices()
         )
 
+        # for incremental loading of the graph
         graph_loader = NeighborLoader(
             graph_data, 
             num_neighbors=[-1],
@@ -95,14 +103,13 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
         logging.info(f'{desc_i} - batch size {opt.graph_batch_size}, nbatches '
                     f' {len(graph_loader)}')
 
-        # a, f = get_gpu_stats()
-
+        # loop over the entire chromosome graph in batches
         for batch, graph_batch in tqdm(enumerate(graph_loader), leave=False,
                                     total=len(graph_loader), desc=desc_i):
 
+            # get the batch data
             _x = graph_batch['x'].to('cuda')
             _y = graph_batch['y'][:opt.graph_batch_size].to('cuda')
-            #_y = graph_batch['y'].to('cuda' if split != 'test' else 'cpu')
             _edge_index = graph_batch['edge_index'].to('cuda')
 
             # a, f = get_gpu_stats()
@@ -116,20 +123,20 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
                     for param in full_model.parameters():
                         param.requires_grad = True
 
+            # get the node representations from the graph model
             node_representation = graph_model(_x, _edge_index, opt)
             
-            if epoch <= opt.node_headstart * len(chromosomes):
-                _x = torch.zeros(_x.shape).to('cuda')
-
+            # only consider the original batch of the nodes,
+            # not their neighbors
             _x = _x[:opt.graph_batch_size]
             node_representation = node_representation[:opt.graph_batch_size]
 
             _x.requires_grad = opt.ingrad and split == 'train'
+
+            # make the predictions
             _y_hat = full_model(_x, node_representation)
 
             loss = criterion(_y_hat, _y)
-
-            #a, f = get_gpu_stats()
 
             if split == 'train':
                 if opt.ingrad:
@@ -137,6 +144,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
                 loss.backward()
                 optimizer.step()
 
+                # log the gradient information to wandb
                 if batch_count % opt.log_interval == 0 and opt.wandb:
                     analyze_gradients(
                         graph_model, full_model, _x, node_representation, opt
@@ -146,11 +154,8 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
             if split != 'train':
                 total_loss += loss.sum().item()
-                #all_preds[batch * opt.graph_batch_size:(batch+1) * opt.graph_batch_size] = torch.cat((all_preds, _y_hat.cpu().data), 0)
                 all_preds[count_ys:count_ys + opt.graph_batch_size] = _y_hat.cpu().data
-                #all_targets[] = torch.cat((all_targets, _y.cpu().data), 0)
                 all_targets[count_ys:count_ys + opt.graph_batch_size] = _y.cpu().data
-                # count_ys += _y_hat.shape[0]
                 count_ys += opt.graph_batch_size
 
             # wandb reporting
@@ -161,6 +166,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
             batch_count+=1
 
+        # compute the full chromosome prediction metrics
         if split in ["valid", "test"]:
             scores[chromosome] = compute_scores(
                 all_preds.numpy(), 
@@ -176,15 +182,12 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             all_targets = torch.Tensor().cpu()
             total_loss = 0
 
+    # average the scores across the chromosomes
     if split in ["valid", "test"]:
         combined_scores = compute_average_scores(
             scores, opt.wandb, split
         )
     else:
         combined_scores = {}
-
-        # TODO: check node reps before and after
-        # if epoch == opt.finetune_epochs:
-        #     save_node_representations(graph_data.x, chromosome, opt)
 
     return combined_scores

@@ -10,7 +10,6 @@ import wandb
 import math
 
 
-
 def get_wandb_config(opt):
     config = wandb.config
 
@@ -93,7 +92,7 @@ def report_wandb(predictions, targets, loss, opt, split, step=0):
     
 
 def analyze_gradients(graph_model, full_model, _x, nodes, opt):
-
+    """ report the norms of the layer weights and their gradients """
     log_message = {}
     try:
         nucleotide_grad = list(

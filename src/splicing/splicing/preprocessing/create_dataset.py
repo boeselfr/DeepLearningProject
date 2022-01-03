@@ -99,6 +99,7 @@ print(f"Outputting to dataset {DATASET_PATH}")
 h5f2 = h5py.File(DATASET_PATH, 'w')
 
 def count_nonzero_labels(Y):
+    """ Determine the number of splice sites to decide which windows to keep"""
     counts = np.unique(Y, axis=0, return_counts=True)
     for i, val in enumerate(counts[0]):
         zero_count = 0

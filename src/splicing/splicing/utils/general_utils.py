@@ -36,56 +36,14 @@ def directory_setup(dir_name: str) -> None:
         # print(f'Directory {dir_name} already exists.')
         pass
 
+
 # Losses, Metrics, etc.
 def get_criterion(opt):
     return CategoricalCrossEntropy2d(opt.class_weights)
 
-def print_topl_statistics(
-        y_true, y_pred, loss, prediction_type, log_wandb, step, split):
-    # Prints the following information: top-kL statistics for k=0.5,1,2,4,
-    # auprc, thresholds for k=0.5,1,2,4, number of true splice sites.
-
-    idx_true = np.nonzero(y_true == 1)[0]
-    argsorted_y_pred = np.argsort(y_pred)
-    # sorted_y_pred = np.sort(y_pred)
-
-    topkl_accuracy = []
-    # threshold = []
-
-    for top_length in [0.5, 1, 2, 4]:
-        idx_pred = argsorted_y_pred[-int(top_length * len(idx_true)):]
-
-        topkl_accuracy += [np.size(np.intersect1d(idx_true, idx_pred))
-                           / (float(min(len(idx_pred), len(idx_true))) + 1e-6)]
-        # threshold += [sorted_y_pred[-int(top_length * len(idx_true))]]
-
-    auprc = average_precision_score(y_true, y_pred)
-
-    no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
-    logging.info('Top-K Accuracy')
-    logging.info('|0.5\t|1\t|2\t|4\t|')
-    logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
-        topkl_accuracy[0], topkl_accuracy[1],
-        topkl_accuracy[2], topkl_accuracy[3]))
-    # logging.info('Thresholds for K')
-    # logging.info('|0.5\t|1\t|2\t|4\t|')
-    # logging.info('|{:.3f}|{:.3f}|{:.3f}|{:.3f}|'.format(
-    #     threshold[0], threshold[1], threshold[2], threshold[3]))
-    logging.info(f'AUPRC: {auprc:.6f}')
-    logging.info(f'# True Splice Sites: {len(idx_true)} / {len(y_true)}')
-    logging.info('# Predicted Splice Sites: '
-                 f'{no_positive_predictions} / {len(y_pred)}')
-    if log_wandb:
-        wandb.log({
-            f'{split}/Test Loss: {prediction_type}': loss,
-            f'{split}/AUPRC: {prediction_type}': auprc,
-            f'{split}/Top-K Accuracy: {prediction_type}': topkl_accuracy[1],
-            # f'{split}/Thresholds for K: {prediction_type}': threshold[1],
-            # f'{split}/Proportion of True Splice Sites Predicted'
-            # f': {prediction_type}': no_positive_predictions / len(idx_true),
-        })
 
 def compute_scores(predictions, targets, loss, log_wandb, step, split, chromosome):
+    """ compute the evaluation scores for a single chromosome """
     is_expr = targets.sum(axis=(1, 2)) >= 1
 
     chromosome = IX2CHR(chromosome)
@@ -114,8 +72,6 @@ def compute_scores(predictions, targets, loss, log_wandb, step, split, chromosom
 
         auprc = average_precision_score(y_true, y_pred)
 
-        #no_positive_predictions = len(np.nonzero(y_pred > 0.5)[0])
-
         scores[f"{prediction_type}_auprc"] = auprc
         scores[f"{prediction_type}_topk_0.5"] = topkl_accuracy[0]
         scores[f"{prediction_type}_topk_1"] = topkl_accuracy[1]
@@ -134,7 +90,9 @@ def compute_scores(predictions, targets, loss, log_wandb, step, split, chromosom
 
     return scores
 
+
 def compute_average_scores(chrom_scores, log_wandb, split):
+    """ average the scores across chromosomes """
     all_scores = {}
     for chrom, scores in chrom_scores.items():
         for score, value in scores.items():
@@ -162,12 +120,13 @@ def compute_average_scores(chrom_scores, log_wandb, split):
                 f'{split}/aggregated/Top-K Accuracy - Average:': combined_scores['avg_topk_1']
             })
 
-    print(f'------------------------>>>> {split} <<<<------------------------')
-    print(f'Total Loss: {combined_scores["loss"]}')
-    print(f'Top-K Accuracy: {combined_scores["avg_topk_1"]}')
-    print(f'AUPRC: {combined_scores["avg_auprc"]:.6f}')
+    logging.info(f'------------------------>>>> {split} <<<<------------------------')
+    logging.info(f'Total Loss: {combined_scores["loss"]}')
+    logging.info(f'Top-K Accuracy: {combined_scores["avg_topk_1"]}')
+    logging.info(f'AUPRC: {combined_scores["avg_auprc"]:.6f}')
 
     return combined_scores
+
 
 # Training functions
 def shuffle_chromosomes(datasets):
@@ -176,6 +135,7 @@ def shuffle_chromosomes(datasets):
             np.random.permutation(len(datasets[key]))]
 
     return datasets
+
 
 def get_optimizer(graph_model, full_model, opt):
 
@@ -246,7 +206,7 @@ def compute_conv1d_lout(l_in, padding=0, dilation=1, kernel_size=1, stride=1):
 
 
 def load_base_checkpoint(base_model, checkpoint_path):
-
+    """ load the saved checkpoint of a base CNN model """
     logging.info(f'==> Loading saved base_model {checkpoint_path}')
 
     checkpoint = torch.load(checkpoint_path)
@@ -266,7 +226,7 @@ def load_base_checkpoint(base_model, checkpoint_path):
 
 
 def load_pretrained_base_model(opt, config):
-
+    """ get a pre-trainted base CNN model """
     if opt.test_baseline:
 
         base_models = []
@@ -320,6 +280,7 @@ def load_pretrained_base_model(opt, config):
 
 
 def load_finetuned_checkpoint(graph_model, checkpoint_path, splice_ai_device):
+    """ load the saved checkpoint of a graph model """
 
     logging.info(f'==> Loading saved graph_model {checkpoint_path}')
 
@@ -330,6 +291,7 @@ def load_finetuned_checkpoint(graph_model, checkpoint_path, splice_ai_device):
 
 
 def load_pretrained_graph_model(opt, config):
+    """ get a pre-trainted graph full model """
     from splicing.models.geometric_models import SpliceGraph, FullModel
     from splicing.models.geometric_models import SpliceGraphEnsemble, \
         FullModelEnsemble
@@ -375,7 +337,7 @@ def load_pretrained_graph_model(opt, config):
 
 
 def save_model(opt, epoch, model, model_type='base'):
-
+    """ save a model checkpoint """
     model_suffix = f'{model_type}' \
                    f'_e{epoch}' \
                    f'_cl{opt.context_length}' \
@@ -390,6 +352,9 @@ def save_model(opt, epoch, model, model_type='base'):
 
 
 def save_feats(model_name, split, Y, locations, X, chromosome):
+    """ Saves the nucleotide representations and targets so that these can
+        later be combined into window representations.
+        Each chromosome gets its own file. """
     # logging.info(f'Saving features for model {model_name}.')
 
     features_dir = model_name.split('/finetune')[0]
@@ -409,6 +374,7 @@ def save_feats(model_name, split, Y, locations, X, chromosome):
             location_index_dict[location] = []
         location_index_dict[location].append(idx)
 
+    # save per location
     for location in location_index_dict:
         chrom_indices = torch.Tensor(location_index_dict[location]).long()
         x = torch.index_select(X, 0, chrom_indices)

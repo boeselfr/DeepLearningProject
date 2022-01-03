@@ -230,6 +230,7 @@ def get_args(parser):
 
 
 def config_args(opt, config):
+    """ set up the 'opt' object to score the run config """
 
     opt.ft_random_id = str(random.randint(1, 1000000))
 

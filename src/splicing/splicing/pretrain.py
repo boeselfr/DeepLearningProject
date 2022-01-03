@@ -1,8 +1,7 @@
-import logging
 import torch
 from tqdm import tqdm
 
-from splicing.utils.general_utils import SPLIT2DESC, IX2CHR, save_feats, \
+from splicing.utils.general_utils import SPLIT2DESC, save_feats, \
     compute_scores, compute_average_scores
 from splicing.utils.wandb_utils import report_wandb
 from splicing.utils.spliceai_utils import get_data
@@ -14,9 +13,6 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
     else:
         base_model.eval()
 
-    all_preds = torch.Tensor().cpu()
-    all_targets = torch.Tensor().cpu()
-    all_x_f = torch.Tensor().cpu()
     all_locs = []
 
     total_loss = 0
@@ -25,8 +21,10 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
 
     scores = {}
 
+    # loop over all the chromosomes
     for chromosome in opt.chromosomes[split]:
 
+        # create the chromosome sequence dataset
         dataloader = get_data(
             data_file, chromosome, opt.context_length,
             opt.batch_size
@@ -36,6 +34,8 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         
         n_batches = n_instances // batch_size
 
+        # to store the predictions/nucleotide representations
+        # of the entire chromosome
         all_preds = torch.zeros((n_instances, 3, opt.window_size)).cpu()
         all_targets = torch.zeros((n_instances, 3, opt.window_size)).cpu()
         all_x_f = torch.zeros((n_instances, opt.n_channels, opt.window_size)).cpu()
@@ -50,10 +50,9 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
         desc = f"{desc_prefix}: epoch {epoch}, split "\
             f"{SPLIT2DESC[split]}, chromosome {chromosome}"
 
+        # loop over the chromosome in batches
         for batch, (X, y, loc) in enumerate(
-                tqdm(dataloader, total=n_batches,
-                    desc=desc, 
-                    leave=False)):
+                tqdm(dataloader, total=n_batches, desc=desc, leave=False)):
 
             if opt.pretrain and split == 'train':
                 optimizer.zero_grad()
@@ -72,15 +71,12 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
             # Updates
             if split != 'train':
                 total_loss += loss.item()
-                #all_preds = torch.cat((all_preds, y_hat.cpu().data), 0)
                 all_preds[count_ys:count_ys + y_hat.shape[0]] = y_hat.cpu().data
-                #all_targets = torch.cat((all_targets, y.cpu().data), 0)
                 all_targets[count_ys:count_ys + y_hat.shape[0]] = y.cpu().data
                 count_ys += y_hat.shape[0]
 
-            #TODO DEBUG THIS
+            # save the nucleotide representations
             if opt.save_feats:
-                #all_x_f = torch.cat((all_x_f, x.detach().cpu()), 0)
                 all_x_f[count_xs:count_xs + x.shape[0]] = x.detach().cpu()
                 loc = list(loc.detach().cpu().numpy().astype(int))
                 all_locs.extend(loc)
@@ -94,7 +90,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
                     and opt.wandb:
                 report_wandb(y_hat, y, loss, opt, split)
 
-            batch_count+=1
+            batch_count += 1
 
         if opt.save_feats:
             save_feats(
@@ -121,6 +117,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
             all_locs = []
             total_loss = 0
 
+    # combine the individual chromosome scores
     if split in ["valid", "test"] and not opt.save_feats:
         combined_scores = compute_average_scores(
             scores, opt.wandb, split

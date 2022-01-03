@@ -7,6 +7,7 @@ from torch import nn
 
 
 class SpliceAI(nn.Module):
+    """ the base CNN local model based on SpliceAI"""
     def __init__(self, n_channels, kernel_size, dilation_rate, device='cuda'):
         super(SpliceAI, self).__init__()
 
@@ -31,6 +32,7 @@ class SpliceAI(nn.Module):
         self.residual_blocks = nn.ModuleList()
         self.skip_connections = nn.ModuleList()
 
+        # residual blocks
         self.n_blocks = len(self.kernel_size)
         for i in range(self.n_blocks):
             self.residual_blocks.append(
@@ -79,6 +81,7 @@ class SpliceAI(nn.Module):
                 dense = self.skip_connections[i // 4](conv)
                 skip = torch.add(skip, dense)
 
+        # discard the padded predictions outside of the window
         x = skip[:, :, self.context_length // 2: -self.context_length // 2]
 
         pred = self.out(x)
@@ -86,6 +89,7 @@ class SpliceAI(nn.Module):
         return (pred, x, None) if save_feats else (pred, None, None)
 
 
+# ensemble of models for evaluation of trained models
 class SpliceAIEnsemble(nn.Module):
     def __init__(self, models, window_size):
         super(SpliceAIEnsemble, self).__init__()
