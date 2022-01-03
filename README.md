@@ -34,20 +34,41 @@ to match the path of the directory you just created.
 
 ### Euler Commands
 
+all commands will be run from src/splicing/splicing
+
 bsub -R "rusage[mem=16000]" python preprocessing/create_datafile.py -g train -p all -ws 5000 -cl 80
+
 bsub -R "rusage[mem=16000]" python preprocessing/create_datafile.py -g valid -p all -ws 5000 -cl 80
+
 bsub -R "rusage[mem=16000]" python preprocessing/create_datafile.py -g test -p all -ws 5000 -cl 80
 
 bsub -R "rusage[mem=16000]" python preprocessing/create_dataset_nodup.py -g train -p all -ws 5000 -cl 80
+
 bsub -R "rusage[mem=16000]" python preprocessing/create_dataset_nodup.py -g valid -p all -ws 5000 -cl 80
+
 bsub -R "rusage[mem=16000]" python preprocessing/create_dataset_nodup.py -g test -p all -ws 5000 -cl 80
 
-### WIP GRAPH STUFF
-python preprocessing/gcn_create_data.py --cell_type 'GM12878' --expr_root '' --run_file 1
+### Graph Creation
+You now need to create the graph using the hic values that need to be downloaded before.
 
-python preprocessing/gcn_create_data.py --cell_type 'GM12878' --expr_root '' --run_file 7
+The hic data can be downloaded here:
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63525
 
-python preprocessing/gcn_create_torch_data.py -data_root /p/qdata/jjl5sw/ChromeGCN/data/GM12878/1000/
+filename: GSE63525_GM12878_combined_intrachromosomal_contact_matrices.tar.gz
+(Gene Expression Omnibus (GEO) accession number for the data sets reported in this paper is GSE63525.)
+
+The hic datafolder 5kb_resolution_intrachromosomal (for 5000 window size) or 1kb_resolution_intrachromosomal (for 1000 window size)
+needs to be located here: 
+data_dir/raw_data/hic/GM12878_combined/
+
+After the download is complete, run the following command to create the graph:
+
+bsub -R "rusage[mem=32000]" -W 4:00 python preprocessing/create_graph.py -ws 5000 -cl 80
+
+The command relies on the file graph_windows_5000_80.bed, that is created in the create_datafile command from above.
+
+
+
 
 ## Model Training
 
