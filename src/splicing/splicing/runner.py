@@ -62,7 +62,7 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
 
 def run_model(base_model, graph_model, full_model, datasets,
               criterion, optimizer, scheduler, opt):
-
+    test_warmup = 3 if opt.finetune else 6
     for epoch in trange(1, opt.epochs + 1):
 
         # print(f"Starting epoch {epoch}")
@@ -92,7 +92,7 @@ def run_model(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
                 # FULL TEST
-                if epoch > 3:
+                if epoch > test_warmup:
                     test_scores, elapsed = \
                         run_epoch(base_model, graph_model, full_model, datasets,
                                 criterion, optimizer, epoch, opt, 'test')

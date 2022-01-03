@@ -47,10 +47,10 @@ def get_args(parser):
     # General Training Params
     ###########################################################################
     parser.add_argument(
-        '-vi', '--validation_interval', type=int, default=64,
+        '-vi', '--validation_interval', type=int, default=128,
         dest='validation_interval', help='Per how many epochs to validate.')
     parser.add_argument(
-        '-li', '--log_interval', type=int, default=64,
+        '-li', '--log_interval', type=int, default=128,
         dest='log_interval', help='Per how many updates to log to WandB.')
     parser.add_argument(
         '-test', action='store_true', 

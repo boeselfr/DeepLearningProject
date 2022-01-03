@@ -84,7 +84,7 @@ def pretrain(base_model, data_file, criterion, optimizer, epoch, opt, split):
                 all_x_f[count_xs:count_xs + x.shape[0]] = x.detach().cpu()
                 loc = list(loc.detach().cpu().numpy().astype(int))
                 all_locs.extend(loc)
-                counts_xs += x.shape[0]
+                count_xs += x.shape[0]
 
             if split == 'train' and batch_count % opt.log_interval == 0 \
                     and opt.wandb:

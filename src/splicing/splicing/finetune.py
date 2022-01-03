@@ -121,11 +121,11 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
             if epoch <= opt.node_headstart * len(chromosomes):
                 _x = torch.zeros(_x.shape).to('cuda')
 
-            _x.requires_grad = opt.ingrad
-            # node_representation.requires_grad = opt.ingrad
+            _x = _x[:opt.graph_batch_size]
+            node_representation = node_representation[:opt.graph_batch_size]
 
-            _y_hat = full_model(_x[:opt.graph_batch_size],
-                                node_representation[:opt.graph_batch_size])
+            _x.requires_grad = opt.ingrad and split == 'train'
+            _y_hat = full_model(_x, node_representation)
 
             loss = criterion(_y_hat, _y)
 
@@ -139,8 +139,7 @@ def finetune(graph_model, full_model, chromosomes, criterion, optimizer,
 
                 if batch_count % opt.log_interval == 0 and opt.wandb:
                     analyze_gradients(
-                        graph_model, full_model, _x[:opt.graph_batch_size],
-                        node_representation[:opt.graph_batch_size], opt
+                        graph_model, full_model, _x, node_representation, opt
                     )
 
                 optimizer.zero_grad()

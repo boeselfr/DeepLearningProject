@@ -10,7 +10,6 @@ import yaml
 import h5py
 import torch
 import torch.nn as nn
-from torchsummary import summary
 import wandb
 import coloredlogs
 
