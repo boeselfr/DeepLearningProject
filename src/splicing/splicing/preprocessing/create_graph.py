@@ -40,11 +40,6 @@ HIC_ROOT = os.path.join(
     config['RAW_DATA']['hic_root']
 )
 
-EXPR_ROOT = os.path.join(
-    config['DATA_DIRECTORY'],
-    config['RAW_DATA']['expr_root']
-)
-
 OUTPUT_ROOT = os.path.join(
     config['DATA_DIRECTORY'],
     config['DATA_PIPELINE']['output_dir']
@@ -64,7 +59,6 @@ parser.add_argument(
 parser.add_argument('--genome_root', type=str, default=GENOME_ROOT)
 parser.add_argument('--input_root', type=str,  default=INPUT_ROOT)
 parser.add_argument('--hic_root', type=str,    default=HIC_ROOT)
-parser.add_argument('--expr_root', type=str,   default=EXPR_ROOT)
 parser.add_argument('--output_root', type=str, default=OUTPUT_ROOT)
 parser.add_argument('--norm', type=str, choices=['','KR','VC','SQRTVC'], default='SQRTVC')
 parser.add_argument('--resolution', type=str, default='5')
