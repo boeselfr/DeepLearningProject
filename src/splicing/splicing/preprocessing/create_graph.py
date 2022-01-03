@@ -242,6 +242,8 @@ def create_graph(args):
     print('| ' + train_dict)
     print('| ' + valid_dict)
     print('| ' + test_dict)
+    print('| ' + bin_dict_file)
+
 
     train_idx_dict = {}
     valid_idx_dict = {}
