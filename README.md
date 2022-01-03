@@ -84,13 +84,13 @@ You should now have four graph related `.pkl` files in `{your specified data_dir
 ### Pretrain the nucleotide representation CNN
 `bsub -R "rusage[mem=48000,ngpus_excl_p=1]" -W 04:00 python main.py -pretrain -modelid base -ws 5000 -cl 80 -wb`
 
--`modelid` enables you to train multiple models with the same -ws and -cl without overwriting.
--`wb` enables the WandB logging.
+`-modelid` enables you to train multiple models with the same -ws and -cl without overwriting.
+`-wb` enables the WandB logging.
 
 ### Export nucleotide representations using saved pretrained model
 `bsub -R "rusage[mem=64000,ngpus_excl_p=1]" python main.py -save_feats -load_pretrained -modelid base -mit 10 -ws 5000 -cl 80`
 
--`mit` specifies which model iteration (epoch) to load. Default number of epochs for pretraining is 10.
+`-mit` specifies which model iteration (epoch) to load. Default number of epochs for pretraining is 10.
 
 ### Train Graph & Full model
 `bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type both -test -wb -wbn default_both`
@@ -101,6 +101,6 @@ You should now have four graph related `.pkl` files in `{your specified data_dir
 
 `bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type none -test -wb -wbn default_none`
 
--`adj_type`: specifies which type of graph to use: hic, constant, both, none
--`test`: predicts on test set at the end of each epoch
--`wbn`: name of the run in WandB
+`-adj_type`: specifies which type of graph to use: hic, constant, both, none
+`-test`: predicts on test set at the end of each epoch
+`-wbn`: name of the run in WandB
