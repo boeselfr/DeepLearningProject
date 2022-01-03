@@ -4,15 +4,14 @@ import yaml
 import csv
 import math
 from pdb import set_trace as stop
-
-create_windows = __import__('gcn_1create_windows')
-#create_peaks = __import__('2create_peaks')
-#create_windows_with_peaks = __import__('3create_windows_with_peaks')
-#create_seqs = __import__('4create_seqs')
-#merge_seqs_and_labels = __import__('5merge_seqs_and_labels')
-#create_input_label_files = __import__('6create_input_label_files')
-create_graph = __import__('gcn_7create_graph_new')
-# create_graph = __import__('7create_graph_old')
+import glob
+import sys
+from random import randint, choice
+import collections
+import pickle
+from tqdm import tqdm
+import numpy as np
+from scipy import sparse
 
 ###############################################################################
 # Loading Config
@@ -51,10 +50,6 @@ OUTPUT_ROOT = os.path.join(
     config['DATA_PIPELINE']['output_dir']
 )
 
-INTERVAL = config['DATA_PIPELINE']['window_size']
-
-CONTEXT_LENGTH = config['DATA_PIPELINE']['context_length']
-
 ###############################################################################
 # Parsing Args
 ###############################################################################
@@ -86,11 +81,10 @@ if args.window_size == 5000:
 elif args.window_size == 1000:
     args.resolution = '1'
 
-args.stride_length=args.window_length
+args.stride_length=args.window_size
 args.chrom_sizes = os.path.join(args.genome_root,args.genome,args.genome+'.chrom_sizes')
 args.genome_fasta = os.path.join(args.genome_root,args.genome,args.genome+'.fa')
 args.tad_file = os.path.join(args.genome_root,args.genome,args.genome+'.TADs',args.cell_type+'_Lieberman-raw_TADs.txt')
-#args.output_root = os.path.join(args.output_root ,args.cell_type,str(args.window_length))
 
 if not os.path.exists(args.output_root):
     os.makedirs(args.output_root)
@@ -103,21 +97,6 @@ args.valid_chroms = ['chr3', 'chr12', 'chr17']
 args.test_chroms = ['chr1', 'chr8', 'chr21']
 
 args.residuals = [0]
-
-
-    # args.min_distance_threshold=50
-import csv
-import math
-import os, glob
-import sys
-from random import randint, choice
-import collections
-import pickle
-from pdb import set_trace as stop
-from tqdm import tqdm
-import numpy as np
-from scipy import sparse
-import pickle
 
 
 def create_bin_dict(args, all_peaks_file_name):
@@ -247,22 +226,19 @@ def print_bin_sizes(args, bin_dict):
 
 def create_graph(args):
     output_root = args.output_root
-    window_length = args.window_length
+    window_length = args.window_size
     context_length = args.context_length
 
-    if args.use_all_windows:
-        all_peaks_file_name = os.path.join(args.output_root, 'windows.bed')
-    else:
-        all_peaks_file_name = os.path.join(args.output_root, f'graph_windows_{window_length}_{context_length}.bed')
+    all_peaks_file_name = os.path.join(args.output_root, f'graph_windows_{window_length}_{context_length}.bed')
 
     hic_root = os.path.join(args.hic_root, args.cell_type + '_combined',
                             args.resolution + 'kb_resolution_intrachromosomal/')
 
-    train_dict = os.path.join(output_root, 'train_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
-    valid_dict = os.path.join(output_root, 'valid_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
-    test_dict = os.path.join(output_root, 'test_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
+    train_dict = os.path.join(output_root, f'test_{window_length}_train_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
+    valid_dict = os.path.join(output_root, f'test_{window_length}_valid_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
+    test_dict = os.path.join(output_root, f'test_{window_length}_test_graphs' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
     bin_dict_file = os.path.join(output_root,
-                                 'test_val_train_bin_dict' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
+                                 f'test_{window_length}_test_val_train_bin_dict' + '_' + str(args.hic_edges) + '_' + args.norm + 'norm.pkl')
 
     print('\nInputs')
     print('| ' + all_peaks_file_name)
@@ -321,4 +297,7 @@ def create_graph(args):
         pickle.dump(test_idx_dict, fp)
     with open(bin_dict_file, "wb") as fp:
         pickle.dump(bin_dict, fp)
+
+if __name__ == '__main__':
+    create_graph(args)
 

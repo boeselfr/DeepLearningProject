@@ -240,7 +240,7 @@ def config_args(opt, config):
         config['DATA_DIRECTORY'], config['TRAINING']['results_dir'])
 
     # Workflow
-    assert sum([opt.pretrain, opt.save_feats, opt.finetune]) == 1, \
+    assert sum([opt.pretrain, opt.save_feats, opt.finetune, opt.test_baseline, opt.test_graph]) == 1, \
         "Must have only one of: -pretrain, -save_feats, -finetune"
     
     if opt.pretrain:
