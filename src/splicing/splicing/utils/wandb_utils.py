@@ -154,8 +154,8 @@ def analyze_gradients(graph_model, full_model, _x, nodes, opt):
 
             log_message[f'graph_grad/{param_name}'] = np.linalg.norm(
                 param_grad.detach().cpu().numpy()) / m
-            log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
-                param_data.detach().cpu().numpy()) / m
+            #log_message[f'graph_weight/{param_name}'] = np.linalg.norm(
+            #    param_data.detach().cpu().numpy()) / m
 
     wandb.log(log_message)
 

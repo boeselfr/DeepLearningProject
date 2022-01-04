@@ -79,11 +79,15 @@ CHROM_SIZE_FILE = os.path.join(
     config['RAW_DATA']['chrom_sizes']
 )
 
+
 # data pipeline config
 TRAIN_CHROMS = config['DATA_PIPELINE']['train_chroms']
 VALID_CHROMS = config['DATA_PIPELINE']['valid_chroms']
 TEST_CHROMS = config['DATA_PIPELINE']['test_chroms']
 ALL_CHROMS = TRAIN_CHROMS + VALID_CHROMS + TEST_CHROMS
+
+if not os.path.exists(os.path.join(DATA_DIR, config['DATA_PIPELINE']['output_dir'])):
+    os.makedirs(os.path.join(DATA_DIR, config['DATA_PIPELINE']['output_dir']))
 
 if group == 'train':
     CHROM_GROUP = TRAIN_CHROMS
@@ -104,7 +108,7 @@ GENE_WINDOWS_PATH = os.path.join(
 GRAPH_WINDOWS_PATH = os.path.join(
     DATA_DIR,
     config['DATA_PIPELINE']['output_dir'],
-    f'graph_windows_{ws}_{cl}.bed'
+    f'graph_windows_{ws}.bed'
 )
 
 SEQUENCE_FILE_PATH = os.path.join(
