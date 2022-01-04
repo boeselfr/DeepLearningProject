@@ -7,6 +7,7 @@ Predicting splicing behaviour based on combined local sequence and long-range 3D
 First, please clone the repo in Euler. Then, navigate to main folder and run `source ./init_leonhard.sh`
 
 Then, install torch-geometry as explained here: `https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html`
+Make sure to check your torch and cuda versions as explained, in order to not run into any issues. 
 
 Then, navigate to `src` folder and run:
 
@@ -35,7 +36,8 @@ to match the path of the directory you just created.
 ### Euler Commands
 
 All commands should be run from `src/splicing/splicing`.
-Please run the `preprocessing/create_datafile.py` commands in a sequential manner. 
+Please run the `preprocessing/create_datafile.py` commands in a sequential manner, as we have occasionally encountered errors 
+when running the three commands concurrently.
 
 `bsub -R "rusage[mem=16000]" python preprocessing/create_datafile.py -g train -p all -ws 5000 -cl 80`
 
@@ -83,10 +85,9 @@ You should now have four graph related `.pkl` files in `{your specified data_dir
 ## Model Training
 
 ### Pretrain the nucleotide representation CNN
-`bsub -R "rusage[mem=48000,ngpus_excl_p=1]" -W 04:00 python main.py -pretrain -modelid base -ws 5000 -cl 80 -wb`
+`bsub -R "rusage[mem=48000,ngpus_excl_p=1]" -W 04:00 python main.py -pretrain -modelid base -ws 5000 -cl 80`
 
 `-modelid` enables you to train multiple models with the same -ws and -cl without overwriting.
-`-wb` enables the WandB logging.
 
 ### Export nucleotide representations using saved pretrained model
 `bsub -R "rusage[mem=64000,ngpus_excl_p=1]" python main.py -save_feats -load_pretrained -modelid base -mit 10 -ws 5000 -cl 80`
@@ -94,14 +95,13 @@ You should now have four graph related `.pkl` files in `{your specified data_dir
 `-mit` specifies which model iteration (epoch) to load. Default number of epochs for pretraining is 10.
 
 ### Train Graph & Full model
-`bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type both -test -wb -wbn default_both`
+`bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type both`
 
-`bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type hic -test -wb -wbn default_hic`
+`bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type hic`
 
-`bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type constant -test -wb -wbn default_constant`
+`bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type constant`
 
-`bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type none -test -wb -wbn default_none`
+`bsub -R "rusage[mem=64000,ngpus_excl_p=1]" -W 24:00 python main.py -finetune -modelid base -ws 5000 -cl 80 -adj_type none`
 
 `-adj_type`: specifies which type of graph to use: hic, constant, both, none
-`-test`: predicts on test set at the end of each epoch
-`-wbn`: name of the run in WandB
+
