@@ -1,5 +1,5 @@
 
-DATA_DIRECTORY: /cluster/scratch/asvete/deep-learning-project/data
+DATA_DIRECTORY: /cluster/scratch/fboesel/data/final_test
 
 RAW_DATA:  
   splice_table: raw_data/gtex_dataset.txt

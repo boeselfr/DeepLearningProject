@@ -11,7 +11,7 @@ setup(
                       'pandas',
                       'matplotlib',
                       'pyyaml',
-                      'pytorch',
+                      'torch',
                       'coloredlogs',
                       'wandb',
                       'h5py',

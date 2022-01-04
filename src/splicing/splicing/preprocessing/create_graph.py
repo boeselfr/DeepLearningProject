@@ -30,11 +30,6 @@ GENOME_ROOT = os.path.join(
     config['RAW_DATA']['genome_root']
 )
 
-INPUT_ROOT = os.path.join(
-    config['DATA_DIRECTORY'],
-    config['RAW_DATA']['input_root']
-)
-
 HIC_ROOT = os.path.join(
     config['DATA_DIRECTORY'],
     config['RAW_DATA']['hic_root']
@@ -57,7 +52,6 @@ parser.add_argument(
     choices = [1000, 5000], type=int, default=5000,
     help='Size of the pretrain batches and graph windows.')
 parser.add_argument('--genome_root', type=str, default=GENOME_ROOT)
-parser.add_argument('--input_root', type=str,  default=INPUT_ROOT)
 parser.add_argument('--hic_root', type=str,    default=HIC_ROOT)
 parser.add_argument('--output_root', type=str, default=OUTPUT_ROOT)
 parser.add_argument('--norm', type=str, choices=['','KR','VC','SQRTVC'], default='SQRTVC')
