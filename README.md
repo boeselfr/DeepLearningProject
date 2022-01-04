@@ -34,7 +34,8 @@ to match the path of the directory you just created.
 
 ### Euler Commands
 
-All commands should be run from `src/splicing/splicing`
+All commands should be run from `src/splicing/splicing`.
+Please run the `preprocessing/create_datafile.py` commands in a sequential manner. 
 
 `bsub -R "rusage[mem=16000]" python preprocessing/create_datafile.py -g train -p all -ws 5000 -cl 80`
 
