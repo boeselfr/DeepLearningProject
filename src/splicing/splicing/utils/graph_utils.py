@@ -143,8 +143,8 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
         # split_adj.setdiag(diag)
         split_adj = split_adj + sparse.eye(split_adj.shape[0])
 
-        split_adj[split_adj > 0] = 1
-        split_adj[split_adj < 0] = 0
+        #split_adj[split_adj > 0] = 1
+        #split_adj[split_adj < 0] = 0
 
         # split_adj = split_adj.tocoo()
     elif adj_type == 'both':
@@ -164,6 +164,7 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
                        [    0,     0,     0,  ..., 19638, 19638, 19638]]),
        values=tensor([0.3333, 0.3333, 0.3333,  ..., 0.0312, 0.0263, 0.0233]),
        size=(19639, 19639), nnz=519639, layout=torch.sparse_coo)"""
+    print(split_adj)
     return split_adj
 
 

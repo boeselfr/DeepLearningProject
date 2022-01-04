@@ -192,6 +192,7 @@ def get_args(parser):
     parser.add_argument('-hicsize', type=str,
                         choices=['125000', '250000', '500000', '1000000'],
                         default='500000')
+    parser.add_argument('-edge_strength', action='store_true')
 
 
     ###########################################################################
@@ -285,10 +286,18 @@ def config_args(opt, config):
 
     opt.model_name = path.join(opt.results_dir, opt.cell_type, opt.model_name)
 
-    opt.graph_data_root = path.join(
-        config['DATA_DIRECTORY'], 
-        config['DATA_PIPELINE']['output_dir']
-    )
+    if opt.edge_strength:
+        opt.graph_data_root = path.join(
+            config['DATA_DIRECTORY'],
+            config['DATA_PIPELINE']['output_dir'],
+            'contact_strength'
+        )
+    else:
+        opt.graph_data_root = path.join(
+            config['DATA_DIRECTORY'],
+            config['DATA_PIPELINE']['output_dir']
+        )
+
     opt.dataset = path.join(opt.graph_data_root, opt.cell_type)
     opt.cuda = True
 
