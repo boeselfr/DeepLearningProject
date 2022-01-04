@@ -1,38 +1,12 @@
 # !import code; code.interact(local=vars())
 import time
-import logging
 
 from tqdm.auto import trange
 
 from splicing.finetune import finetune
 from splicing.pretrain import pretrain
 
-from splicing.utils.general_utils import print_topl_statistics, \
-    shuffle_chromosomes, save_model
-
-
-def pass_end(elapsed, predictions, targets, loss, opt, step, split):
-    start_time = time.time()
-    logging.info('\n---------------------------------------------------------')
-    logging.info('\nValidation set metrics:')
-
-    is_expr = targets.sum(axis=(1, 2)) >= 1
-
-    for ix, prediction_type in enumerate(['Acceptor', 'Donor']):
-        targets_ix = targets[is_expr, ix + 1, :].flatten()
-        predictions_ix = predictions[is_expr, ix + 1, :].flatten()
-
-        total_len = len(targets)
-
-        logging.info(f'Total loss: {loss / total_len:>12f}')
-        logging.info("\nAcceptor:")
-        print_topl_statistics(
-            targets_ix, predictions_ix, loss=loss,
-            prediction_type=prediction_type, log_wandb=opt.wandb,
-            step=step, split=split)
-
-    logging.info('--- %s seconds ---' % (time.time() - start_time + elapsed))
-    logging.info('\n---------------------------------------------------------')
+from splicing.utils.general_utils import shuffle_chromosomes, save_model
 
 
 def run_epoch(base_model, graph_model, full_model, datasets, criterion,
@@ -62,50 +36,34 @@ def run_epoch(base_model, graph_model, full_model, datasets, criterion,
 
 def run_model(base_model, graph_model, full_model, datasets,
               criterion, optimizer, scheduler, opt):
-
+    test_warmup = 3 if opt.finetune else 6
     for epoch in trange(1, opt.epochs + 1):
 
-        # print(f"Starting epoch {epoch}")
-
         if opt.finetune:
+            # shuffle the sequence of the chromosomes to prevent overfitting
             datasets = shuffle_chromosomes(datasets)
 
-        train_loss, valid_loss = 0, 0
         if not opt.load_gcn and not (opt.test_baseline or opt.test_graph):
             # TRAIN
             run_epoch(
                 base_model, graph_model, full_model, datasets,
                 criterion, optimizer, epoch, opt, 'train')
 
-            #if epoch % opt.validation_interval == 0 and not opt.save_feats:
-
-            #    # VALIDATE
-            #    valid_predictions, valid_targets, valid_loss, elapsed = \
-            #        run_epoch(base_model, graph_model, full_model, datasets,
-            #                  criterion, optimizer, epoch, opt, 'valid')
-
             if not opt.save_feats and not (opt.test_baseline or opt.test_graph):
-                
                 # FULL VALIDATION
+                # run the validation on the complete validation dataset
+                # after every pass over the entire genome
                 valid_scores, elapsed = \
                     run_epoch(base_model, graph_model, full_model, datasets,
                               criterion, optimizer, epoch, opt, 'valid')
 
                 # FULL TEST
-                if epoch > 3:
-                    test_scores, elapsed = \
-                        run_epoch(base_model, graph_model, full_model, datasets,
-                                criterion, optimizer, epoch, opt, 'test')
+                # run the model on the test dataset
+                if epoch > test_warmup:
+                    run_epoch(base_model, graph_model, full_model, datasets,
+                              criterion, optimizer, epoch, opt, 'test')
 
-                #pass_end(
-                #    elapsed, valid_predictions.numpy(), valid_targets.numpy(),
-                #    valid_loss, opt, split='full_valid', step=epoch)
-
-                #if opt.test:
-                #    pass_end(
-                #        elapsed, test_predictions.numpy(), test_targets.numpy(),
-                #        test_loss, opt, split='full_test', step=epoch)
-
+                # save the model
                 if opt.pretrain:
                     save_model(opt, epoch, base_model, model_type='base')
                 else:
@@ -113,6 +71,7 @@ def run_model(base_model, graph_model, full_model, datasets,
                     save_model(opt, epoch, full_model, model_type='full')
 
         if scheduler:
+            # update the learning rate
             if ((opt.pretrain and opt.cnn_sched in ["multisteplr", "steplr"]) or
                 (opt.finetune and opt.ft_sched in ["multisteplr", "steplr"])):
                 scheduler.step()
@@ -120,18 +79,12 @@ def run_model(base_model, graph_model, full_model, datasets,
                 (opt.finetune and opt.ft_sched == "reducelr")):
                 scheduler.step(valid_scores["avg_loss"])
 
-    # TEST
     if opt.save_feats:  # hacky
+        # save the features of the validation and test datasets as well
+        # since this is not done in the loop above
         run_epoch(
             base_model, graph_model, full_model, datasets, criterion,
             optimizer, 0, opt, 'test')
         run_epoch(
             base_model, graph_model, full_model, datasets, criterion,
             optimizer, 0, opt, 'valid')
-    #elif not opt.test:
-    #    test_scores, elapsed = run_epoch(
-    #        base_model, graph_model, full_model, datasets,
-    #        criterion, optimizer, opt.epochs, opt, 'test')
-        #pass_end(
-        #    elapsed, test_predictions.numpy(), test_targets.numpy(),
-        #    test_loss, opt, step=1, split='test')

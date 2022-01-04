@@ -228,6 +228,7 @@ SEQ = []  # Nucleotide sequence
 
 fpr2 = open(SEQUENCE_FILE_PATH, 'r')
 
+# combine all the sequence data together to be used to create the final dataset
 with open(SPLICE_TABLE_PATH, 'r') as fpr1:
     for line1 in fpr1:
 

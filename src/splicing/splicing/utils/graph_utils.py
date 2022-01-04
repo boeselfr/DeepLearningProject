@@ -90,17 +90,9 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     return torch.sparse.FloatTensor(indices, values, shape)
 
 
-def create_constant_graph(constant_range, x_size):
-    diagonals, indices = [], []
-    for i in range(-constant_range, constant_range + 1):
-        if i != 0:
-            diagonals.append(np.ones(x_size - abs(i)))
-            indices.append(i)
-    split_adj = sparse.diags(diagonals, indices).tocoo()
-    return split_adj
-
-
 def create_constant_graph_intragenetic(constant_range, x_size, chrom, bin_dict, window_size):
+    """ create a constant neighbor graph
+        taking into account the gene boundaries (don't connect across genes) """
     diagonals, indices = [], []
     for i in range(-constant_range, constant_range + 1):
         if i != 0:
@@ -125,6 +117,8 @@ def create_constant_graph_intragenetic(constant_range, x_size, chrom, bin_dict, 
 
 def process_graph(adj_type, split_adj_dict_chrom, x_size,
                   chrom, bin_dict, window_size):
+    """ create the specified graph (adjacency matrix) """
+
     constant_range = 7
     if adj_type == 'constant':
         split_adj = create_constant_graph_intragenetic(
@@ -168,7 +162,8 @@ def process_graph(adj_type, split_adj_dict_chrom, x_size,
 
 
 def build_node_representations(xs, mode, opt, chromosome=''):
-
+    """ combine the individual base pair representations into a single
+        node representation in one of the implemented ways """
     node_features_fname = path.join(
         opt.model_name,
         f'node_features_{chromosome}_{opt.node_representation}.pt')

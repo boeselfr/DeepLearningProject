@@ -11,8 +11,11 @@ setup(
                       'pandas',
                       'matplotlib',
                       'pyyaml',
-                      'torchsummary',
-                      'coloredlogs'
+                      'pytorch',
+                      'coloredlogs',
+                      'wandb',
+                      'h5py',
+                      'tqdm'
                       ],
 
     classifiers=[

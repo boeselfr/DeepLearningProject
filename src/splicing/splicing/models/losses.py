@@ -3,13 +3,12 @@ from torch import nn
 
 
 class CategoricalCrossEntropy2d(nn.Module):
-
+    """ the modified cross entropy loss that works on an entire window """
     def __init__(self, weights):
         super(CategoricalCrossEntropy2d, self).__init__()
         self.weights = weights
 
     def forward(self, predictions, targets):
-        # TODO: try sum
         return -torch.sum(
             self.weights[0] * targets[:, 0, :] * torch.log(
                 predictions[:, 0, :] + 1e-10)
